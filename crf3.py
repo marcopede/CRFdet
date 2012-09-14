@@ -846,7 +846,7 @@ if __name__ == "__main__":
         totqual=0
         col=['w','r','g','b','y','c','k','y','c','k']
         for r in range(5,len(f.hog)-10):
-            m2=f.hog[r]
+            m2=f.hog[-r]
             lscr,fres=crf3.match_full2(m1,m2,mcost,pad=pad,remove=remove,show=False,feat=False,rot=False,numhyp=numhyp)
             print "Total time",time.time()-t
             #print "Score",scr
