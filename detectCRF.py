@@ -138,15 +138,25 @@ def hardNegPos(el,numhyp=1):
     ldet=[]
     lfeat=[]
     ledge=[]
-    for idl,l in enumerate(det[:cfg.numneg]):
+    boundingbox(det)
+    for idl,l in enumerate(det):#(det[:cfg.numneg]):
         #add bias
         #det[idl]["scr"]-=models[det[idl]["id"]]["rho"]/float(cfg.bias)
+        skip=False
         if det[idl]["scr"]>-1:
-            det[idl]["idim"]=el["file"].split("/")[-1]
-            ldet.append(det[idl])
-            feat,edge=getfeature([det[idl]],f,models,cfg.bias)
-            lfeat+=feat
-            ledge+=edge
+            for gt in bbox:
+                ovr=util.overlap(det[idl]["bbox"],gt)
+                if ovr>0.3:#is not a false positive 
+                    skip=True
+                    break
+            if not(skip):
+                det[idl]["idim"]=el["file"].split("/")[-1]
+                ldet.append(det[idl])
+                feat,edge=getfeature([det[idl]],f,models,cfg.bias)
+                lfeat+=feat
+                ledge+=edge
+        if len(ldet)==cfg.numneg:
+            break
     if cfg.show:
         visualize(ldet,f,img)
     print "Detection time:",time.time()-t

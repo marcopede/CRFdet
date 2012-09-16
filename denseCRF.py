@@ -44,6 +44,9 @@ cfg.maxpos = 100
 cfg.maxneg = 50
 cfg.maxexamples = 10000
 cfg.maxtest = 100
+parallel=True
+cfg.show=False
+numcore=2
 
 ########################load training and test samples
 if cfg.db=="VOC":
@@ -100,8 +103,8 @@ perc=cfg.perc#10
 minres=10
 minfy=3
 minfx=3
-#maxArea=25*(4-cfg.lev[0])
-maxArea=15*(4-cfg.lev[0])
+maxArea=25*(4-cfg.lev[0])
+#maxArea=15*(4-cfg.lev[0])
 usekmeans=False
 
 sr=numpy.sort(r)
@@ -306,63 +309,37 @@ negratio2=[]
 import detectCRF
 from multiprocessing import Pool
 import itertools
-parallel=True
-cfg.show=False
-numcore=4
 mypool = Pool(numcore)
 
 for it in range(cfg.posit):
 
     ####################### repeat scan positives
-    if 1:
-        import crf3
-        #cfgpos=copy.copy(cfg)
-        #cfgpos.numneg=cfg.numneginpos
-        #draw=False
-        #det=[]
+    import crf3
+    arg=[]
+    for idl,l in enumerate(trPosImages):
+        bb=l["bbox"]
+        for idb,b in enumerate(bb):
+            arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":False})    
 
-        #add id to the models
-        #later it should be added in model.py
+    lpdet=[];lpfeat=[];lpedge=[]
+    if not(parallel):
+        itr=itertools.imap(detectCRF.refinePos,arg)        
+    else:
+        itr=mypool.map(detectCRF.refinePos,arg)
 
-        #arg = []
-        #if cfg.useRL:      
-        #    for i in range(len(trPosImages)):
-        #        arg.append([i,trPosImages[i]["name"],trPosImages[i]["bbox"],models,cfgpos,False]) 
-        #        arg.append([i,trPosImages[i]["name"],trPosImages[i]["bbox"],models,cfgpos,True])
-        #else:
-        #    arg=[[i,trPosImages[i]["name"],trPosImages[i]["bbox"],models,cfgpos] for i in range(len(trPosImages))]
-        arg=[]
-        for idl,l in enumerate(trPosImages):
-            bb=l["bbox"]
-            for idb,b in enumerate(bb):
-                arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":False})    
-
-        lpdet=[];lpfeat=[];lpedge=[]
-        if not(parallel):
-            itr=itertools.imap(detectCRF.refinePos,arg)        
-        else:
-            itr=mypool.map(detectCRF.refinePos,arg)
-
-        for ii,res in enumerate(itr):
-            if res[0]!=[]:
-                lpdet.append(res[0])
-                lpfeat.append(res[1])
-                lpedge.append(res[2])
-     
-        ########### repeat scan negatives
+    for ii,res in enumerate(itr):
+        if res[0]!=[]:
+            lpdet.append(res[0])
+            lpfeat.append(res[1])
+            lpedge.append(res[2])
+ 
+    ########### repeat scan negatives
     for nit in range(cfg.negit):
         arg=[]
         for idl,l in enumerate(trNegImages):
             #bb=l["bbox"]
             #for idb,b in enumerate(bb):
             arg.append({"idim":idl,"file":l["name"],"idbb":0,"bbox":[],"models":models,"cfg":cfg,"flip":False})    
-
-        #import detectCRF
-        #from multiprocessing import Pool
-        #import itertools
-        #parallel=True
-        #cfg.show=False
-        #mypool = Pool(numcore)
 
         lndetnew=[];lnfeatnew=[];lnedgenew=[]
         if not(parallel):
@@ -374,6 +351,25 @@ for it in range(cfg.posit):
             lndetnew+=res[0]
             lnfeatnew+=res[1]
             lnedgenew+=res[2]
+        ########### scan negatives in positives
+        cfg.neginpos=True
+        if cfg.neginpos:
+            arg=[]
+            for idl,l in enumerate(trPosImages):
+                #bb=l["bbox"]
+                #for idb,b in enumerate(bb):
+                arg.append({"idim":idl,"file":l["name"],"idbb":0,"bbox":l["bbox"],"models":models,"cfg":cfg,"flip":False})    
+
+            lndetnew=[];lnfeatnew=[];lnedgenew=[]
+            if not(parallel):
+                itr=itertools.imap(detectCRF.hardNegPos,arg)        
+            else:
+                itr=mypool.map(detectCRF.hardNegPos,arg)
+
+            for ii,res in enumerate(itr):
+                lndetnew+=res[0]
+                lnfeatnew+=res[1]
+                lnedgenew+=res[2]
 
         ########## rescore old detections
         for idl,l in enumerate(lndet):
@@ -446,6 +442,12 @@ for it in range(cfg.posit):
                 break
 
         ############train a new detector with new positive and all negatives
+        #print elements per model
+        for l in len(cfg.numcl):
+            print "Model",l
+            print "Positive Examples:",numpy.sum(numpy.array(trposcl)==l)
+            print "Negative Examples:",numpy.sum(numpy.array(trnegcl)==l)
+    
         import pegasos   
         w,r,prloss=pegasos.trainComp(trpos,trneg,"",trposcl,trnegcl,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.01,bias=cfg.bias)
 
@@ -500,7 +502,7 @@ for it in range(cfg.posit):
 
     ##############test
     import denseCRFtest
-    denseCRFtest.runtest(models,tsImages,cfg,parallel=False,numcore=4,save="%s%d"%(testname,it),detfun=lambda x :detectCRF.test(x,numhyp=1,show=True))
+    denseCRFtest.runtest(models,tsImages,cfg,parallel=False,numcore=numcore,save="%s%d"%(testname,it),detfun=lambda x :detectCRF.test(x,numhyp=1,show=True))
 
 
 
