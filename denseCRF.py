@@ -35,15 +35,15 @@ cfg.useRL=False#for the moment
 cfg.show=False
 cfg.auxdir=""
 cfg.numhyp=5
-cfg.rescale=True
+cfg.rescale=True#False
 cfg.numneg= 10
 bias=100
 cfg.bias=bias
 #just for a fast test
-cfg.maxpos = 1000
-cfg.maxneg = 40
+cfg.maxpos = 100
+cfg.maxneg = 50
 cfg.maxexamples = 10000
-cfg.maxtest = 20
+cfg.maxtest = 100
 
 ########################load training and test samples
 if cfg.db=="VOC":
@@ -87,7 +87,7 @@ elif cfg.db=="buffy":
                     trainfile="buffy/",
                     imagepath="buffy/images/",
                     annpath="buffy/",
-                    usetr=True,usedf=False),cfg.maxpos)
+                    usetr=True,usedf=False),cfg.maxtest)
     tsImages=tsPosImages#numpy.concatenate((tsPosImages,tsNegImages),0)
     tsImagesFull=tsPosImages
 
@@ -227,6 +227,7 @@ for idl in range(numcl):
     cumsize[idl+1]=cumsize[idl]+(cfg.fy[idl]*2*cfg.fx[idl]*2)*31+1
 
 try:
+    fsf
     models=util.load("%s%d.model"%(testname,0))
     print "Loading Pretrained Initial detector"
 except:
@@ -305,8 +306,8 @@ negratio2=[]
 import detectCRF
 from multiprocessing import Pool
 import itertools
-parallel=False
-cfg.show=True
+parallel=True
+cfg.show=False
 numcore=4
 mypool = Pool(numcore)
 
@@ -426,6 +427,11 @@ for it in range(cfg.posit):
                 #real score need to sum bias
                 #print scr,scr+rr[idm]/bias
 
+        for l in range(cfg.numcl):
+            if numpy.sum(numpy.array(trnegcl)==l)==0:
+                trneg.append(numpy.concatenate((numpy.zeros(models[l]["ww"][0].shape).flatten(),numpy.zeros(models[l]["cost"].shape).flatten())))
+                trnegcl.append(l)
+
         ############ check convergency
         if nit>0: # and not(limit):
             posl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias)
@@ -441,7 +447,7 @@ for it in range(cfg.posit):
 
         ############train a new detector with new positive and all negatives
         import pegasos   
-        w,r,prloss=pegasos.trainComp(trpos,trneg,"",trposcl,trnegcl,pc=cfg.svmc,k=1,numthr=1,eps=0.01,bias=cfg.bias)
+        w,r,prloss=pegasos.trainComp(trpos,trneg,"",trposcl,trnegcl,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.01,bias=cfg.bias)
 
         old_posl,old_negl,old_reg,old_nobj,old_hpos,old_hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias) 
         waux=[]

@@ -535,6 +535,7 @@ dtype compute_graph2(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,
     clock_t t0,t1;
     t0 = clock ();
     int l1,l2;
+    //printf("Init");
 
          DataCost *dt         = new DataCost(data);
         //SmoothnessCost *sm   = new SmoothnessCost(smoothApp2);
@@ -587,6 +588,7 @@ dtype compute_graph2(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,
                 /*for (int i = 0; i < st_numlab; i++)
                     ilaborder[i]=i;*/
                 //((Expansion*)mrf)->setMyLabelOrder(ilaborder);
+            //printf("Before(%d,%d)\n",num_lab_y,num_lab_x);
             if (restart==0)
 		        mrf->optimize(3, t);
 		    else
@@ -597,6 +599,7 @@ dtype compute_graph2(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,
 		    }
                 //printf("After C\n");
       		E = mrf->totalEnergy();
+            //printf("After(%d,%d)",num_lab_y,num_lab_x);
             if (restart>0 && E>bestE)
             {
                 //printf("Higher energy it=%d rest=%d energy=%f\n",iter,idrestart,E);
@@ -625,12 +628,13 @@ dtype compute_graph2(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,
                 {                       
                     int pp=aux+rx+ry*st_num_lab_x;
                     pp=maxi(pp,0);
-                    pp=mini(pp,st_numlab);
+                    pp=mini(pp,st_num_lab_x);
                     data[pp+i*st_numlab]=1;//delete solution
                 }
             }
             //printf("%d ",reslab[i]);
         }
+        //printf("Done\n",num_lab_y,num_lab_x);
         //t1 = clock ();   
         //printf("t0=%d t1=%d Diff %f \n",t0,t1,float(t1-t0)/CLOCKS_PER_SEC);
         //trees=((Expansion*)mrf)->getEnergies();

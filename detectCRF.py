@@ -118,6 +118,41 @@ def hardNeg(el,numhyp=1):
     print "Found %d hard negatives"%len(ldet)
     return ldet,lfeat,ledge
 
+def hardNegPos(el,numhyp=1):
+    t=time.time()
+    #[f,det]=detectCRF.detectCrop(el)
+    print "----Image-%s-(%d)-----------"%(el["file"].split("/")[-1],el["idim"])
+    imname=el["file"]
+    bbox=el["bbox"]
+    models=el["models"]
+    cfg=el["cfg"]
+    #cfg.numhyp=1 #make the search for negatives 5 times faster
+    #                #but you should check if generates problems
+    imageflip=el["flip"]
+    if imageflip:
+        img=util.myimread(imname,True,resize=cfg.resize)
+    else:
+        img=util.myimread(imname,resize=cfg.resize)
+    #imageflip=el["flip"]
+    [f,det]=rundet(img,cfg,models,numhyp=numhyp)
+    ldet=[]
+    lfeat=[]
+    ledge=[]
+    for idl,l in enumerate(det[:cfg.numneg]):
+        #add bias
+        #det[idl]["scr"]-=models[det[idl]["id"]]["rho"]/float(cfg.bias)
+        if det[idl]["scr"]>-1:
+            det[idl]["idim"]=el["file"].split("/")[-1]
+            ldet.append(det[idl])
+            feat,edge=getfeature([det[idl]],f,models,cfg.bias)
+            lfeat+=feat
+            ledge+=edge
+    if cfg.show:
+        visualize(ldet,f,img)
+    print "Detection time:",time.time()-t
+    print "Found %d hard negatives"%len(ldet)
+    return ldet,lfeat,ledge
+
 
 def test(el,docluster=True,numhyp=1,show=True):
     t=time.time()
@@ -274,6 +309,7 @@ def visualize(det,f,img):
             hdet=drawHOG.drawHOG(dfeat)
             pl.imshow(hdet)
             pl.subplot(1,3,3)
+            pl.title("%f"%scr)
             pl.imshow(rcim)    
     pl.subplot(1,3,1)    
     #pl.axis([0,img.shape[1],0,img.shape[0]])
@@ -304,9 +340,10 @@ def rundet(img,cfg,models,numhyp=5):
         numy=m["ww"][0].shape[0]#models[idm]["ww"][0].shape[0]#cfg.fy[idm]
         numx=m["ww"][0].shape[1]#models[idm]["ww"][0].shape[1]#cfg.fx[idm]
         for r in range(len(f.hog)):#otherwise crashes should be checked!!!!
-            if numpy.min(f.hog[r].shape[:-1])<6:
-                break
+            #if numpy.min(f.hog[r].shape[:-1])<max(numy,numx):
+            #    break
             m2=f.hog[r]
+            #print numy,numx
             lscr,fres=crf3.match_full2(m1,m2,mcost,show=False,feat=False,rot=False,numhyp=numhyp)
             #print "Total time",time.time()-t
             #print "Score",lscr

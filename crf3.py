@@ -789,20 +789,24 @@ if __name__ == "__main__":
         #im=util.myimread("Weiwei_bicycles.jpg")
         #im=util.myimread("407223044_692.jpg")#[:,::-1,:]#
         #im=util.myimread("imges3.jpg")#[:,::-1,:]#
-        im=util.myimread("000379.jpg")[:,::-1,:]#flip
+        #im=util.myimread("000379.jpg")[:,::-1,:]#flip
+        im=util.myimread("005467.jpg")[:,::-1,:]#flip
+        #img=numpy.zeros((100,100,3))
         #subplot(1,2,1)
         imshow(im)
         import pyrHOG2
-        f=pyrHOG2.pyrHOG(im,interv=10,savedir="",notload=True,notsave=True,hallucinate=False,cformat=True)
+        f=pyrHOG2.pyrHOG(im,interv=10,savedir="",notload=True,notsave=True,hallucinate=True,cformat=True)
 
         import util
         #model1=util.load("./data/CRF/12_04_27/bicycle2_NoCRF9.model")
         #model2=util.load("./data/CRF/12_04_27/bicycle2_NoCRFNoDef9.model")
         #model1=util.load("./data/rigid/12_08_17/bicycle3_complete8.model")
         model1=util.load("./data/bicycle3_bestdef14.model")
+        m1=model1[0]["ww"][2]
+        #model1=util.load("./data/CRF/12_09_15/person3_buffy0.model")
+        #m1=model1[1]["ww"][0]
         #model1=util.load("../../CFdet/data/CRF/12_08_31/bicycle3_newbiask1011.model")
         #model2=util.load("data/CF/12_08_15/bicycle3_newcache2.model")
-        m1=model1[0]["ww"][2]
         #m2=model2[0]["ww"][2]    
         m2=f.hog[28]#[2:18,:24] #12x20 --> padding -> 16x24
         #m2=f.hog[5]#[15:40,15:40]
@@ -826,7 +830,7 @@ if __name__ == "__main__":
 
         import crf3
         reload(crf3)
-        numhyp=10
+        numhyp=1
         numy=m1.shape[0]/2
         numx=m1.shape[1]/2
         #movy=(numy*2-1)/2
@@ -845,12 +849,13 @@ if __name__ == "__main__":
         remove=[]
         totqual=0
         col=['w','r','g','b','y','c','k','y','c','k']
-        for r in range(5,len(f.hog)-10):
-            m2=f.hog[-r]
+        for r in range(len(f.hog)):
+            m2=f.hog[r]
+            #m2=numpy.zeros((3,3,31),dtype=numpy.float32)
             lscr,fres=crf3.match_full2(m1,m2,mcost,pad=pad,remove=remove,show=False,feat=False,rot=False,numhyp=numhyp)
             print "Total time",time.time()-t
             #print "Score",scr
-            idraw=True
+            idraw=False
             if idraw:
                 import drawHOG
                 #rec=drawHOG.drawHOG(dfeat)
