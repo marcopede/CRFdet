@@ -40,13 +40,14 @@ cfg.numneg= 10
 bias=100
 cfg.bias=bias
 #just for a fast test
-cfg.maxpos = 100
-cfg.maxneg = 50
+cfg.maxpos = 20#100
+cfg.maxneg = 20#50
 cfg.maxexamples = 10000
-cfg.maxtest = 100
+cfg.maxtest = 20#100
 parallel=True
 cfg.show=False
 numcore=2
+notreg=1
 
 ########################load training and test samples
 if cfg.db=="VOC":
@@ -103,8 +104,8 @@ perc=cfg.perc#10
 minres=10
 minfy=3
 minfx=3
-maxArea=25*(4-cfg.lev[0])
-#maxArea=15*(4-cfg.lev[0])
+#maxArea=25*(4-cfg.lev[0])
+maxArea=15*(4-cfg.lev[0])
 usekmeans=False
 
 sr=numpy.sort(r)
@@ -242,7 +243,7 @@ except:
         trpos+=hogp[l]
         trneg+=hogn[l]
 
-    w,r,prloss=pegasos.trainComp(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=1,numthr=1,eps=0.01,bias=bias)
+    w,r,prloss=pegasos.trainComp(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=1,numthr=1,eps=0.01,bias=bias,notreg=notreg)
 
     waux=[]
     rr=[]
@@ -335,13 +336,14 @@ for it in range(cfg.posit):
  
     ########### repeat scan negatives
     for nit in range(cfg.negit):
+
+        lndetnew=[];lnfeatnew=[];lnedgenew=[]
         arg=[]
         for idl,l in enumerate(trNegImages):
             #bb=l["bbox"]
             #for idb,b in enumerate(bb):
             arg.append({"idim":idl,"file":l["name"],"idbb":0,"bbox":[],"models":models,"cfg":cfg,"flip":False})    
 
-        lndetnew=[];lnfeatnew=[];lnedgenew=[]
         if not(parallel):
             itr=itertools.imap(detectCRF.hardNeg,arg)        
         else:
@@ -423,6 +425,7 @@ for it in range(cfg.posit):
                 #real score need to sum bias
                 #print scr,scr+rr[idm]/bias
 
+        #if no negative sample add empty negatives
         for l in range(cfg.numcl):
             if numpy.sum(numpy.array(trnegcl)==l)==0:
                 trneg.append(numpy.concatenate((numpy.zeros(models[l]["ww"][0].shape).flatten(),numpy.zeros(models[l]["cost"].shape).flatten())))
@@ -430,7 +433,7 @@ for it in range(cfg.posit):
 
         ############ check convergency
         if nit>0: # and not(limit):
-            posl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias)
+            posl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias,notreg)
             print "NIT:",nit,"OLDLOSS",old_nobj,"NEWLOSS:",nobj
             negratio.append(nobj/(old_nobj+0.000001))
             negratio2.append((posl+negl)/(old_posl+old_negl+0.000001))
@@ -443,15 +446,15 @@ for it in range(cfg.posit):
 
         ############train a new detector with new positive and all negatives
         #print elements per model
-        for l in len(cfg.numcl):
+        for l in range(cfg.numcl):
             print "Model",l
             print "Positive Examples:",numpy.sum(numpy.array(trposcl)==l)
             print "Negative Examples:",numpy.sum(numpy.array(trnegcl)==l)
     
         import pegasos   
-        w,r,prloss=pegasos.trainComp(trpos,trneg,"",trposcl,trnegcl,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.01,bias=cfg.bias)
+        w,r,prloss=pegasos.trainComp(trpos,trneg,"",trposcl,trnegcl,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.01,bias=cfg.bias,notreg=notreg)
 
-        old_posl,old_negl,old_reg,old_nobj,old_hpos,old_hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias) 
+        old_posl,old_negl,old_reg,old_nobj,old_hpos,old_hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias,notreg) 
         waux=[]
         rr=[]
         w1=numpy.array([])
