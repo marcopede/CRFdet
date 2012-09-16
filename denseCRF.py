@@ -16,8 +16,7 @@ import time
 import copy
 import itertools
 import sys
-
-import sys
+import crf3
 
 ########################## load configuration parametes
 
@@ -40,13 +39,15 @@ cfg.numneg= 10
 bias=100
 cfg.bias=bias
 #just for a fast test
-cfg.maxpos = 20#100
-cfg.maxneg = 20#50
+cfg.maxpos = 500
+cfg.maxneg = 50
 cfg.maxexamples = 10000
-cfg.maxtest = 20#100
+cfg.maxtest = 100
 parallel=True
 cfg.show=False
-numcore=2
+cfg.neginpos=False
+localshow=True
+numcore=4
 notreg=1
 
 ########################load training and test samples
@@ -267,7 +268,7 @@ it = 0
 for idm,m in enumerate(models):   
     import drawHOG
     imm=drawHOG.drawHOG(m["ww"][0])
-    pl.figure(100+idm)
+    pl.figure(100+idm,figsize=(3,3))
     pl.imshow(imm)
     pylab.savefig("%s_hog%d_cl%d.png"%(testname,it,idm))
 
@@ -312,10 +313,9 @@ from multiprocessing import Pool
 import itertools
 mypool = Pool(numcore)
 
+####################### repeat scan positives
 for it in range(cfg.posit):
 
-    ####################### repeat scan positives
-    import crf3
     arg=[]
     for idl,l in enumerate(trPosImages):
         bb=l["bbox"]
@@ -326,104 +326,47 @@ for it in range(cfg.posit):
     if not(parallel):
         itr=itertools.imap(detectCRF.refinePos,arg)        
     else:
-        itr=mypool.map(detectCRF.refinePos,arg)
+        itr=mypool.imap(detectCRF.refinePos,arg)
 
     for ii,res in enumerate(itr):
         if res[0]!=[]:
+            if localshow:
+                im=myimread(arg[ii]["file"])
+                rescale,y1,x1,y2,x2=res[3]
+                bb=res[0]["bbox"]
+                dy=bb[2]-bb[0]
+                dx=bb[3]-bb[1]
+                #im=extra.myzoom(im[y1-my:y1+dy+my,x1-mx:x1+dx+mx],(rescale,rescale,1),1)
+                im=extra.myzoom(im[y1:y2,x1:x2],(rescale,rescale,1),1)
+                detectCRF.visualize2([res[0]],im)
             lpdet.append(res[0])
             lpfeat.append(res[1])
             lpedge.append(res[2])
+
+    #build training data for positives
+    trpos=[]
+    trposcl=[]
+    for idl,l in enumerate(lpdet):#enumerate(lndet):
+        trpos.append(numpy.concatenate((lpfeat[idl].flatten(),lpedge[idl].flatten())))
+        trposcl.append(l["id"])
  
     ########### repeat scan negatives
     for nit in range(cfg.negit):
 
-        lndetnew=[];lnfeatnew=[];lnedgenew=[]
-        arg=[]
-        for idl,l in enumerate(trNegImages):
-            #bb=l["bbox"]
-            #for idb,b in enumerate(bb):
-            arg.append({"idim":idl,"file":l["name"],"idbb":0,"bbox":[],"models":models,"cfg":cfg,"flip":False})    
-
-        if not(parallel):
-            itr=itertools.imap(detectCRF.hardNeg,arg)        
-        else:
-            itr=mypool.map(detectCRF.hardNeg,arg)
-
-        for ii,res in enumerate(itr):
-            lndetnew+=res[0]
-            lnfeatnew+=res[1]
-            lnedgenew+=res[2]
-        ########### scan negatives in positives
-        cfg.neginpos=True
-        if cfg.neginpos:
-            arg=[]
-            for idl,l in enumerate(trPosImages):
-                #bb=l["bbox"]
-                #for idb,b in enumerate(bb):
-                arg.append({"idim":idl,"file":l["name"],"idbb":0,"bbox":l["bbox"],"models":models,"cfg":cfg,"flip":False})    
-
-            lndetnew=[];lnfeatnew=[];lnedgenew=[]
-            if not(parallel):
-                itr=itertools.imap(detectCRF.hardNegPos,arg)        
-            else:
-                itr=mypool.map(detectCRF.hardNegPos,arg)
-
-            for ii,res in enumerate(itr):
-                lndetnew+=res[0]
-                lnfeatnew+=res[1]
-                lnedgenew+=res[2]
-
-        ########## rescore old detections
-        for idl,l in enumerate(lndet):
-            idm=l["id"]
-            l["scr"]=numpy.sum(models[idm]["ww"][0]*lnfeat[idl])+numpy.sum(models[idm]["cost"]*lnedge[idl])-rr[idm]/bias
-
-        ########### include new detections in the old pool discarding doubles
-        #auxdet=[]
-        #auxfeat=[]
-        #aux=[]
-        for newid,newdet in enumerate(lndetnew): # for each newdet
-            #newdet=ldetnew[newid]
-            remove=False
-            for oldid,olddet in enumerate(lndet): # check with the old
-                if (newdet["idim"]==olddet["idim"]): #same image
-                    if (newdet["scl"]==olddet["scl"]): #same scale
-                        if (newdet["id"]==olddet["id"]): #same model
-                            if (numpy.all(newdet["def"]==olddet["def"])): #same deformation
-                                #same features
-                                assert(newdet["scr"]-olddet["scr"]<0.00001)
-                                assert(numpy.all(lnfeatnew[newid]-lnfeat[oldid]<0.00001))
-                                assert(numpy.all(lnedgenew[newid]==lnedge[oldid]))
-                                print "Detection",newdet["idim"],newdet["scl"],newdet["id"],"is double --> removed!"
-                                remove=True
-            if not(remove):
-                lndet.append(lndetnew[newid])
-                lnfeat.append(lnfeatnew[newid])
-                lnedge.append(lnedgenew[newid])
-                
         ########### from detections build training data
-        trpos=[]
-        trposcl=[]
-        for idl,l in enumerate(lpdet):#enumerate(lndet):
-            #trneg.append(numpy.concatenate((lnfeat[idl].flatten(),lnedge[idl].flatten(),cfg.bias))
-            trpos.append(numpy.concatenate((lpfeat[idl].flatten(),lpedge[idl].flatten())))
-            trposcl.append(l["id"])
-
+        
         ltosort=[-x["scr"] for x in lndet]
         lord=numpy.argsort(ltosort)
-        #auxdet=numpy.array(lndet,dtype=object)
-        #dsfds
-        #lndet.sort(key=lambda by: -by["scr"])
         trneg=[]
         trnegcl=[]
+        print "Total Negative Samples:",len(ltosort)
+        print "Negative Support Vectors:",numpy.sum(numpy.array(ltosort)<1)
+        print "Kept negative Support Vectors:",cfg.maxexamples
+
+        #filter
         for idl in lord[:cfg.maxexamples]:
-            #trneg.append(numpy.concatenate((lnfeat[idl].flatten(),lnedge[idl].flatten(),cfg.bias))
             trneg.append(numpy.concatenate((lnfeat[idl].flatten(),lnedge[idl].flatten())))
             trnegcl.append(lndet[idl]["id"])
-                #idm=l["id"]
-                #scr=numpy.sum(models[idm]["ww"][0]*lnfeat[idl])+numpy.sum(models[idm]["cost"]*lnedge[idl])-rr[idm]/bias
-                #real score need to sum bias
-                #print scr,scr+rr[idm]/bias
 
         #if no negative sample add empty negatives
         for l in range(cfg.numcl):
@@ -472,41 +415,100 @@ for it in range(cfg.posit):
 
         util.save("%s%d.model"%(testname,1),models)
 
+        #visualize models
         for idm,m in enumerate(models):   
             import drawHOG
             imm=drawHOG.drawHOG(m["ww"][0])
-            pl.figure(100+idm)
+            pl.figure(100+idm,figsize=(3,3))
+            pl.clf()
             pl.imshow(imm)
+            pl.title("bias:%.3f |w|^2:%.3f"%(m["rho"],numpy.sum(m["ww"][0]**2)))
             pl.draw()
             pl.show()
             pylab.savefig("%s_hog%d_cl%d.png"%(testname,it,idm))
             #CRF
-            pl.figure(120+idm)
+            pl.figure(120+idm,figsize=(4,4))
             pl.clf()
-            pl.subplot(2,2,1)
-            pl.imshow(m["cost"][0][:-1],interpolation="nearest")
-            pl.xlabel("Vertical Edge Y")
-            pl.subplot(2,2,2)
-            pl.imshow(m["cost"][1][:-1],interpolation="nearest")
-            pl.xlabel("Vertical Edge X")
-            pl.subplot(2,2,3)
-            pl.imshow(m["cost"][2][:,:-1],interpolation="nearest")
-            pl.xlabel("Horizontal Edge Y")
-            pl.subplot(2,2,4)
-            pl.imshow(m["cost"][3][:,:-1],interpolation="nearest")
-            pl.xlabel("Horizontal Edge X")
+            extra.showDef(m["cost"])
             pl.draw()
             pl.show()
             pylab.savefig("%s_def%d_cl%d.png"%(testname,it,idm))
-        #pl.draw()
-        #pl.show()  
-        #raw_input()
-        ################ until negative convergency
 
+        ########### scan negatives
+        lndetnew=[];lnfeatnew=[];lnedgenew=[]
+        arg=[]
+        for idl,l in enumerate(trNegImages):
+            #bb=l["bbox"]
+            #for idb,b in enumerate(bb):
+            arg.append({"idim":idl,"file":l["name"],"idbb":0,"bbox":[],"models":models,"cfg":cfg,"flip":False})    
+
+        if not(parallel):
+            itr=itertools.imap(detectCRF.hardNeg,arg)        
+        else:
+            itr=mypool.imap(detectCRF.hardNeg,arg)
+
+        for ii,res in enumerate(itr):
+            if localshow:
+                im=myimread(arg[ii]["file"])
+                detectCRF.visualize2(res[0],im)
+            lndetnew+=res[0]
+            lnfeatnew+=res[1]
+            lnedgenew+=res[2]
+        ########### scan negatives in positives
+        
+        if cfg.neginpos:
+            arg=[]
+            for idl,l in enumerate(trPosImages):
+                #bb=l["bbox"]
+                #for idb,b in enumerate(bb):
+                arg.append({"idim":idl,"file":l["name"],"idbb":0,"bbox":l["bbox"],"models":models,"cfg":cfg,"flip":False})    
+
+            lndetnew=[];lnfeatnew=[];lnedgenew=[]
+            if not(parallel):
+                itr=itertools.imap(detectCRF.hardNegPos,arg)        
+            else:
+                itr=mypool.imap(detectCRF.hardNegPos,arg)
+
+            for ii,res in enumerate(itr):
+                if localshow:
+                    im=myimread(arg[ii]["file"])
+                    detectCRF.visualize2(res[0],im)
+                lndetnew+=res[0]
+                lnfeatnew+=res[1]
+                lnedgenew+=res[2]
+
+        ########## rescore old detections
+        for idl,l in enumerate(lndet):
+            idm=l["id"]
+            l["scr"]=numpy.sum(models[idm]["ww"][0]*lnfeat[idl])+numpy.sum(models[idm]["cost"]*lnedge[idl])-rr[idm]/bias
+
+        ########### include new detections in the old pool discarding doubles
+        #auxdet=[]
+        #auxfeat=[]
+        #aux=[]
+        for newid,newdet in enumerate(lndetnew): # for each newdet
+            #newdet=ldetnew[newid]
+            remove=False
+            for oldid,olddet in enumerate(lndet): # check with the old
+                if (newdet["idim"]==olddet["idim"]): #same image
+                    if (newdet["scl"]==olddet["scl"]): #same scale
+                        if (newdet["id"]==olddet["id"]): #same model
+                            if (numpy.all(newdet["def"]==olddet["def"])): #same deformation
+                                #same features
+                                assert(newdet["scr"]-olddet["scr"]<0.00001)
+                                assert(numpy.all(lnfeatnew[newid]-lnfeat[oldid]<0.00001))
+                                assert(numpy.all(lnedgenew[newid]==lnedge[oldid]))
+                                print "Detection",newdet["idim"],newdet["scl"],newdet["id"],"is double --> removed!"
+                                remove=True
+            if not(remove):
+                lndet.append(lndetnew[newid])
+                lnfeat.append(lnfeatnew[newid])
+                lnedge.append(lnedgenew[newid])
+                
     ##############test
     import denseCRFtest
-    denseCRFtest.runtest(models,tsImages,cfg,parallel=False,numcore=numcore,save="%s%d"%(testname,it),detfun=lambda x :detectCRF.test(x,numhyp=1,show=True))
-
+    #denseCRFtest.runtest(models,tsImages,cfg,parallel=True,numcore=numcore,save="%s%d"%(testname,it),detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=localshow)
+    denseCRFtest.runtest(models,tsImages,cfg,parallel=True,numcore=numcore,save="%s%d"%(testname,it),show=localshow)
 
 
 # unitl positve convergercy

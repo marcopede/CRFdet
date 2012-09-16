@@ -13,6 +13,7 @@ from extra import myzoom as zoom
 
 def refinePos(el,numhyp=5):
     t=time.time()
+    rescale=1.0
     #[f,det]=detectCRF.detectCrop(el)
     print "----Image-%s-(%d)-----------"%(el["file"].split("/")[-1],el["idim"])
     imname=el["file"]
@@ -80,8 +81,8 @@ def refinePos(el,numhyp=5):
         det[best]["idbb"]=el["idbb"]
         #add bias
         #det[best]["scr"]-=models[det[best]["id"]]["rho"]/float(cfg.bias)
-        return det[best],feat[0],edge[0]
-    return [],[],[]
+        return det[best],feat[0],edge[0],[rescale,y1,x1,y2,x2]#last just for drawing
+    return [],[],[],[]
 
 def hardNeg(el,numhyp=1):
     t=time.time()
@@ -164,7 +165,7 @@ def hardNegPos(el,numhyp=1):
     return ldet,lfeat,ledge
 
 
-def test(el,docluster=True,numhyp=1,show=True):
+def test(el,docluster=True,numhyp=1,show=False):
     t=time.time()
     #[f,det]=detectCRF.detectCrop(el)
     print "----Image-%s-(%d)-----------"%(el["file"].split("/")[-1],el["idim"])
@@ -245,7 +246,7 @@ def getfeature(det,f,models,bias):
         dfeat,edge=crf3.getfeat_full(m2,0,res)
         lfeat.append(dfeat)
         ledge.append(edge)
-        print "Scr",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-models[idm]["rho"],"Error",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-scr-models[idm]["rho"]
+        #print "Scr",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-models[idm]["rho"],"Error",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-scr-models[idm]["rho"]
         if numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-scr-models[idm]["rho"]>0.00001:
             print("Error too big, there is something wrong!!!")
             raw_input()
@@ -328,6 +329,51 @@ def visualize(det,f,img):
     pl.show()
     #raw_input()
 
+def visualize2(det,img):
+    """visualize a detection and the corresponding featues"""
+    pl=pylab
+    col=['w','r','g','b','y','c','k','y','c','k']
+    pl.figure(300,figsize=(8,4))
+    pl.clf()
+    pl.subplot(1,2,1)
+    pl.imshow(img)
+    im=img
+    pad=0
+    cc=0
+    for l in range(len(det)):#lsort[:100]:
+        scl=det[l]["scl"]
+        idm=det[l]["id"]
+        r=det[l]["hog"]
+        res=det[l]["def"]
+        scr=det[l]["scr"]
+        numy=det[l]["def"].shape[1]#cfg.fy[idm]
+        numx=det[l]["def"].shape[2]#cfg.fx[idm]
+        sf=int(8*2/scl)
+        #m2=f.hog[r]
+        if l==0:
+           im2=numpy.zeros((im.shape[0]+sf*numy*2,im.shape[1]+sf*numx*2,im.shape[2]),dtype=im.dtype)
+           im2[sf*numy:sf*numy+im.shape[0],sf*numx:sf*numx+im.shape[1]]=im
+           rcim=numpy.zeros((sf*numy,sf*numx,3),dtype=im.dtype)
+        #dfeat,edge=crf3.getfeat_full(m2,pad,res)
+        pl.subplot(1,2,1)
+        for px in range(res.shape[2]):
+            for py in range(res.shape[1]):
+                impy=(py)*sf+(res[0,py,px]+1)*sf/2
+                impx=(px)*sf+(res[1,py,px]+1)*sf/2
+                util.box(impy,impx,impy+sf,impx+sf, col=col[cc%10], lw=1.5)  
+                if det[l].has_key("bbox"):
+                    util.box(det[l]["bbox"][0],det[l]["bbox"][1],det[l]["bbox"][2],det[l]["bbox"][3],col=col[cc%10],lw=2)
+                if l==0:
+                    rcim[sf*py:sf*(py+1),sf*px:sf*(px+1)]=im2[sf*numy+impy:sf*numy+impy+sf,sf*numx+impx:sf*numx+impx+sf] 
+        cc+=1
+        if l==0:
+            pl.subplot(1,2,2)
+            pl.title("scr:%.3f id:%d"%(scr,idm))
+            pl.imshow(rcim)    
+    pl.subplot(1,2,1)    
+    pl.axis("image")
+    pl.draw()
+    pl.show()
 
 
 def rundet(img,cfg,models,numhyp=5):

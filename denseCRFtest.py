@@ -22,7 +22,7 @@ import detectCRF
 def test1hyp(x):
     return detectCRF.test(x,numhyp=1,show=False) #in bicycles is better and faster with 1 hypotheses
 
-def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,save=False):
+def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,save=False,show=False):
     #parallel=True
     #cfg.show=not(parallel)
     #numcore=4
@@ -44,9 +44,12 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
         itr=itertools.imap(detfun,arg)
     else:
         #itr=mypool.map(detectCRF.test,arg)
-        itr=mypool.map(detfun,arg) #for parallle lambda does not work
+        itr=mypool.imap(detfun,arg) #for parallle lambda does not work
 
     for ii,res in enumerate(itr):
+        if show:
+            im=myimread(arg[ii]["file"])
+            detectCRF.visualize2(res[:10],im)
         ltdet+=res
 
     if parallel:
@@ -68,7 +71,7 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
 
     #plot AP
     tp,fp,scr,tot=VOCpr.VOCprRecord(tsImages,detVOC,show=False,ovr=0.5)
-    pylab.figure(15)
+    pylab.figure(15,figsize=(4,4))
     pylab.clf()
     rc,pr,ap=VOCpr.drawPrfast(tp,fp,tot)
     pylab.draw()
@@ -85,7 +88,7 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
 ########################## load configuration parametes
 if __name__ == '__main__':
 
-    if 0: #use the configuration file
+    if 1: #use the configuration file
         print "Loading defautl configuration config.py"
         from config import * #default configuration      
 
@@ -132,6 +135,25 @@ if __name__ == '__main__':
             tsImagesFull=getRecord(VOC07Data(select="all",cl="%s_test.txt"%cfg.cls,
                             basepath=cfg.dbpath,
                             usetr=True,usedf=False),5000)
+    elif cfg.db=="buffy":
+        trPosImages=getRecord(Buffy(select="all",cl="trainval.txt",
+                        basepath=cfg.dbpath,
+                        trainfile="buffy/",
+                        imagepath="buffy/images/",
+                        annpath="buffy/",
+                        usetr=True,usedf=False),cfg.maxpos)
+        trPosImagesNoTrunc=trPosImages
+        trNegImages=getRecord(DirImages(imagepath=cfg.dbpath+"INRIAPerson/train_64x128_H96/neg/"),cfg.maxneg)
+        trNegImagesFull=trNegImages
+        #test
+        tsPosImages=getRecord(Buffy(select="all",cl="test.txt",
+                        basepath=cfg.dbpath,
+                        trainfile="buffy/",
+                        imagepath="buffy/images/",
+                        annpath="buffy/",
+                        usetr=True,usedf=False),cfg.maxtest)
+        tsImages=tsPosImages#numpy.concatenate((tsPosImages,tsNegImages),0)
+        tsImagesFull=tsPosImages
 
     ##############load model
     for l in range(cfg.posit):
@@ -144,5 +166,6 @@ if __name__ == '__main__':
 
     ##############test
     #import itertools
-    runtest(models,tsImages,cfg,parallel=False,numcore=4,detfun=lambda x :detectCRF.test(x,numhyp=1,show=True))#,save="%s%d"%(testname,it))
+    #runtest(models,tsImages,cfg,parallel=False,numcore=4,detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=True)#,save="%s%d"%(testname,it))
+    runtest(models,tsImages,cfg,parallel=True,numcore=4,show=True)#,save="%s%d"%(testname,it))
 
