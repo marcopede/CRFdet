@@ -30,8 +30,8 @@ def refinePos(el,numhyp=5):
     maxy=numpy.max([x["ww"][0].shape[0] for x in models])    
     maxx=numpy.max([x["ww"][0].shape[1] for x in models])    
     if (bbox!=[]):
-        marginy=(bbox[2]-bbox[0])*0.5 #safe margin to be sure the border is not used
-        marginx=(bbox[3]-bbox[1])*0.5
+        marginy=(bbox[2]-bbox[0])*1 #safe margin to be sure the border is not used
+        marginx=(bbox[3]-bbox[1])*1
         y1=max(0,bbox[0]-marginy);x1=max(0,bbox[1]-marginx)
         y2=min(bbox[2]+marginy,img.shape[0]);x2=min(bbox[3]+marginx,img.shape[1])
         img=img[y1:y2,x1:x2]

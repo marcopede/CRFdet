@@ -39,7 +39,7 @@ cfg.numneg= 10
 bias=100
 cfg.bias=bias
 #just for a fast test
-cfg.maxpos = 500
+cfg.maxpos = 100
 cfg.maxneg = 50
 cfg.maxexamples = 10000
 cfg.maxtest = 100
@@ -336,7 +336,6 @@ for it in range(cfg.posit):
                 bb=res[0]["bbox"]
                 dy=bb[2]-bb[0]
                 dx=bb[3]-bb[1]
-                #im=extra.myzoom(im[y1-my:y1+dy+my,x1-mx:x1+dx+mx],(rescale,rescale,1),1)
                 im=extra.myzoom(im[y1:y2,x1:x2],(rescale,rescale,1),1)
                 detectCRF.visualize2([res[0]],im)
             lpdet.append(res[0])

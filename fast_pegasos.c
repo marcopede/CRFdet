@@ -171,7 +171,7 @@ void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype *
             }
         }
         //printf("Regularize Component %d \n",bcp);
-        mul(w+sumszx[bcp],1-n,compx[bcp]-noreg);    
+        mul(w+sumszx[bcp],1-n,compx[bcp]-notreg);    
         //all the vector
         //mul(w,1-n*lambda,wxtot);
         for (kk=0;kk<k;kk++)
