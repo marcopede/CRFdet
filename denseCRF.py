@@ -41,14 +41,15 @@ cfg.bias=bias
 #just for a fast test
 cfg.maxpos = 100
 cfg.maxneg = 50
-cfg.maxexamples = 10000
-cfg.maxtest = 100
+cfg.maxexamples = 1000
+cfg.maxtest = 20#100
 parallel=True
 cfg.show=False
 cfg.neginpos=False
 localshow=True
 numcore=4
-notreg=1
+notreg=0
+cfg.numcl=1
 
 ########################load training and test samples
 if cfg.db=="VOC":
@@ -244,7 +245,7 @@ except:
         trpos+=hogp[l]
         trneg+=hogn[l]
 
-    w,r,prloss=pegasos.trainComp(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=1,numthr=1,eps=0.01,bias=bias,notreg=notreg)
+    w,r,prloss=pegasos.trainComp(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=1,numthr=1,eps=0.01,bias=bias)#,notreg=notreg)
 
     waux=[]
     rr=[]
@@ -303,7 +304,13 @@ clsize=numpy.array(clsize)
 lndet=[] #save negative detections
 lnfeat=[] #
 lnedge=[] #
+lndetnew=[]
 
+lpdet=[] #save positive detections
+lpfeat=[] #
+lpedge=[] #
+
+total=[]
 negratio=[]
 negratio2=[]
 
@@ -311,10 +318,16 @@ negratio2=[]
 import detectCRF
 from multiprocessing import Pool
 import itertools
-mypool = Pool(numcore)
 
 ####################### repeat scan positives
 for it in range(cfg.posit):
+
+    mypool = Pool(numcore)
+    #counters
+    padd=0
+    pbetter=0
+    pworst=0
+    pold=0
 
     arg=[]
     for idl,l in enumerate(trPosImages):
@@ -322,26 +335,78 @@ for it in range(cfg.posit):
         for idb,b in enumerate(bb):
             arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":False})    
 
-    lpdet=[];lpfeat=[];lpedge=[]
+    #lpdet=[];lpfeat=[];lpedge=[]
     if not(parallel):
         itr=itertools.imap(detectCRF.refinePos,arg)        
     else:
         itr=mypool.imap(detectCRF.refinePos,arg)
 
     for ii,res in enumerate(itr):
+        found=False
         if res[0]!=[]:
-            if localshow:
-                im=myimread(arg[ii]["file"])
-                rescale,y1,x1,y2,x2=res[3]
-                bb=res[0]["bbox"]
-                dy=bb[2]-bb[0]
-                dx=bb[3]-bb[1]
-                im=extra.myzoom(im[y1:y2,x1:x2],(rescale,rescale,1),1)
-                detectCRF.visualize2([res[0]],im)
-            lpdet.append(res[0])
-            lpfeat.append(res[1])
-            lpedge.append(res[2])
-
+            #compare new score with old
+            newdet=res[0]
+            newfeat=res[1]
+            newedge=res[2]
+            for idl,l in enumerate(lpdet):
+                #print "Newdet",newdet["idim"],"Olddet",l["idim"]
+                if (newdet["idim"]==l["idim"]): #same image
+                    if (newdet["idbb"]==l["idbb"]): #same bbox
+                        if (newdet["scr"]>l["scr"]):#compare score
+                            print "New detection has better score"
+                            lpdet[idl]=newdet
+                            lpfeat[idl]=newfeat
+                            lpedge[idl]=newedge
+                            found=True
+                            pbetter+=1
+                        else:
+                            print "New detection has worst score"
+                            found=True
+                            pworst+=1
+            if not(found):
+                print "Added a new sample"
+                lpdet.append(res[0])
+                lpfeat.append(res[1])
+                lpedge.append(res[2])
+                padd+=1
+        else: #not found any detection with enough overlap
+            for idl,l in enumerate(lpdet):
+                if (arg[ii]["file"].split("/")[-1]==l["idim"]): #same image
+                    if (arg[ii]["idbb"]==l["idbb"]): #same bbox
+                        print "Example not found, but keep old detection"                        
+                        pold+=1
+                        found=True
+        if localshow:
+            im=myimread(arg[ii]["file"])
+            rescale,y1,x1,y2,x2=res[3]
+            bb=arg[ii]["bbox"]#res[0]["bbox"]
+            dy=bb[2]-bb[0]
+            dx=bb[3]-bb[1]
+            if res[0]!=[]:
+                if found:
+                    text="Already detected example"
+                else:
+                    text="Added a new example"
+            else:
+                if found:
+                    text="Keep old detection"
+                else:
+                    text="No detection"
+            im=extra.myzoom(im[y1:y2,x1:x2],(rescale,rescale,1),1)
+            if res[0]!=[]:
+                detectCRF.visualize2([res[0]],im,text)
+            else:
+                detectCRF.visualize2([],im,text)
+            #if it>0:
+                #raw_input()
+    print "Added examples",padd
+    print "Improved examples",pbetter
+    print "Old examples score",pworst
+    print "Old examples bbox",pold
+    total.append(padd+pbetter+pworst+pold)
+    print "Total",total,"/",len(arg)
+    raw_input()
+              
     #build training data for positives
     trpos=[]
     trposcl=[]
@@ -358,14 +423,28 @@ for it in range(cfg.posit):
         lord=numpy.argsort(ltosort)
         trneg=[]
         trnegcl=[]
-        print "Total Negative Samples:",len(ltosort)
-        print "Negative Support Vectors:",numpy.sum(numpy.array(ltosort)<1)
-        print "Kept negative Support Vectors:",cfg.maxexamples
 
-        #filter
+        #filter and build vectors
+        auxdet=[]
+        auxfeat=[]
+        auxedge=[]
         for idl in lord[:cfg.maxexamples]:
+            auxdet.append(lndet[idl])
+            auxfeat.append(lnfeat[idl])
+            auxedge.append(lnedge[idl])
             trneg.append(numpy.concatenate((lnfeat[idl].flatten(),lnedge[idl].flatten())))
             trnegcl.append(lndet[idl]["id"])
+            
+        lndet=auxdet
+        lnfeat=auxfeat
+        lnedge=auxedge
+
+        print "Total Negative Samples:",len(ltosort)
+        print "New Extracted Negatives",len(lndetnew)
+        print "Negative Support Vectors:",numpy.sum(-numpy.array(ltosort)>-1)
+        print "Negative Cache Vectors:",len(lndet)
+        print "Kept negative Support Vectors:",cfg.maxexamples
+        #raw_input()
 
         #if no negative sample add empty negatives
         for l in range(cfg.numcl):
@@ -375,7 +454,7 @@ for it in range(cfg.posit):
 
         ############ check convergency
         if nit>0: # and not(limit):
-            posl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias,notreg)
+            posl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias)#,notreg)
             print "NIT:",nit,"OLDLOSS",old_nobj,"NEWLOSS:",nobj
             negratio.append(nobj/(old_nobj+0.000001))
             negratio2.append((posl+negl)/(old_posl+old_negl+0.000001))
@@ -394,9 +473,9 @@ for it in range(cfg.posit):
             print "Negative Examples:",numpy.sum(numpy.array(trnegcl)==l)
     
         import pegasos   
-        w,r,prloss=pegasos.trainComp(trpos,trneg,"",trposcl,trnegcl,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.01,bias=cfg.bias,notreg=notreg)
+        w,r,prloss=pegasos.trainComp(trpos,trneg,"",trposcl,trnegcl,oldw=w,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.01,bias=cfg.bias)#,notreg=notreg)
 
-        old_posl,old_negl,old_reg,old_nobj,old_hpos,old_hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias,notreg) 
+        old_posl,old_negl,old_reg,old_nobj,old_hpos,old_hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias)#,notreg) 
         waux=[]
         rr=[]
         w1=numpy.array([])
@@ -407,7 +486,7 @@ for it in range(cfg.posit):
             #models[idm]["ra"]=w[cumsize[idm+1]-1]
             #from model to w #changing the clip...
             waux.append(model.model2w(models[idm],False,False,False,useCRF=True,k=cfg.k))
-            rr.append(models[idm]["rho"])
+            #rr.append(models[idm]["rho"])
             w1=numpy.concatenate((w1,waux[-1],-numpy.array([models[idm]["rho"]])/bias))
         w2=w
         w=w1
@@ -421,7 +500,7 @@ for it in range(cfg.posit):
             pl.figure(100+idm,figsize=(3,3))
             pl.clf()
             pl.imshow(imm)
-            pl.title("bias:%.3f |w|^2:%.3f"%(m["rho"],numpy.sum(m["ww"][0]**2)))
+            pl.title("bias:%.3f |w|:%.5f"%(m["rho"],numpy.sum(m["ww"][0]**2)))
             pl.draw()
             pl.show()
             pylab.savefig("%s_hog%d_cl%d.png"%(testname,it,idm))
@@ -476,10 +555,15 @@ for it in range(cfg.posit):
                 lnfeatnew+=res[1]
                 lnedgenew+=res[2]
 
-        ########## rescore old detections
+        ########## rescore old negative detections
         for idl,l in enumerate(lndet):
             idm=l["id"]
-            l["scr"]=numpy.sum(models[idm]["ww"][0]*lnfeat[idl])+numpy.sum(models[idm]["cost"]*lnedge[idl])-rr[idm]/bias
+            lndet[idl]["scr"]=numpy.sum(models[idm]["ww"][0]*lnfeat[idl])+numpy.sum(models[idm]["cost"]*lnedge[idl])-models[idm]["rho"]#-rr[idm]/bias
+
+        ########## rescore old positive detections
+        for idl,l in enumerate(lpdet):
+            idm=l["id"]
+            lpdet[idl]["scr"]=numpy.sum(models[idm]["ww"][0]*lpfeat[idl])+numpy.sum(models[idm]["cost"]*lpedge[idl])-models[idm]["rho"]#-rr[idm]/bias
 
         ########### include new detections in the old pool discarding doubles
         #auxdet=[]
@@ -504,6 +588,8 @@ for it in range(cfg.posit):
                 lnfeat.append(lnfeatnew[newid])
                 lnedge.append(lnedgenew[newid])
                 
+    mypool.close()
+    mypool.join()
     ##############test
     import denseCRFtest
     #denseCRFtest.runtest(models,tsImages,cfg,parallel=True,numcore=numcore,save="%s%d"%(testname,it),detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=localshow)

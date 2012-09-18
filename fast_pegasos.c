@@ -131,7 +131,7 @@ void fast_pegasos_comp(ftype *w,int numcomp,int *compx,int *compy,ftype **ptrsam
     printf("N:%g t:%d\n",n,t);
 }
 
-void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype **ptrsamplescomp,int totsamples,int *label,int *comp,ftype C,int iter,int part,int k,int numthr,int notreg)
+void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype **ptrsamplescomp,int totsamples,int *label,int *comp,ftype C,int iter,int part,int k,int numthr)
 {
     int wx=0,wxtot=0,wcx;
     #ifdef _OPENMP
@@ -171,7 +171,7 @@ void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype *
             }
         }
         //printf("Regularize Component %d \n",bcp);
-        mul(w+sumszx[bcp],1-n,compx[bcp]-notreg);    
+        mul(w+sumszx[bcp],1-n,compx[bcp]);    
         //all the vector
         //mul(w,1-n*lambda,wxtot);
         for (kk=0;kk<k;kk++)

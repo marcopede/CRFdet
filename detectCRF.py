@@ -30,8 +30,8 @@ def refinePos(el,numhyp=5):
     maxy=numpy.max([x["ww"][0].shape[0] for x in models])    
     maxx=numpy.max([x["ww"][0].shape[1] for x in models])    
     if (bbox!=[]):
-        marginy=(bbox[2]-bbox[0])*1 #safe margin to be sure the border is not used
-        marginx=(bbox[3]-bbox[1])*1
+        marginy=(bbox[2]-bbox[0])*0.5 #safe margin to be sure the border is not used
+        marginx=(bbox[3]-bbox[1])*0.5
         y1=max(0,bbox[0]-marginy);x1=max(0,bbox[1]-marginx)
         y2=min(bbox[2]+marginy,img.shape[0]);x2=min(bbox[3]+marginx,img.shape[1])
         img=img[y1:y2,x1:x2]
@@ -82,7 +82,7 @@ def refinePos(el,numhyp=5):
         #add bias
         #det[best]["scr"]-=models[det[best]["id"]]["rho"]/float(cfg.bias)
         return det[best],feat[0],edge[0],[rescale,y1,x1,y2,x2]#last just for drawing
-    return [],[],[],[]
+    return [],[],[],[rescale,y1,x1,y2,x2]
 
 def hardNeg(el,numhyp=1):
     t=time.time()
@@ -329,13 +329,14 @@ def visualize(det,f,img):
     pl.show()
     #raw_input()
 
-def visualize2(det,img):
+def visualize2(det,img,text=""):
     """visualize a detection and the corresponding featues"""
     pl=pylab
     col=['w','r','g','b','y','c','k','y','c','k']
     pl.figure(300,figsize=(8,4))
     pl.clf()
     pl.subplot(1,2,1)
+    pl.title(text)
     pl.imshow(img)
     im=img
     pad=0
