@@ -88,7 +88,7 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
 ########################## load configuration parametes
 if __name__ == '__main__':
 
-    if 1: #use the configuration file
+    if 0: #use the configuration file
         print "Loading defautl configuration config.py"
         from config import * #default configuration      
 
@@ -116,8 +116,8 @@ if __name__ == '__main__':
         cfg.cls=sys.argv[1]
         cfg.numcl=3
         cfg.dbpath="/users/visics/mpederso/databases/"
-        cfg.testpath="./data/CRFRot/12_08_27/"
-        cfg.testspec="test"
+        cfg.testpath="./data/CRF/12_09_17/"
+        cfg.testspec="debug"
 
     testname=cfg.testpath+cfg.cls+("%d"%cfg.numcl)+"_"+cfg.testspec
     ########################load training and test samples
@@ -131,7 +131,7 @@ if __name__ == '__main__':
                             basepath=cfg.dbpath,#"/home/databases/",#"/share/ISE/marcopede/database/",
                             usetr=True,usedf=False),cfg.maxneg)
             #tsImages=numpy.concatenate((tsPosImages,tsNegImages),0)
-            tsImages=numpy.concatenate((tsPosImages[:100],tsNegImages[:0]),0)
+            tsImages=numpy.concatenate((tsPosImages,tsNegImages[:0]),0)
             tsImagesFull=getRecord(VOC07Data(select="all",cl="%s_test.txt"%cfg.cls,
                             basepath=cfg.dbpath,
                             usetr=True,usedf=False),5000)
@@ -163,7 +163,6 @@ if __name__ == '__main__':
         except:
             break
     it=l-1
-
     ##############test
     #import itertools
     #runtest(models,tsImages,cfg,parallel=False,numcore=4,detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=True)#,save="%s%d"%(testname,it))

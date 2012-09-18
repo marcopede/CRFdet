@@ -28,6 +28,19 @@ static inline ftype mul(ftype *a,ftype b,int len)
     }
 }
 
+static inline ftype mul2(ftype *a,ftype b,ftype d,int len,int sizereg)
+{
+    int c;
+    for (c=0;c<len-1;c++)//not regularize bias
+    {
+        if (len-c-2<sizereg)
+        a[c]=(a[c]-d)*b;
+        else
+        a[c]=a[c]*b;
+    }
+}
+
+
 static inline ftype addmul(ftype *a,ftype *b,ftype c,int len)
 {
     int cn;
@@ -131,7 +144,7 @@ void fast_pegasos_comp(ftype *w,int numcomp,int *compx,int *compy,ftype **ptrsam
     printf("N:%g t:%d\n",n,t);
 }
 
-void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype **ptrsamplescomp,int totsamples,int *label,int *comp,ftype C,int iter,int part,int k,int numthr)
+void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype **ptrsamplescomp,int totsamples,int *label,int *comp,ftype C,int iter,int part,int k,int numthr,int *sizereg)
 {
     int wx=0,wxtot=0,wcx;
     #ifdef _OPENMP
@@ -171,7 +184,7 @@ void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype *
             }
         }
         //printf("Regularize Component %d \n",bcp);
-        mul(w+sumszx[bcp],1-n,compx[bcp]);    
+        mul2(w+sumszx[bcp],1-n,0.01,compx[bcp],sizereg[bcp]);    
         //all the vector
         //mul(w,1-n*lambda,wxtot);
         for (kk=0;kk<k;kk++)

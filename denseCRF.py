@@ -39,17 +39,17 @@ cfg.numneg= 10
 bias=100
 cfg.bias=bias
 #just for a fast test
-cfg.maxpos = 100
-cfg.maxneg = 50
-cfg.maxexamples = 1000
-cfg.maxtest = 20#100
+#cfg.maxpos = 100
+#cfg.maxneg = 50
+#cfg.maxexamples = 1000
+#cfg.maxtest = 20#100
 parallel=True
 cfg.show=False
 cfg.neginpos=False
-localshow=True
-numcore=4
+localshow=False#True
+numcore=8
 notreg=0
-cfg.numcl=1
+cfg.numcl=3
 
 ########################load training and test samples
 if cfg.db=="VOC":
@@ -283,11 +283,13 @@ for idm,m in enumerate(models):
 waux=[]
 rr=[]
 w1=numpy.array([])
+sizereg=numpy.zeros(cfg.numcl)
 #from w to model m1
 for idm,m in enumerate(models):
     waux.append(model.model2w(models[idm],False,False,False,useCRF=True,k=cfg.k))
     rr.append(models[idm]["rho"])
     w1=numpy.concatenate((w1,waux[-1],-numpy.array([models[idm]["rho"]])/bias))
+    sizereg[idm]=models[idm]["cost"].size
 #w2=w #old w
 w=w1
 
@@ -405,7 +407,7 @@ for it in range(cfg.posit):
     print "Old examples bbox",pold
     total.append(padd+pbetter+pworst+pold)
     print "Total",total,"/",len(arg)
-    raw_input()
+    #raw_input()
               
     #build training data for positives
     trpos=[]
@@ -491,7 +493,7 @@ for it in range(cfg.posit):
         w2=w
         w=w1
 
-        util.save("%s%d.model"%(testname,1),models)
+        util.save("%s%d.model"%(testname,it),models)
 
         #visualize models
         for idm,m in enumerate(models):   
