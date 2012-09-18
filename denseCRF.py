@@ -39,18 +39,18 @@ cfg.numneg= 10
 bias=100
 cfg.bias=bias
 #just for a fast test
-cfg.maxpos = 100
-cfg.maxneg = 50
-cfg.maxexamples = 1000
+cfg.maxpos = 50#100
+cfg.maxneg = 20#50
+cfg.maxexamples = 10000
 cfg.maxtest = 20#100
 parallel=True
 cfg.show=False
 cfg.neginpos=False
 localshow=True
-numcore=8
+numcore=4
 notreg=0
 cfg.numcl=3
-cfg.valreg=0.01
+cfg.valreg=0.005
 
 ########################load training and test samples
 if cfg.db=="VOC":
@@ -107,8 +107,9 @@ perc=cfg.perc#10
 minres=10
 minfy=3
 minfx=3
-#maxArea=25*(4-cfg.lev[0])
-maxArea=15*(4-cfg.lev[0])
+#maxArea=30*(4-cfg.lev[0])
+maxArea=25*(4-cfg.lev[0])
+#maxArea=15*(4-cfg.lev[0])
 usekmeans=False
 
 sr=numpy.sort(r)
@@ -124,11 +125,11 @@ for l in range(numcl):
     print "Cluster same number",l,":"
     print "Samples:",len(a[cl==l])
     #meanA=numpy.mean(a[cl==l])/16.0/(0.5*4**(cfg.lev[l]-1))#4.0
-    meanA=numpy.mean(a[cl==l])/16.0/(4**(cfg.lev[l]-1))#4.0
+    meanA=numpy.mean(a[cl==l])/4.0/(4**(cfg.lev[l]-1))#4.0
     print "Mean Area:",meanA
     sa=numpy.sort(a[cl==l])
     #minA=numpy.mean(sa[len(sa)/perc])/16.0/(0.5*4**(cfg.lev[l]-1))#4.0
-    minA=numpy.mean(sa[int(len(sa)*perc)])/16.0/(4**(cfg.lev[l]-1))#4.0
+    minA=numpy.mean(sa[int(len(sa)*perc)])/4.0/(4**(cfg.lev[l]-1))#4.0
     print "Min Area:",minA
     aspt=numpy.mean(r[cl==l])
     print "Aspect:",aspt
@@ -279,7 +280,7 @@ pl.show()
 
 ######################### add CRF and rebuild w
 for idm,m in enumerate(models):   
-    models[idm]["cost"]=0.01*numpy.ones((4,cfg.fy[idm],cfg.fx[idm]))
+    models[idm]["cost"]=cfg.valreg*numpy.ones((4,cfg.fy[idm],cfg.fx[idm]))
 
 waux=[]
 rr=[]
@@ -293,7 +294,6 @@ for idm,m in enumerate(models):
     sizereg[idm]=models[idm]["cost"].size
 #w2=w #old w
 w=w1
-
 
 #add ids clsize and cumsize for each model
 clsize=[]
@@ -477,6 +477,14 @@ for it in range(cfg.posit):
     
         import pegasos   
         w,r,prloss=pegasos.trainComp(trpos,trneg,"",trposcl,trnegcl,oldw=w,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.01,bias=cfg.bias,sizereg=sizereg,valreg=cfg.valreg)#,notreg=notreg)
+
+        pylab.figure(300,figsize=(4,4))
+        pylab.clf()
+        pylab.plot(w)
+        pylab.title("dimensions of W")
+        pylab.draw()
+        pylab.show()
+        #raw_input()
 
         old_posl,old_negl,old_reg,old_nobj,old_hpos,old_hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias,sizereg=sizereg,valreg=cfg.valreg)#,notreg) 
         waux=[]

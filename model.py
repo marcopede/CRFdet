@@ -151,7 +151,7 @@ def w2model(descr,rho,lev,fsz,fy=[],fx=[],bin=5,siftsize=2,deform=False,usemrf=F
                 p=p+bin**(siftsize**2)
         m={"ww":ww,"rho":rho,"fy":fy,"fx":fx,"occl":occl,"hist":hist,"voc":hist}
         if useCRF:
-            m["cost"]=((d[p:p+4*(fy/2)*(fx/2)].reshape((4,fy/2,fx/2))/float(k)).clip(mindef,10))
+            m["cost"]=((d[p:p+4*(fy/2)*(fx/2)].reshape((4,fy/2,fx/2))/float(k)))#.clip(mindef,10))
             p=p+4*(fy/2)*(fx/2)
             #m["cost"]=((d[p:p+4*(2*fy)*(2*fx)].reshape((4,2*fy,2*fx))/float(k)).clip(mindef,10))
             #p=p+4*(2*fy)*(2*fx)

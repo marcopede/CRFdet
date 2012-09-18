@@ -28,17 +28,18 @@ static inline ftype mul(ftype *a,ftype b,int len)
     }
 }
 
-static inline ftype mul2(ftype *a,ftype b,ftype d,int len,int sizereg)
+static void reg(ftype *a,ftype b,ftype d,int len,int sizereg)
 {
     int c;
     for (c=0;c<len-1-sizereg;c++)//normal part
     {
-        a[c]=a[c]*b;
+        a[c]=a[c]-a[c]*b;
     }
     for (c=len-1-sizereg;c<len-1;c++)//regularize at d instead of 0
     {
-        a[c]=(a[c]-d)*b;
+        a[c]=a[c]-(a[c]-d)*b;
     }
+    //printf("Val:%f ",a[len-2]);
 /*    for (c=0;c<len-1;c++)//not regularize bias
     {
         if (len-c-2<sizereg)
@@ -191,8 +192,9 @@ void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype *
                 bcp=cp;
             }
         }
-        //printf("Regularize Component %d \n",bcp);
-        mul2(w+sumszx[bcp],1-n,valreg,compx[bcp],sizereg[bcp]);//0.01    
+        //printf("Regularize Component %d Valreg:%f Sizereg:%d \n",bcp,valreg,sizereg[bcp]);
+        reg(w+sumszx[bcp],n,valreg,compx[bcp],sizereg[bcp]);//0.01    
+        //mul22(w+sumszx[bcp],1-n,valreg,compx[bcp],sizereg[bcp]);//0.01    
         //all the vector
         //mul(w,1-n*lambda,wxtot);
         for (kk=0;kk<k;kk++)

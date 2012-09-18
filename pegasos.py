@@ -133,7 +133,8 @@ def objective(trpos,trneg,trposcl,trnegcl,clsize,w,C,bias,sizereg=numpy.zeros(10
     for idc in range(len(clsize)):
         pstart=clsum[idc]
         pend=pstart+clsize[idc]
-        scr.append(numpy.sum(w[pstart:pend-1-sizereg[idc]]**2))    
+        #scr.append(numpy.sum(w[pstart:pend-1-sizereg[idc]]**2)+numpy.sum((w[pend-1-sizereg[idc]:pend-1]-valreg)**2))    
+        scr.append(numpy.sum(w[pstart:pend-2-sizereg[idc]]**2)+numpy.sum((w[pend-1-sizereg[idc]:pend-2]-valreg)**2))    
     #reg=lamda*max(scr)*0.5
     #print "C in OBJECTIVE",C
     reg=(max(scr))*0.5/total
@@ -223,7 +224,7 @@ def trainComp(trpos,trneg,fname="",trposcl=None,trnegcl=None,oldw=None,dir="./sa
     #print "X1:",trcomp[1][0,:7],newtrcomp[1]
     #raw_input()
     loss=[]
-    posl,negl,reg,nobj,hpos,hneg=objective(trpos,trneg,trposcl,trnegcl,compx,w,pc,bias)
+    posl,negl,reg,nobj,hpos,hneg=objective(trpos,trneg,trposcl,trnegcl,compx,w,pc,bias,sizereg,valreg)
     loss.append([posl,negl,reg,nobj,hpos,hneg])
     for tt in range(maxtimes):
         #lpeg.fast_pegasos_comp(w,ncomp,arrint(*compx),arrint(*compy),arrfloat(*newtrcomp),ntimes,alabel,trcompcl,pc,ntimes*10,tt+10)#added tt+10 to not restart form scratch
