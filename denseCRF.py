@@ -39,17 +39,18 @@ cfg.numneg= 10
 bias=100
 cfg.bias=bias
 #just for a fast test
-#cfg.maxpos = 100
-#cfg.maxneg = 50
-#cfg.maxexamples = 1000
-#cfg.maxtest = 20#100
+cfg.maxpos = 100
+cfg.maxneg = 50
+cfg.maxexamples = 1000
+cfg.maxtest = 20#100
 parallel=True
 cfg.show=False
 cfg.neginpos=False
-localshow=False#True
+localshow=True
 numcore=8
 notreg=0
 cfg.numcl=3
+cfg.valreg=0.01
 
 ########################load training and test samples
 if cfg.db=="VOC":
@@ -283,7 +284,7 @@ for idm,m in enumerate(models):
 waux=[]
 rr=[]
 w1=numpy.array([])
-sizereg=numpy.zeros(cfg.numcl)
+sizereg=numpy.zeros(cfg.numcl,dtype=numpy.int32)
 #from w to model m1
 for idm,m in enumerate(models):
     waux.append(model.model2w(models[idm],False,False,False,useCRF=True,k=cfg.k))
@@ -456,7 +457,7 @@ for it in range(cfg.posit):
 
         ############ check convergency
         if nit>0: # and not(limit):
-            posl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias)#,notreg)
+            posl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias,sizereg=sizereg,valreg=cfg.valreg)#,notreg)
             print "NIT:",nit,"OLDLOSS",old_nobj,"NEWLOSS:",nobj
             negratio.append(nobj/(old_nobj+0.000001))
             negratio2.append((posl+negl)/(old_posl+old_negl+0.000001))
@@ -475,9 +476,9 @@ for it in range(cfg.posit):
             print "Negative Examples:",numpy.sum(numpy.array(trnegcl)==l)
     
         import pegasos   
-        w,r,prloss=pegasos.trainComp(trpos,trneg,"",trposcl,trnegcl,oldw=w,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.01,bias=cfg.bias)#,notreg=notreg)
+        w,r,prloss=pegasos.trainComp(trpos,trneg,"",trposcl,trnegcl,oldw=w,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.01,bias=cfg.bias,sizereg=sizereg,valreg=cfg.valreg)#,notreg=notreg)
 
-        old_posl,old_negl,old_reg,old_nobj,old_hpos,old_hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias)#,notreg) 
+        old_posl,old_negl,old_reg,old_nobj,old_hpos,old_hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias,sizereg=sizereg,valreg=cfg.valreg)#,notreg) 
         waux=[]
         rr=[]
         w1=numpy.array([])
@@ -507,7 +508,7 @@ for it in range(cfg.posit):
             pl.show()
             pylab.savefig("%s_hog%d_cl%d.png"%(testname,it,idm))
             #CRF
-            pl.figure(120+idm,figsize=(4,4))
+            pl.figure(120+idm,figsize=(5,5))
             pl.clf()
             extra.showDef(m["cost"])
             pl.draw()
