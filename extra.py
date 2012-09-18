@@ -55,21 +55,23 @@ def myzoom(img,factor,order):
 import pylab
 
 def showDef(cost):
+    vmin=cost.min()
+    vmax=cost.max()
     pl=pylab
     pl.subplot(2,2,1)
-    pl.imshow(cost[0][:-1],interpolation="nearest")
+    pl.imshow(cost[0][:-1],interpolation="nearest",vmin=vmin,vmax=vmax)
     #pl.title("Vertical Edge Y")
     pl.xlabel("V Edge Y (%.5f,%.5f)"%(cost[0].min(),cost[0].max()))
     pl.subplot(2,2,2)
-    pl.imshow(cost[1][:-1],interpolation="nearest")
+    pl.imshow(cost[1][:-1],interpolation="nearest",vmin=vmin,vmax=vmax)
     #pl.title("Vertical Edge X")
     pl.xlabel("V Edge X (%.5f,%.5f)"%(cost[1].min(),cost[1].max()))
     pl.subplot(2,2,3)
-    pl.imshow(cost[2][:,:-1],interpolation="nearest")
+    pl.imshow(cost[2][:,:-1],interpolation="nearest",vmin=vmin,vmax=vmax)
     #pl.title("Horizontal Edge Y")
     pl.xlabel("H Edge Y (%.5f,%.5f)"%(cost[2].min(),cost[2].max()))
     pl.subplot(2,2,4)
-    pl.imshow(cost[3][:,:-1],interpolation="nearest")
+    pl.imshow(cost[3][:,:-1],interpolation="nearest",vmin=vmin,vmax=vmax)
     #pl.title("Horizontal Edge X")
     pl.xlabel("H Edge X (%.5f,%.5f)"%(cost[3].min(),cost[3].max()))
 

@@ -511,7 +511,7 @@ for it in range(cfg.posit):
             pl.figure(100+idm,figsize=(3,3))
             pl.clf()
             pl.imshow(imm)
-            pl.title("bias:%.3f |w|:%.5f"%(m["rho"],numpy.sum(m["ww"][0]**2)))
+            pl.title("b:%.3f h:%.4f d:%.4f"%(m["rho"],numpy.sum(m["ww"][0]**2),numpy.sum(m["cost"]**2)))
             pl.draw()
             pl.show()
             pylab.savefig("%s_hog%d_cl%d.png"%(testname,it,idm))
