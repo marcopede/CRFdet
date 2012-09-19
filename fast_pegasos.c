@@ -38,6 +38,7 @@ static void reg(ftype *a,ftype b,ftype d,int len,int sizereg)
     for (c=len-1-sizereg;c<len-1;c++)//regularize at d instead of 0
     {
         a[c]=a[c]-(a[c]-d)*b;
+        a[c]= (a[c]<0.1*d) ? 0.1*d : a[c];//limit the minimum pairwise cost
     }
     //printf("Val:%f ",a[len-2]);
 /*    for (c=0;c<len-1;c++)//not regularize bias
