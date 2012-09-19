@@ -21,12 +21,22 @@ def refinePos(el,numhyp=5):
     models=el["models"]
     cfg=el["cfg"]
     imageflip=el["flip"]
-    dratios=numpy.array(cfg.fy)/numpy.array(cfg.fx)
+    dratios=[]
+    fy=[]
+    fx=[]
+    for m in models:
+        fy.append(m["ww"][0].shape[0])
+        fx.append(m["ww"][0].shape[1])
+        dratios.append(fy[-1]/float(fx[-1]))
+    fy=numpy.array(fy)
+    fx=numpy.array(fx)
+    dratios=numpy.array(dratios)
+    #dratios=numpy.array(cfg.fy)/numpy.array(cfg.fx)
     img=util.myimread(imname,resize=cfg.resize)
     if imageflip:
         img=util.myimread(imname,True,resize=cfg.resize)
         if bbox!=None:
-             bbox = util.flipBBox(img,bbox)
+             bbox = util.flipBBox(img,[bbox])[0]
     maxy=numpy.max([x["ww"][0].shape[0] for x in models])    
     maxx=numpy.max([x["ww"][0].shape[1] for x in models])    
     if (bbox!=[]):
@@ -40,8 +50,8 @@ def refinePos(el,numhyp=5):
         dist=abs(numpy.log(dratios)-numpy.log(cropratio))
         idm=numpy.where(dist<0.4)[0] #
         if cfg.rescale and len(idm)>0:
-            tiley=(marginy*2)/numpy.max(numpy.array(cfg.fy)[idm])
-            tilex=(marginx*2)/numpy.max(numpy.array(cfg.fx)[idm])
+            tiley=(marginy*2)/numpy.max(fy[idm])
+            tilex=(marginx*2)/numpy.max(fx[idm])
             if tiley>16 and tilex>16:
                 rescale=16/float(min(tiley,tilex))
                 img=zoom(img,(rescale,rescale,1),order=1)
@@ -68,7 +78,7 @@ def refinePos(el,numhyp=5):
     best=-1
     for idl,l in enumerate(det):
         ovr=util.overlap(newbbox,l["bbox"])
-        if ovr>0.7:#valid detection
+        if ovr>cfg.posovr:#valid detection
             if l["scr"]>bestscr:
                 best=idl
                 bestscr=l["scr"]
@@ -77,7 +87,10 @@ def refinePos(el,numhyp=5):
             visualize([det[best]],f,img)
         feat,edge=getfeature([det[best]],f,models,cfg.bias)
         #add image name and bbx so that each annotation is unique
-        det[best]["idim"]=el["file"].split("/")[-1]
+        if imageflip:
+            det[best]["idim"]=el["file"].split("/")[-1]+".flip"
+        else:
+            det[best]["idim"]=el["file"].split("/")[-1]
         det[best]["idbb"]=el["idbb"]
         #add bias
         #det[best]["scr"]-=models[det[best]["id"]]["rho"]/float(cfg.bias)

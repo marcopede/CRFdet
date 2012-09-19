@@ -732,10 +732,10 @@ def getfeat(m1,pad,res2,movy=None,movx=None,mode="Best",rot=None):
         edge[0,:-1,:]=abs(res2[0,:-1,:]-res2[0,1:,:])
         edge[1,:,:-1]=abs(res2[1,:,:-1]-res2[1,:,1:])
     elif mode=="Best":
-        edge[0,:-1,:]=abs(res2[0,:-1,:]-res2[0,1:,:])
-        edge[1,:-1,:]=abs(res2[1,:-1,:]-res2[1,1:,:])
-        edge[2,:,:-1]=abs(res2[0,:,:-1]-res2[0,:,1:])
-        edge[3,:,:-1]=abs(res2[1,:,:-1]-res2[1,:,1:])
+        edge[0,:-1,:]=abs(res2[0,:-1,:]-res2[0,1:,:])#V edge Y
+        edge[1,:-1,:]=abs(res2[1,:-1,:]-res2[1,1:,:])#V edge X
+        edge[2,:,:-1]=abs(res2[0,:,:-1]-res2[0,:,1:])#H edge Y
+        edge[3,:,:-1]=abs(res2[1,:,:-1]-res2[1,:,1:])#H edge X
     return dfeat,-edge    
 
 def getfeat_full(m1,pad,res2,movy=None,movx=None,mode="Best",rot=None):

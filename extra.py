@@ -1,6 +1,7 @@
 #some additional functions
 
 import numpy
+import pyrHOG2
 
 def getfeat(a,y1,y2,x1,x2,trunc=0):
     """
@@ -51,6 +52,20 @@ def myzoom(img,factor,order):
         auxf[1]=auxf[1]*2
     aux=zoom(aux,auxf,order=order)
     return aux
+
+def flip(m):
+    """
+    flip of the object model
+    """  
+    ww1=[]
+    df1=[]
+    for l in m["ww"]:
+        ww1.append(numpy.ascontiguousarray(pyrHOG2.hogflip(l)))
+    m1={"ww":ww1,"rho":m["rho"],"fy":ww1[0].shape[0],"fx":ww1[0].shape[1]}
+    if m.has_key("cost"):
+        m1["cost"]=pyrHOG2.crfflip(m["cost"])
+    return m1    
+
 
 import pylab
 

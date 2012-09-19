@@ -116,8 +116,8 @@ if __name__ == '__main__':
         cfg.cls=sys.argv[1]
         cfg.numcl=3
         cfg.dbpath="/users/visics/mpederso/databases/"
-        cfg.testpath="./data/CRF/12_09_17/"
-        cfg.testspec="debug"
+        cfg.testpath="./data/CRF/12_09_18/"
+        cfg.testspec="fullright"
 
     testname=cfg.testpath+cfg.cls+("%d"%cfg.numcl)+"_"+cfg.testspec
     ########################load training and test samples
@@ -163,6 +163,7 @@ if __name__ == '__main__':
         except:
             break
     it=l-1
+    models=util.load("%s%d.model"%(testname,it))
     ##############test
     #import itertools
     #runtest(models,tsImages,cfg,parallel=False,numcore=4,detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=True)#,save="%s%d"%(testname,it))

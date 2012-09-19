@@ -30,7 +30,7 @@ if len(sys.argv)>2: #specific configuration
     
 cfg.cls=sys.argv[1]
 testname=cfg.testpath+cfg.cls+("%d"%cfg.numcl)+"_"+cfg.testspec
-cfg.useRL=False#for the moment
+#cfg.useRL=False#for the moment
 cfg.show=False
 cfg.auxdir=""
 cfg.numhyp=5
@@ -38,19 +38,21 @@ cfg.rescale=True#False
 cfg.numneg= 10
 bias=100
 cfg.bias=bias
+cfg.posovr= 0.75
+cfg.perc=0.15
 #just for a fast test
-#cfg.maxpos = 50#100
-#cfg.maxneg = 20#50
-#cfg.maxexamples = 10000
-#cfg.maxtest = 20#100
+cfg.maxpos = 100
+cfg.maxneg = 50
+cfg.maxexamples = 10000
+cfg.maxtest = 50#100
 parallel=True
 cfg.show=False
 cfg.neginpos=False
-localshow=False#True
-numcore=8
+localshow=True
+numcore=4
 notreg=0
 cfg.numcl=3
-cfg.valreg=0.005
+cfg.valreg=0.01
 
 ########################load training and test samples
 if cfg.db=="VOC":
@@ -107,8 +109,8 @@ perc=cfg.perc#10
 minres=10
 minfy=3
 minfx=3
-#maxArea=30*(4-cfg.lev[0])
-maxArea=25*(4-cfg.lev[0])
+maxArea=45*(4-cfg.lev[0])
+#maxArea=25*(4-cfg.lev[0])
 #maxArea=15*(4-cfg.lev[0])
 usekmeans=False
 
@@ -177,7 +179,7 @@ for im in trPosImagesNoTrunc: # for each image
         imy=crop.shape[0]
         imx=crop.shape[1]
         zcim=zoom(crop,(((cfg.fy[idm]*2+2)*8/float(imy)),((cfg.fx[idm]*2+2)*8/float(imx)),1),order=1)
-        hogp[idm].append(numpy.ascontiguousarray(pyrHOG2.hog(zcim)).flatten())
+        hogp[idm].append(numpy.ascontiguousarray(pyrHOG2.hog(zcim)))
         #hogpcl.append(idm)
         if check:
             print "Aspect:",idm,"Det Size",cfg.fy[idm]*2,cfg.fx[idm]*2,"Shape:",zcim.shape
@@ -221,7 +223,56 @@ for l in range(cfg.numcl):
     print "Aspect",l,":",len(hogn[l]),"samples"
     hogncl=hogncl+[l]*len(hogn[l])    
 
+#################### cluster left right
 
+trpos=[]
+#trposcl=[]
+if cfg.useRL:
+    for l in range(numcl):
+        mytrpos=[]            
+        #for c in range(len(trpos)):
+        #    if hogpcl[c]==l:
+        mytrpos=hogp[l][:]
+        for idel,el in enumerate(hogp[l]):
+            mytrpos.append(pyrHOG2.hogflip(el))            
+            #print idel,el.shape
+            #raw_input()
+        mytrpos=numpy.array(mytrpos)
+        cl1=range(0,len(mytrpos),2)
+        cl2=range(1,len(mytrpos),2)
+        #rrnum=len(mytrpos)
+        rrnum=min(len(mytrpos),1000)#to avoid too long clustering
+        for rr in range(rrnum):
+            print "Clustering iteration ",rr
+            oldvar=numpy.sum(numpy.var(mytrpos[cl1],0))+numpy.sum(numpy.var(mytrpos[cl2],0))
+            #print "Variance",oldvar
+            #print "Var1",numpy.sum(numpy.var(mytrpos[cl1],0))
+            #print "Var2",numpy.sum(numpy.var(mytrpos[cl2],0))
+            #c1=numpy.mean(mytrpos[cl1])
+            #c2=numpy.mean(mytrpos[cl1])
+            rel=numpy.random.randint(len(cl1))
+            tmp=cl1[rel]
+            cl1[rel]=cl2[rel]
+            cl2[rel]=tmp
+            newvar=numpy.sum(numpy.var(mytrpos[cl1],0))+numpy.sum(numpy.var(mytrpos[cl2],0))
+            if newvar>oldvar:#go back
+                tmp=cl1[rel]
+                cl1[rel]=cl2[rel]
+                cl2[rel]=tmp
+            else:
+                print "Variance",newvar
+        print "Elements Cluster ",l,": ",len(cl1)
+        for cc in cl1:
+            trpos.append(mytrpos[cc].flatten())
+        #trpos+=(mytrpos[cl1]).tolist()
+        #trposcl+=([l]*len(cl1))
+    #flatten
+    #for idl,l in enumerate(trpos):
+    #    trpos[idl]=trpos[idl].flatten()
+else:   
+    for l in range(cfg.numcl):
+        trpos+=hogp[l]
+ 
 #################### train a first detector
 
 #empty rigid model
@@ -241,10 +292,10 @@ try:
 except:
     # train detector
     import pegasos
-    trpos=[]
+    #trpos=[]
     trneg=[]
     for l in range(cfg.numcl):
-        trpos+=hogp[l]
+        #trpos+=hogp[l]
         trneg+=hogn[l]
 
     w,r,prloss=pegasos.trainComp(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=1,numthr=1,eps=0.01,bias=bias)#,notreg=notreg)
@@ -277,6 +328,7 @@ for idm,m in enumerate(models):
 
 pl.draw()
 pl.show()    
+#raw_input()
 
 ######################### add CRF and rebuild w
 for idm,m in enumerate(models):   
@@ -303,6 +355,12 @@ for l in range(cfg.numcl):
     clsize.append(len(waux[l])+1)
     cumsize[l+1]=cumsize[l]+len(waux[l])+1
 clsize=numpy.array(clsize)
+
+if cfg.useRL:
+    #add flipped models
+    for idm in range(cfg.numcl):
+        models.append(extra.flip(models[idm]))
+        models[-1]["id"]=idm+cfg.numcl
 
 lndet=[] #save negative detections
 lnfeat=[] #
@@ -336,7 +394,11 @@ for it in range(cfg.posit):
     for idl,l in enumerate(trPosImages):
         bb=l["bbox"]
         for idb,b in enumerate(bb):
-            arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":False})    
+            if cfg.useRL:
+                arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":False})    
+                arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":True})    
+            else:
+                arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":False})    
 
     #lpdet=[];lpfeat=[];lpedge=[]
     if not(parallel):
@@ -380,11 +442,11 @@ for it in range(cfg.posit):
                         pold+=1
                         found=True
         if localshow:
-            im=myimread(arg[ii]["file"])
+            im=util.myimread(arg[ii]["file"],arg[ii]["flip"])
             rescale,y1,x1,y2,x2=res[3]
-            bb=arg[ii]["bbox"]#res[0]["bbox"]
-            dy=bb[2]-bb[0]
-            dx=bb[3]-bb[1]
+            #bb=arg[ii]["bbox"]#res[0]["bbox"]
+            #dy=bb[2]-bb[0]
+            #dx=bb[3]-bb[1]
             if res[0]!=[]:
                 if found:
                     text="Already detected example"
@@ -414,8 +476,13 @@ for it in range(cfg.posit):
     trpos=[]
     trposcl=[]
     for idl,l in enumerate(lpdet):#enumerate(lndet):
-        trpos.append(numpy.concatenate((lpfeat[idl].flatten(),lpedge[idl].flatten())))
-        trposcl.append(l["id"])
+        efeat=lpfeat[idl]#.flatten()
+        eedge=lpedge[idl]#.flatten()
+        if lpdet[idl]["id"]>cfg.numcl:#flipped version
+            efeat=pyrHOG2.hogflip(efeat)
+            eedge=pyrHOG2.crfflip(eedge)
+        trpos.append(numpy.concatenate((efeat.flatten(),eedge.flatten())))
+        trposcl.append(l["id"]%cfg.numcl)
  
     ########### repeat scan negatives
     for nit in range(cfg.negit):
@@ -427,7 +494,7 @@ for it in range(cfg.posit):
         trneg=[]
         trnegcl=[]
 
-        #filter and build vectors
+        #filter and build negative vectors
         auxdet=[]
         auxfeat=[]
         auxedge=[]
@@ -435,8 +502,13 @@ for it in range(cfg.posit):
             auxdet.append(lndet[idl])
             auxfeat.append(lnfeat[idl])
             auxedge.append(lnedge[idl])
-            trneg.append(numpy.concatenate((lnfeat[idl].flatten(),lnedge[idl].flatten())))
-            trnegcl.append(lndet[idl]["id"])
+            efeat=lnfeat[idl]#.flatten()
+            eedge=lnedge[idl]#.flatten()
+            if lndet[idl]["id"]>cfg.numcl:#flipped version
+                efeat=pyrHOG2.hogflip(efeat)
+                eedge=pyrHOG2.crfflip(eedge)
+            trneg.append(numpy.concatenate((efeat.flatten(),eedge.flatten())))
+            trnegcl.append(lndet[idl]["id"]%cfg.numcl)
             
         lndet=auxdet
         lnfeat=auxfeat
@@ -491,7 +563,7 @@ for it in range(cfg.posit):
         rr=[]
         w1=numpy.array([])
         #from w to model m1
-        for idm,m in enumerate(models):
+        for idm,m in enumerate(models[:cfg.numcl]):
             models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],-w[cumsize[idm+1]-1]*bias,len(m["ww"]),31,m["ww"][0].shape[0],m["ww"][0].shape[1],useCRF=True,k=cfg.k)
             models[idm]["id"]=idm
             #models[idm]["ra"]=w[cumsize[idm+1]-1]
@@ -502,10 +574,17 @@ for it in range(cfg.posit):
         w2=w
         w=w1
 
+        if cfg.useRL:
+            #add flipped models
+            for idm in range(cfg.numcl):
+                models[cfg.numcl+idm]=(extra.flip(models[idm]))
+                models[cfg.numcl+idm]["id"]=idm+cfg.numcl
+
+
         util.save("%s%d.model"%(testname,it),models)
 
         #visualize models
-        for idm,m in enumerate(models):   
+        for idm,m in enumerate(models[:cfg.numcl]):   
             import drawHOG
             imm=drawHOG.drawHOG(m["ww"][0])
             pl.figure(100+idm,figsize=(3,3))

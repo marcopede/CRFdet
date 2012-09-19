@@ -400,8 +400,10 @@ def hogflip(feat,obin=9):
 
 def crfflip(edge):
     aux=edge.copy()#numpy.zeros(edge)
-    aux[0]=edge[0,:,::-1]#aux[0,:,::-1]
-    aux[1,:,:-1]=edge[1,:,-2::-1]#aux[1,:,-2::-1]
+    #aux[0]=edge[0,:,::-1]#aux[0,:,::-1]
+    #aux[1,:,:-1]=edge[1,:,-2::-1]#aux[1,:,-2::-1]
+    aux[0:2]=edge[0:2,:,::-1]
+    aux[2:4,:,:-1]=edge[2:4,:,-2::-1]
     #aux[1,:,-1]=0
     return aux
 
