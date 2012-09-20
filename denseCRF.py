@@ -41,15 +41,15 @@ cfg.bias=bias
 cfg.posovr= 0.75
 cfg.perc=0.15
 #just for a fast test
-cfg.maxpos = 100
-cfg.maxneg = 50
-cfg.maxexamples = 10000
-cfg.maxtest = 50#100
+#cfg.maxpos = 20
+#cfg.maxneg = 20
+#cfg.maxexamples = 10000
+#cfg.maxtest = 20#100
 parallel=True
 cfg.show=False
 cfg.neginpos=False
-localshow=True
-numcore=4
+localshow=False#True
+numcore=8
 notreg=0
 cfg.numcl=3
 cfg.valreg=0.01
@@ -109,8 +109,9 @@ perc=cfg.perc#10
 minres=10
 minfy=3
 minfx=3
-maxArea=45*(4-cfg.lev[0])
-#maxArea=25*(4-cfg.lev[0])
+#maxArea=45*(4-cfg.lev[0])#too high resolution very slow
+maxArea=35*(4-cfg.lev[0]) #the right trade-off
+#maxArea=25*(4-cfg.lev[0]) #used in the test
 #maxArea=15*(4-cfg.lev[0])
 usekmeans=False
 
@@ -436,7 +437,11 @@ for it in range(cfg.posit):
                 padd+=1
         else: #not found any detection with enough overlap
             for idl,l in enumerate(lpdet):
-                if (arg[ii]["file"].split("/")[-1]==l["idim"]): #same image
+                iname=arg[ii]["file"].split("/")[-1]
+                if cfg.useRL:
+                    if arg[ii]["flip"]:
+                        iname=iname+".flip"
+                if (iname==l["idim"]): #same image
                     if (arg[ii]["idbb"]==l["idbb"]): #same bbox
                         print "Example not found, but keep old detection"                        
                         pold+=1

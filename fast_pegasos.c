@@ -38,6 +38,24 @@ static void reg(ftype *a,ftype b,ftype d,int len,int sizereg)
     for (c=len-1-sizereg;c<len-1;c++)//regularize at d instead of 0
     {
         a[c]=a[c]-(a[c]-d)*b;
+        //a[c]= (a[c]<0.1*d) ? 0.1*d : a[c];//limit the minimum pairwise cost
+    }
+    //printf("Val:%f ",a[len-2]);
+/*    for (c=0;c<len-1;c++)//not regularize bias
+    {
+        if (len-c-2<sizereg)
+        a[c]=(a[c]-d)*b;
+        else
+        a[c]=a[c]*b;
+    }*/
+}
+
+static void limit(ftype *a,ftype d,int len,int sizereg)
+{
+    int c;
+    for (c=len-1-sizereg;c<len-1;c++)//regularize at d instead of 0
+    {
+        //a[c]=a[c]-(a[c]-d)*b;
         a[c]= (a[c]<0.1*d) ? 0.1*d : a[c];//limit the minimum pairwise cost
     }
     //printf("Val:%f ",a[len-2]);
@@ -236,6 +254,8 @@ void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype *
                 addmul(w+sumszx[comp[pex]],x,(float)(label[pex])*n*C*totsamples/(float)k,wx);            
             }
         }
+        for (cp=0;cp<numcomp;cp++)
+            limit(w+sumszx[cp],valreg,compx[cp],sizereg[cp]);//0.01    
         /*if (scr*y<1.0)
         {
             addmul(w+sumszx[comp[pex]],x,C*y*n*totsamples,wx);            
