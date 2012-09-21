@@ -2,8 +2,8 @@
 # denseCRF [category] [configuration]
 
 ##################some import
-#import matplotlib
-#matplotlib.use("Agg") #if run outside ipython do not show any figure
+import matplotlib
+matplotlib.use("Agg") #if run outside ipython do not show any figure
 from database import *
 from multiprocessing import Pool
 import util
@@ -116,8 +116,8 @@ if __name__ == '__main__':
         cfg.cls=sys.argv[1]
         cfg.numcl=3
         cfg.dbpath="/users/visics/mpederso/databases/"
-        cfg.testpath="./data/CRF/12_09_18/"
-        cfg.testspec="fullright"
+        cfg.testpath="./data/CRF/12_09_19/"
+        cfg.testspec="full2"
 
     testname=cfg.testpath+cfg.cls+("%d"%cfg.numcl)+"_"+cfg.testspec
     ########################load training and test samples

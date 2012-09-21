@@ -56,6 +56,8 @@ static void limit(ftype *a,ftype d,int len,int sizereg)
     for (c=len-1-sizereg;c<len-1;c++)//regularize at d instead of 0
     {
         //a[c]=a[c]-(a[c]-d)*b;
+        //if (a[c]<0.1*d)
+        //    a[c]=0.1*d;
         a[c]= (a[c]<0.1*d) ? 0.1*d : a[c];//limit the minimum pairwise cost
     }
     //printf("Val:%f ",a[len-2]);
