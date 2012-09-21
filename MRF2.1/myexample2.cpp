@@ -671,7 +671,7 @@ dtype compute_graph2(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,
                 {                       
                     int pp=aux+rx+ry*st_num_lab_x;
                     pp=maxi(pp,0);
-                    pp=mini(pp,st_numlab);
+                    pp=mini(pp,st_numlab-1);
                     data[pp+i*st_numlab]=1;//delete solution
                 }
             }
