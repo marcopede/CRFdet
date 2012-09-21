@@ -605,13 +605,13 @@ for it in range(cfg.posit):
             extra.showDef(m["cost"][:4])
             pl.draw()
             pl.show()
-            pylab.savefig("%s_defl%d_cl%d.png"%(testname,it,idm))
+            pylab.savefig("%s_def%dl_cl%d.png"%(testname,it,idm))
             pl.figure(120+idm,figsize=(5,5))
             pl.clf()
             extra.showDef(m["cost"][4:])
             pl.draw()
             pl.show()
-            pylab.savefig("%s_defq%d_cl%d.png"%(testname,it,idm))
+            pylab.savefig("%s_def%dq_cl%d.png"%(testname,it,idm))
 
         ########### scan negatives
         lndetnew=[];lnfeatnew=[];lnedgenew=[]
