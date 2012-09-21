@@ -7,13 +7,6 @@ import time
 #compute(int width,int height,dtype *data,int *result)
 ctypes.cdll.LoadLibrary("./libcrf2.so")
 lib= ctypes.CDLL("libcrf2.so")
-lib.compute.argtypes=[
-    c_int,# w
-    c_int,# h
-    numpy.ctypeslib.ndpointer(dtype=c_float,ndim=3,flags="C_CONTIGUOUS"),#image scores
-    numpy.ctypeslib.ndpointer(dtype=c_int,ndim=2,flags="C_CONTIGUOUS"),#image labels
-    ]
-lib.compute.restype=ctypes.c_float
 
 #dtype compute_graph(int *connect,int num_parts,dtype *costs,int num_labels,dtype *data,int *reslab)
 ctypes.cdll.LoadLibrary("./libcrf2.so")
@@ -57,8 +50,8 @@ lib.compute_graph2.restype=ctypes.c_float
 #lib.compute_graph.restype=ctypes.c_float
 
 
-crf=lib.compute
-crfgr=lib.compute_graph
+#crf=lib.compute
+#crfgr=lib.compute_graph
 crfgr2=lib.compute_graph2
 #fill_cache=lib.fill_cache
 
@@ -738,7 +731,7 @@ def getfeat(m1,pad,res2,movy=None,movx=None,mode="Best",rot=None):
         edge[3,:,:-1]=abs(res2[1,:,:-1]-res2[1,:,1:])#H edge X
     return dfeat,-edge    
 
-def getfeat_full(m1,pad,res2,movy=None,movx=None,mode="Best",rot=None):
+def getfeat_full(m1,pad,res2,movy=None,movx=None,mode="Quad",rot=None):
     if movy==None:
         movy=m1.shape[0]
     if movx==None:
@@ -758,7 +751,7 @@ def getfeat_full(m1,pad,res2,movy=None,movx=None,mode="Best",rot=None):
                 dfeat[py*2:py*2+2,px*2:px*2+2]=m1pad[cpy:cpy+2,cpx:cpx+2]
             else:
                 dfeat[py*2:py*2+2,px*2:px*2+2]=rotate(m1pad[cpy:cpy+2,cpx:cpx+2],rot[py,px])
-    edge=numpy.zeros((res2.shape[0]*2,res2.shape[1],res2.shape[2]),dtype=numpy.float32)
+    edge=numpy.zeros((res2.shape[0]*4,res2.shape[1],res2.shape[2]),dtype=numpy.float32)
     #edge[0,:-1,:]=(res2[0,:-1]-res2[0,1:])
     #edge[1,:,:-1]=(res2[1,:,:-1]-res2[1,:,1:])
     if mode=="Old":
@@ -772,6 +765,15 @@ def getfeat_full(m1,pad,res2,movy=None,movx=None,mode="Best",rot=None):
         edge[1,:-1,:]=abs(res2[1,:-1,:]-res2[1,1:,:])
         edge[2,:,:-1]=abs(res2[0,:,:-1]-res2[0,:,1:])
         edge[3,:,:-1]=abs(res2[1,:,:-1]-res2[1,:,1:])
+    elif mode=="Quad":
+        edge[0,:-1,:]=abs(res2[0,:-1,:]-res2[0,1:,:])
+        edge[1,:-1,:]=abs(res2[1,:-1,:]-res2[1,1:,:])
+        edge[2,:,:-1]=abs(res2[0,:,:-1]-res2[0,:,1:])
+        edge[3,:,:-1]=abs(res2[1,:,:-1]-res2[1,:,1:])
+        edge[4,:-1,:]=(res2[0,:-1,:]-res2[0,1:,:])**2
+        edge[5,:-1,:]=(res2[1,:-1,:]-res2[1,1:,:])**2
+        edge[6,:,:-1]=(res2[0,:,:-1]-res2[0,:,1:])**2
+        edge[7,:,:-1]=(res2[1,:,:-1]-res2[1,:,1:])**2  
     return dfeat,-edge    
 
 
@@ -789,13 +791,13 @@ if __name__ == "__main__":
         #im=util.myimread("Weiwei_bicycles.jpg")
         #im=util.myimread("407223044_692.jpg")#[:,::-1,:]#
         #im=util.myimread("imges3.jpg")#[:,::-1,:]#
-        #im=util.myimread("000379.jpg")[:,::-1,:]#flip
-        im=util.myimread("005467.jpg")[:,::-1,:]#flip
+        im=util.myimread("000379.jpg")[:,::-1,:]#flip
+        #im=util.myimread("005467.jpg")[:,::-1,:]#flip
         #img=numpy.zeros((100,100,3))
         #subplot(1,2,1)
         imshow(im)
         import pyrHOG2
-        f=pyrHOG2.pyrHOG(im,interv=10,savedir="",notload=True,notsave=True,hallucinate=True,cformat=True)
+        f=pyrHOG2.pyrHOG(im,interv=10,savedir="",notload=True,notsave=True,hallucinate=False,cformat=True)
 
         import util
         #model1=util.load("./data/CRF/12_04_27/bicycle2_NoCRF9.model")
@@ -830,16 +832,16 @@ if __name__ == "__main__":
 
         import crf3
         reload(crf3)
-        numhyp=1
+        numhyp=10
         numy=m1.shape[0]/2
         numx=m1.shape[1]/2
         #movy=(numy*2-1)/2
         #movx=(numx*2-1)/2
-        factor=1
+        factor=1.0#0.3
         mcostm=factor*model1[0]["cost"]
-        mcostc=numpy.ones((4,numy,numx),dtype=c_float)
+        mcostc=numpy.ones((8,numy,numx),dtype=c_float)
         mcostc=factor*mcostc*numpy.sqrt(numpy.sum(mcostm**2))/numpy.sqrt(numpy.sum(mcostc**2))
-        mcost=mcostm
+        mcost=mcostc
         #mcost[0,-1,:]=0#vertical 
         #mcost[0,0,:]=0#added v
         #mcost[1,:,-1]=0#horizontal
@@ -874,6 +876,8 @@ if __name__ == "__main__":
                 res=fres[fres.shape[0]-hy-1]
                 dfeat,edge=crf3.getfeat_full(m2,pad,res)
                 print "Scr",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost),"Error",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-lscr[fres.shape[0]-hy-1]
+                #print "Edge Lin",numpy.sum(edge[:4]*mcost[:4]),"Error",numpy.sum(m1*dfeat)+numpy.sum(edge[:4]*mcost[:4])-lscr[fres.shape[0]-hy-1]
+                #print "Edge Quad",numpy.sum(edge[4:]*mcost[4:]),"Error",numpy.sum(m1*dfeat)+numpy.sum(edge[4:]*mcost[4:])-lscr[fres.shape[0]-hy-1]
                 myscr.append(numpy.sum(m1*dfeat)+numpy.sum(edge*mcost))
                 rcim=numpy.zeros((sf*numy,sf*numx,3),dtype=im.dtype)
                 if idraw:
@@ -1053,6 +1057,8 @@ if __name__ == "__main__":
         print "Total time",time.time()-t
         print "Score",scr
         dfeat,edge=crf3.getfeat(m2,pad,res,rot=frot)
+        print "Error l",numpy.sum(m1*dfeat)+numpy.sum(edge[:4]*mcost[:4])-scr
+        print "Error q",numpy.sum(m1*dfeat)+numpy.sum(edge[4:]*mcost[4:])-scr
         print "Error",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-scr
         rec=drawHOG.drawHOG(dfeat)
         subplot(1,2,1)

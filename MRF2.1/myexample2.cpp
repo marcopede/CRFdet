@@ -38,10 +38,17 @@ int st_parts_y;
 int st_parts_x;
 dtype * st_cost_y;//old just to keep the old code
 dtype * st_cost_x;//old just to keep the old code
+//linear
 dtype * st_cost_v_y;
 dtype * st_cost_v_x;
 dtype * st_cost_h_y;
 dtype * st_cost_h_x;
+//quadratic
+dtype * st_qcost_v_y;
+dtype * st_qcost_v_x;
+dtype * st_qcost_h_y;
+dtype * st_qcost_h_x;
+
 int st_numlab;
 int st_num_lab_x;
 int st_num_lab_y;
@@ -256,6 +263,35 @@ MRF::CostVal smoothApp5(int p1, int p2, int l1, int l2)
         }
 }
 
+MRF::CostVal smoothApp6(int p1, int p2, int l1, int l2)
+{
+    if (p1>p2)
+    {
+        int tmp;
+        tmp=p2;p2=p1; p1=tmp;
+        tmp = l1; l1 = l2; l2 = tmp;
+    }
+//    int p1x=p1%st_parts_x;
+//    int p1y=p1/st_parts_x;
+//    int p2x=p2%st_parts_x;
+//    int p2y=p2/st_parts_x;
+      int x1=l1%st_num_lab_x;
+      int y1=l1/st_num_lab_x;
+      int x2=l2%st_num_lab_x;    
+      int y2=l2/st_num_lab_x;
+    if (p2==p1+1)
+        {
+        //printf("Horizontal Edge! part:%d score:%f\n",p1,st_cost_x[p1]*abs(x1-x2));
+        return st_cost_h_y[p1]*abs(y1-y2)+st_cost_h_x[p1]*abs(x1-x2)+st_qcost_h_y[p1]*(y1-y2)*(y1-y2)+st_qcost_h_x[p1]*(x1-x2)*(x1-x2); //horizontal edge
+        }
+    else
+        {
+        //printf("Vertical Edge! part:%d score:%f\n",p1,st_cost_y[p1]*abs(y1-y2));
+        return st_cost_v_y[p1]*abs(y1-y2)+st_cost_v_x[p1]*abs(x1-x2)+st_qcost_v_y[p1]*(y1-y2)*(y1-y2)+st_qcost_v_x[p1]*(x1-x2)*(x1-x2); //vertical edge
+        }
+}
+
+
 
 //MRF::CostVal smoothApp4(int p1, int p2, int l1, int l2)
 //{
@@ -402,7 +438,8 @@ dtype compute_graph(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,i
         //SmoothnessCost *sm   = new SmoothnessCost(smoothApp2);
         //SmoothnessCost *sm   = new SmoothnessCost(smoothApp3);
         //SmoothnessCost *sm   = new SmoothnessCost(smoothApp4);
-        SmoothnessCost *sm   = new SmoothnessCost(smoothApp5);
+        //SmoothnessCost *sm   = new SmoothnessCost(smoothApp5);
+        SmoothnessCost *sm   = new SmoothnessCost(smoothApp6);
         //SmoothnessCost *sm   = new SmoothnessCost(V, st_cost_x, st_cost_y);
         //SmoothnessCost *sm   = new SmoothnessCost(1, 100, 1, st_cost_v_x, st_cost_v_y);
         EnergyFunction *energy = new EnergyFunction(dt,sm);
@@ -526,6 +563,11 @@ dtype compute_graph2(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,
     st_cost_v_x=costs+num_parts_x*num_parts_y;
     st_cost_h_y=costs+2*num_parts_x*num_parts_y;
     st_cost_h_x=costs+3*num_parts_x*num_parts_y;
+    st_qcost_v_y=costs+4*num_parts_x*num_parts_y;;
+    st_qcost_v_x=costs+5*num_parts_x*num_parts_y;
+    st_qcost_h_y=costs+6*num_parts_x*num_parts_y;
+    st_qcost_h_x=costs+7*num_parts_x*num_parts_y;
+
     st_parts_x=num_parts_x;
     st_parts_y=num_parts_y;
     st_num_lab_x=num_lab_x;
@@ -541,7 +583,8 @@ dtype compute_graph2(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,
         //SmoothnessCost *sm   = new SmoothnessCost(smoothApp2);
         //SmoothnessCost *sm   = new SmoothnessCost(smoothApp3);
         //SmoothnessCost *sm   = new SmoothnessCost(smoothApp4);
-        SmoothnessCost *sm   = new SmoothnessCost(smoothApp5);
+        //SmoothnessCost *sm   = new SmoothnessCost(smoothApp5);
+        SmoothnessCost *sm   = new SmoothnessCost(smoothApp6);
         //SmoothnessCost *sm   = new SmoothnessCost(V, st_cost_x, st_cost_y);
         //SmoothnessCost *sm   = new SmoothnessCost(1, 100, 1, st_cost_v_x, st_cost_v_y);
         EnergyFunction *energy = new EnergyFunction(dt,sm);
@@ -577,7 +620,7 @@ dtype compute_graph2(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,
         //printf("Before C\n");
 	for (iter=0; iter<numhyp; iter++) 
     {
-    bestE=10000;
+        bestE=10000;
         for (int idrestart=restart; idrestart>=0;idrestart--)
         {
                 //((Expansion*)mrf)->setLabelOrder(0);
@@ -595,7 +638,7 @@ dtype compute_graph2(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,
 		    {
 			    //mrf->initialize();
                 ((Expansion*)mrf)->clearAnswer();
-			    mrf->optimize(3,t);	
+			    mrf->optimize(2,t);	
 		    }
                 //printf("After C\n");
       		E = mrf->totalEnergy();
@@ -628,7 +671,7 @@ dtype compute_graph2(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,
                 {                       
                     int pp=aux+rx+ry*st_num_lab_x;
                     pp=maxi(pp,0);
-                    pp=mini(pp,st_num_lab_x);
+                    pp=mini(pp,st_numlab);
                     data[pp+i*st_numlab]=1;//delete solution
                 }
             }
@@ -646,294 +689,6 @@ dtype compute_graph2(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,
     return -E;
 }
 
-
-dtype compute(int width,int height,dtype *data,int *result)
-{
-
-	//int *result = new int[num_pixels];   // stores result of optimization
-
-	// first set up the array for data costs
-	/*int *data = new int[num_pixels*num_labels];
-	for ( int i = 0; i < num_pixels; i++ )
-		for (int l = 0; l < num_labels; l++ )
-			data[i*num_labels+l] = 0;*/
-/*    int num_labels=5;
-    int num_pixels=width*height;
-    dtype scr;
-
-	try{
-		GCoptimizationGridGraph *gc = new GCoptimizationGridGraph(width,height,num_labels);
-
-		// set up the needed data to pass to function for the data costs
-		ForDataFn toFn;
-		toFn.data = data;
-		toFn.numLab = num_labels;
-
-		gc->setDataCost(&dataFn,&toFn);
-
-		// smoothness comes from function pointer
-		gc->setSmoothCost(&smoothFn);
-
-		printf("\nBefore optimization energy is %f",gc->compute_energy());
-		gc->expansion(10);// run expansion for 2 iterations. For swap use gc->swap(num_iterations);
-        scr=gc->compute_energy();
-		printf("\nAfter optimization energy is %f \n",scr);
-
-		for ( int  i = 0; i < num_pixels; i++ )
-			result[i] = gc->whatLabel(i);
-
-		delete gc;
-	}
-	catch (GCException e){
-		e.Report();
-	}
-
-	//delete [] result;
-	//delete [] data;
-    return scr;
-*/
-}
-
-
 } //end extern C
 
 
-/*int main(int argc, char **argv)
-{
-    MRF* mrf;
-    EnergyFunction *energy;
-    MRF::EnergyVal E;
-    double lowerBound;
-    float t,tot_t;
-    int iter;
-
-    int seed = 1124285485;
-    srand(seed);
-
-    int Etype = 0;
-
-    if (argc != 2) {
-	fprintf(stderr, usage, argv[0]);
-	exit(1);
-    }
-    
-    if (argc > 1)
-	Etype = atoi(argv[1]);
-
-    try {
-	switch(Etype) {
-	    // Here are 4 sample energies to play with.
-	case 0:
-	    energy = generate_DataARRAY_SmoothFIXED_FUNCTION();
-	    fprintf(stderr, "using fixed (array) smoothness cost\n");
-	    break;
-	case 1:
-	    energy = generate_DataARRAY_SmoothTRUNCATED_LINEAR();
-	    fprintf(stderr, "using truncated linear smoothness cost\n");
-	    break;
-	case 2:
-	    energy = generate_DataARRAY_SmoothTRUNCATED_QUADRATIC();
-	    fprintf(stderr, "using truncated quadratic smoothness cost\n");
-	    break;
-	case 3:
-	    energy = generate_DataFUNCTION_SmoothGENERAL_FUNCTION();
-	    fprintf(stderr, "using general smoothness functions\n");
-	    break;
-	default:
-	    fprintf(stderr, usage, argv[0]);
-	    exit(1);
-	}
-
-	bool runICM       = true;
-	bool runExpansion = true;
-	bool runSwap      = true;
-	bool runMaxProdBP = true;
-	bool runTRWS      = true;
-	bool runBPS       = true;
-
-	////////////////////////////////////////////////
-	//                     ICM                    //
-	////////////////////////////////////////////////
-	if (runICM) {
-	    printf("\n*******Started ICM *****\n");
-
-	    mrf = new ICM(sizeX,sizeY,numLabels,energy);
-	    mrf->initialize();
-	    mrf->clearAnswer();
-
-	    E = mrf->totalEnergy();
-	    printf("Energy at the Start= %g (%g,%g)\n", (float)E,
-		   (float)mrf->smoothnessEnergy(), (float)mrf->dataEnergy());
-
-	    tot_t = 0;
-	    for (iter=0; iter<6; iter++) {
-		mrf->optimize(10, t);
-		
-		E = mrf->totalEnergy();
-		tot_t = tot_t + t ;
-		printf("energy = %g (%f secs)\n", (float)E, tot_t);
-	    }
-
-	    delete mrf;
-	}
-
-	////////////////////////////////////////////////
-	//          Graph-cuts expansion              //
-	////////////////////////////////////////////////
-	if (runExpansion) {
-	    printf("\n*******Started graph-cuts expansion *****\n");
-	    mrf = new Expansion(sizeX,sizeY,numLabels,energy);
-	    mrf->initialize();
-	    mrf->clearAnswer();
-	    
-	    E = mrf->totalEnergy();
-	    printf("Energy at the Start= %g (%g,%g)\n", (float)E,
-		   (float)mrf->smoothnessEnergy(), (float)mrf->dataEnergy());
-
-#ifdef COUNT_TRUNCATIONS
-	    truncCnt = totalCnt = 0;
-#endif
-	    tot_t = 0;
-	    for (iter=0; iter<6; iter++) {
-		mrf->optimize(1, t);
-
-		E = mrf->totalEnergy();
-		tot_t = tot_t + t ;
-		printf("energy = %g (%f secs)\n", (float)E, tot_t);
-	    }
-#ifdef COUNT_TRUNCATIONS
-	    if (truncCnt > 0)
-		printf("***WARNING: %d terms (%.2f%%) were truncated to ensure regularity\n", 
-		       truncCnt, (float)(100.0 * truncCnt / totalCnt));
-#endif
-
-	    delete mrf;
-	}
-
-	////////////////////////////////////////////////
-	//          Graph-cuts swap                   //
-	////////////////////////////////////////////////
-	if (runSwap) {
-	    printf("\n*******Started graph-cuts swap *****\n");
-	    mrf = new Swap(sizeX,sizeY,numLabels,energy);
-	    mrf->initialize();
-	    mrf->clearAnswer();
-	    
-	    E = mrf->totalEnergy();
-	    printf("Energy at the Start= %g (%g,%g)\n", (float)E,
-		   (float)mrf->smoothnessEnergy(), (float)mrf->dataEnergy());
-
-#ifdef COUNT_TRUNCATIONS
-	    truncCnt = totalCnt = 0;
-#endif
-	    tot_t = 0;
-	    for (iter=0; iter<8; iter++) {
-		mrf->optimize(1, t);
-
-		E = mrf->totalEnergy();
-		tot_t = tot_t + t ;
-		printf("energy = %g (%f secs)\n", (float)E, tot_t);
-	    }
-#ifdef COUNT_TRUNCATIONS
-	    if (truncCnt > 0)
-		printf("***WARNING: %d terms (%.2f%%) were truncated to ensure regularity\n", 
-		       truncCnt, (float)(100.0 * truncCnt / totalCnt));
-#endif
-
-   
-	    delete mrf;
-	}
-
-	////////////////////////////////////////////////
-	//          Belief Propagation                //
-	////////////////////////////////////////////////
-	if (runMaxProdBP) {
-	    printf("\n*******  Started MaxProd Belief Propagation *****\n");
-	    mrf = new MaxProdBP(sizeX,sizeY,numLabels,energy);
-	    mrf->initialize();
-	    mrf->clearAnswer();
-	    
-	    E = mrf->totalEnergy();
-	    printf("Energy at the Start= %g (%g,%g)\n", (float)E,
-		   (float)mrf->smoothnessEnergy(), (float)mrf->dataEnergy());
-
-	    tot_t = 0;
-	    for (iter=0; iter < 10; iter++) {
-		mrf->optimize(1, t);
-
-		E = mrf->totalEnergy();
-		tot_t = tot_t + t ;
-		printf("energy = %g (%f secs)\n", (float)E, tot_t);
-	    }
-
-	    
-	    delete mrf;
-	}
-
-	////////////////////////////////////////////////
-	//                  TRW-S                     //
-	////////////////////////////////////////////////
-	if (runTRWS) {
-	    printf("\n*******Started TRW-S *****\n");
-	    mrf = new TRWS(sizeX,sizeY,numLabels,energy);
-
-	    // can disable caching of values of general smoothness function:
-	    //mrf->dontCacheSmoothnessCosts();
-
-	    mrf->initialize();
-	    mrf->clearAnswer();
-
-	    
-	    E = mrf->totalEnergy();
-	    printf("Energy at the Start= %g (%g,%g)\n", (float)E,
-		   (float)mrf->smoothnessEnergy(), (float)mrf->dataEnergy());
-
-	    tot_t = 0;
-	    for (iter=0; iter<10; iter++) {
-		mrf->optimize(10, t);
-
-		E = mrf->totalEnergy();
-		lowerBound = mrf->lowerBound();
-		tot_t = tot_t + t ;
-		printf("energy = %g, lower bound = %f (%f secs)\n", (float)E, lowerBound, tot_t);
-	    }
-
-	    delete mrf;
-	}
-
-	////////////////////////////////////////////////
-	//                  BP-S                     //
-	////////////////////////////////////////////////
-	if (runBPS) {
-	    printf("\n*******Started BP-S *****\n");
-	    mrf = new BPS(sizeX,sizeY,numLabels,energy);
-
-	    // can disable caching of values of general smoothness function:
-	    //mrf->dontCacheSmoothnessCosts();
-		
-	    mrf->initialize();
-	    mrf->clearAnswer();
-	    
-	    E = mrf->totalEnergy();
-	    printf("Energy at the Start= %g (%g,%g)\n", (float)E,
-		   (float)mrf->smoothnessEnergy(), (float)mrf->dataEnergy());
-
-	    tot_t = 0;
-	    for (iter=0; iter<10; iter++) {
-		mrf->optimize(10, t);
-
-		E = mrf->totalEnergy();
-		tot_t = tot_t + t ;
-		printf("energy = %g (%f secs)\n", (float)E, tot_t);
-	    }
-
-	    delete mrf;
-	}
-    }
-    catch (std::bad_alloc) {
-	fprintf(stderr, "*** Error: not enough memory\n");
-	exit(1);
-    }
-
-    return 0;
-}*/

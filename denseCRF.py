@@ -41,15 +41,15 @@ cfg.bias=bias
 cfg.posovr= 0.75
 cfg.perc=0.15
 #just for a fast test
-#cfg.maxpos = 20
-#cfg.maxneg = 20
-#cfg.maxexamples = 10000
-#cfg.maxtest = 20#100
+cfg.maxpos = 20
+cfg.maxneg = 20
+cfg.maxexamples = 10000
+cfg.maxtest = 20#100
 parallel=True
 cfg.show=False
 cfg.neginpos=False
-localshow=False#True
-numcore=8
+localshow=True
+numcore=2
 notreg=0
 cfg.numcl=3
 cfg.valreg=0.01
@@ -333,7 +333,7 @@ pl.show()
 
 ######################### add CRF and rebuild w
 for idm,m in enumerate(models):   
-    models[idm]["cost"]=cfg.valreg*numpy.ones((4,cfg.fy[idm],cfg.fx[idm]))
+    models[idm]["cost"]=cfg.valreg*numpy.ones((8,cfg.fy[idm],cfg.fx[idm]))
 
 waux=[]
 rr=[]
@@ -600,12 +600,18 @@ for it in range(cfg.posit):
             pl.show()
             pylab.savefig("%s_hog%d_cl%d.png"%(testname,it,idm))
             #CRF
-            pl.figure(120+idm,figsize=(5,5))
+            pl.figure(110+idm,figsize=(5,5))
             pl.clf()
-            extra.showDef(m["cost"])
+            extra.showDef(m["cost"][:4])
             pl.draw()
             pl.show()
-            pylab.savefig("%s_def%d_cl%d.png"%(testname,it,idm))
+            pylab.savefig("%s_defl%d_cl%d.png"%(testname,it,idm))
+            pl.figure(120+idm,figsize=(5,5))
+            pl.clf()
+            extra.showDef(m["cost"][4:])
+            pl.draw()
+            pl.show()
+            pylab.savefig("%s_defq%d_cl%d.png"%(testname,it,idm))
 
         ########### scan negatives
         lndetnew=[];lnfeatnew=[];lnedgenew=[]

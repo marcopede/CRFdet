@@ -80,7 +80,7 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
     if type(save)==str:
         testname=save
         util.savedetVOC(detVOC,testname+".txt")
-        util.save(testname+".det",{"det":ltdet})
+        #util.save(testname+".det",{"det":ltdet})#takes a lot of space
         util.savemat(testname+".mat",{"tp":tp,"fp":fp,"scr":scr,"tot":tot,"rc":rc,"pr":pr,"ap":ap})
         pylab.savefig(testname+".png")
 
@@ -117,7 +117,8 @@ if __name__ == '__main__':
         cfg.numcl=3
         cfg.dbpath="/users/visics/mpederso/databases/"
         cfg.testpath="./data/CRF/12_09_19/"
-        cfg.testspec="full2"
+        cfg.testspec="buffy"#"full2"
+        cfg.db="buffy"
 
     testname=cfg.testpath+cfg.cls+("%d"%cfg.numcl)+"_"+cfg.testspec
     ########################load training and test samples
@@ -164,6 +165,12 @@ if __name__ == '__main__':
             break
     it=l-1
     models=util.load("%s%d.model"%(testname,it))
+    #just for the new
+    for idm,m in enumerate(models):
+        aux=models[idm]["cost"]
+        newc=numpy.zeros((8,aux.shape[1],aux.shape[2]),dtype=aux.dtype)
+        newc[:4]=aux
+        models[idm]["cost"]=newc
     ##############test
     #import itertools
     #runtest(models,tsImages,cfg,parallel=False,numcore=4,detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=True)#,save="%s%d"%(testname,it))
