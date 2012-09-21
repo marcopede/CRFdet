@@ -52,7 +52,8 @@ localshow=True
 numcore=cfg.multipr
 notreg=0
 cfg.numcl=3
-cfg.valreg=0.01
+cfg.valreg=0.001
+cfg.useRL=True
 
 ########################load training and test samples
 if cfg.db=="VOC":
@@ -110,9 +111,9 @@ minres=10
 minfy=3
 minfx=3
 #maxArea=45*(4-cfg.lev[0])#too high resolution very slow
-maxArea=35*(4-cfg.lev[0]) #the right trade-off
+#maxArea=35*(4-cfg.lev[0]) #the right trade-off
 #maxArea=25*(4-cfg.lev[0]) #used in the test
-#maxArea=15*(4-cfg.lev[0])
+maxArea=15*(4-cfg.lev[0])
 usekmeans=False
 
 sr=numpy.sort(r)
@@ -163,6 +164,7 @@ import pylab as pl
 dratios=numpy.array(cfg.fy)/numpy.array(cfg.fx)
 hogp=[[] for x in range(cfg.numcl)]
 hogpcl=[]
+annp=[[] for x in range(cfg.numcl)]
 
 #from scipy.ndimage import zoom
 from extra import myzoom as zoom
@@ -182,6 +184,7 @@ for im in trPosImagesNoTrunc: # for each image
         zcim=zoom(crop,(((cfg.fy[idm]*2+2)*8/float(imy)),((cfg.fx[idm]*2+2)*8/float(imx)),1),order=1)
         hogp[idm].append(numpy.ascontiguousarray(pyrHOG2.hog(zcim)))
         #hogpcl.append(idm)
+        annp[idm].append({"file":im["name"],"bbox":bb})
         if check:
             print "Aspect:",idm,"Det Size",cfg.fy[idm]*2,cfg.fx[idm]*2,"Shape:",zcim.shape
             pl.figure(1,figsize=(20,5))
@@ -225,7 +228,6 @@ for l in range(cfg.numcl):
     hogncl=hogncl+[l]*len(hogn[l])    
 
 #################### cluster left right
-
 trpos=[]
 #trposcl=[]
 if cfg.useRL:
@@ -233,9 +235,17 @@ if cfg.useRL:
         mytrpos=[]            
         #for c in range(len(trpos)):
         #    if hogpcl[c]==l:
-        mytrpos=hogp[l][:]
         for idel,el in enumerate(hogp[l]):
-            mytrpos.append(pyrHOG2.hogflip(el))            
+            if 0:#annp[l][idel]["bbox"][6]=="Left":
+                faux=pyrHOG2.hogflip(el)
+                #mytrpos.append(pyrHOG2.hogflip(el))    
+            else:
+                faux=el.copy()
+                #mytrpos.append(el)
+        #laux=mytrpos[:]
+        #for idel,el in enumerate(laux):
+            mytrpos.append((faux))            
+            mytrpos.append(pyrHOG2.hogflip(faux))            
             #print idel,el.shape
             #raw_input()
         mytrpos=numpy.array(mytrpos)
