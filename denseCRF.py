@@ -1,12 +1,11 @@
 # training of the new CRF model
 # denseCRF [category] [configuration]
-from multiprocessing import Pool
-mypool = Pool(numcore) #keep the child processes as small as possible 
 
 ##################some import
 import matplotlib
 matplotlib.use("Agg") #if run outside ipython do not show any figure
 from database import *
+from multiprocessing import Pool
 import util
 import pyrHOG2
 #import pyrHOG2RL
@@ -55,6 +54,8 @@ notreg=0
 cfg.numcl=3
 cfg.valreg=0.001
 cfg.useRL=True
+
+mypool = Pool(numcore) #keep the child processes as small as possible 
 
 ########################load training and test samples
 if cfg.db=="VOC":
@@ -494,7 +495,7 @@ for it in range(cfg.posit):
     for idl,l in enumerate(lpdet):#enumerate(lndet):
         efeat=lpfeat[idl]#.flatten()
         eedge=lpedge[idl]#.flatten()
-        if lpdet[idl]["id"]>cfg.numcl:#flipped version
+        if lpdet[idl]["id"]>=cfg.numcl:#flipped version
             efeat=pyrHOG2.hogflip(efeat)
             eedge=pyrHOG2.crfflip(eedge)
         trpos.append(numpy.concatenate((efeat.flatten(),eedge.flatten())))
@@ -520,7 +521,7 @@ for it in range(cfg.posit):
             auxedge.append(lnedge[idl])
             efeat=lnfeat[idl]#.flatten()
             eedge=lnedge[idl]#.flatten()
-            if lndet[idl]["id"]>cfg.numcl:#flipped version
+            if lndet[idl]["id"]>=cfg.numcl:#flipped version
                 efeat=pyrHOG2.hogflip(efeat)
                 eedge=pyrHOG2.crfflip(eedge)
             trneg.append(numpy.concatenate((efeat.flatten(),eedge.flatten())))

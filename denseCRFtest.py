@@ -56,7 +56,7 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
         ltdet+=res
 
     if parallel:
-        if pool==None
+        if pool==None:
             mypool.close() 
             mypool.join() 
 
