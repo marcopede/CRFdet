@@ -41,10 +41,10 @@ cfg.bias=bias
 cfg.posovr= 0.75
 cfg.perc=0.15
 #just for a fast test
-cfg.maxpos = 50
-cfg.maxneg = 20
-cfg.maxexamples = 10000
-cfg.maxtest = 20#100
+#cfg.maxpos = 50
+#cfg.maxneg = 20
+#cfg.maxexamples = 10000
+#cfg.maxtest = 20#100
 parallel=True
 cfg.show=False
 cfg.neginpos=False
@@ -52,7 +52,7 @@ localshow=True
 numcore=cfg.multipr
 notreg=0
 cfg.numcl=3
-cfg.valreg=0.001
+cfg.valreg=0.0
 cfg.useRL=True
 
 mypool = Pool(numcore) #keep the child processes as small as possible 
@@ -113,9 +113,9 @@ minres=10
 minfy=3
 minfx=3
 #maxArea=45*(4-cfg.lev[0])#too high resolution very slow
-#maxArea=35*(4-cfg.lev[0]) #the right trade-off
+maxArea=35*(4-cfg.lev[0]) #the right trade-off
 #maxArea=25*(4-cfg.lev[0]) #used in the test
-maxArea=15*(4-cfg.lev[0])
+#maxArea=15*(4-cfg.lev[0])
 usekmeans=False
 
 sr=numpy.sort(r)
@@ -345,7 +345,7 @@ pl.show()
 
 ######################### add CRF and rebuild w
 for idm,m in enumerate(models):   
-    models[idm]["cost"]=cfg.valreg*numpy.ones((8,cfg.fy[idm],cfg.fx[idm]))
+    models[idm]["cost"]=0.01*numpy.ones((8,cfg.fy[idm],cfg.fx[idm]))
 
 waux=[]
 rr=[]
