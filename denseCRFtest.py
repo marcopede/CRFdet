@@ -22,13 +22,16 @@ import detectCRF
 def test1hyp(x):
     return detectCRF.test(x,numhyp=1,show=False) #in bicycles is better and faster with 1 hypotheses
 
-def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,save=False,show=False):
+def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,save=False,show=False,pool=None):
     #parallel=True
     #cfg.show=not(parallel)
     #numcore=4
     #mycfg=
     if parallel:
-        mypool = Pool(numcore)
+        if pool!=None:
+            mypool=pool #use already created pool
+        else:
+            mypool = Pool(numcore)
     arg=[]
 
     for idl,l in enumerate(tsImages):
@@ -53,8 +56,9 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
         ltdet+=res
 
     if parallel:
-        mypool.close() 
-        mypool.join() 
+        if pool==None
+            mypool.close() 
+            mypool.join() 
 
     #sort detections
     ltosort=[-x["scr"] for x in ltdet]

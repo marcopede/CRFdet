@@ -1,11 +1,12 @@
 # training of the new CRF model
 # denseCRF [category] [configuration]
+from multiprocessing import Pool
+mypool = Pool(numcore) #keep the child processes as small as possible 
 
 ##################some import
 import matplotlib
 matplotlib.use("Agg") #if run outside ipython do not show any figure
 from database import *
-from multiprocessing import Pool
 import util
 import pyrHOG2
 #import pyrHOG2RL
@@ -41,10 +42,10 @@ cfg.bias=bias
 cfg.posovr= 0.75
 cfg.perc=0.15
 #just for a fast test
-#cfg.maxpos = 20
-#cfg.maxneg = 20
-#cfg.maxexamples = 10000
-#cfg.maxtest = 20#100
+cfg.maxpos = 50
+cfg.maxneg = 20
+cfg.maxexamples = 10000
+cfg.maxtest = 20#100
 parallel=True
 cfg.show=False
 cfg.neginpos=False
@@ -394,7 +395,7 @@ import itertools
 ####################### repeat scan positives
 for it in range(cfg.posit):
 
-    mypool = Pool(numcore)
+    #mypool = Pool(numcore)
     #counters
     padd=0
     pbetter=0
@@ -513,7 +514,7 @@ for it in range(cfg.posit):
         auxdet=[]
         auxfeat=[]
         auxedge=[]
-        for idl in lord[:cfg.maxexamples]:
+        for idl in lord[:cfg.maxexamples/2]:#to maintain space for new samples
             auxdet.append(lndet[idl])
             auxfeat.append(lnfeat[idl])
             auxedge.append(lnedge[idl])
@@ -699,12 +700,12 @@ for it in range(cfg.posit):
                 lnfeat.append(lnfeatnew[newid])
                 lnedge.append(lnedgenew[newid])
                 
-    mypool.close()
-    mypool.join()
+    #mypool.close()
+    #mypool.join()
     ##############test
     import denseCRFtest
     #denseCRFtest.runtest(models,tsImages,cfg,parallel=True,numcore=numcore,save="%s%d"%(testname,it),detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=localshow)
-    denseCRFtest.runtest(models,tsImages,cfg,parallel=True,numcore=numcore,save="%s%d"%(testname,it),show=localshow)
+    denseCRFtest.runtest(models,tsImages,cfg,parallel=True,numcore=numcore,save="%s%d"%(testname,it),show=localshow,pool=mypool)
 
 
 # unitl positve convergercy
