@@ -18,13 +18,17 @@ import itertools
 import sys
 import detectCRF
 
-def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,save=False,show=False):
+def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,save=False,show=False,pool=None):
+
     #parallel=True
     #cfg.show=not(parallel)
     #numcore=4
     #mycfg=
     if parallel:
-        mypool = Pool(numcore)
+        if pool!=None:
+            mypool=pool #use already created pool
+        else:
+            mypool = Pool(numcore)
     arg=[]
 
     for idl,l in enumerate(tsImages):
@@ -49,8 +53,9 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
         ltdet+=res
 
     if parallel:
-        mypool.close() 
-        mypool.join() 
+        if pool==None:
+            mypool.close() 
+            mypool.join() 
 
     #sort detections
     ltosort=[-x["scr"] for x in ltdet]

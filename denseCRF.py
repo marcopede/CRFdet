@@ -44,7 +44,7 @@ cfg.bias=bias
 cfg.posovr= 0.75
 cfg.perc=0.15
 #just for a fast test
-#cfg.maxpos = 20
+#cfg.maxpos = 50
 #cfg.maxneg = 20
 #cfg.maxexamples = 10000
 #cfg.maxtest = 20#100
@@ -55,8 +55,10 @@ localshow=True
 numcore=cfg.multipr
 notreg=0
 cfg.numcl=3
-cfg.valreg=0.01
-cfg.useRL=True
+#cfg.valreg=0.01#set in configuration
+#cfg.useRL=True
+
+mypool = Pool(numcore) #keep the child processes as small as possible 
 
 ########################load training and test samples
 if cfg.db=="VOC":
@@ -114,8 +116,8 @@ minres=10
 minfy=3
 minfx=3
 #maxArea=45*(4-cfg.lev[0])#too high resolution very slow
-#maxArea=35*(4-cfg.lev[0]) #the right trade-off
-maxArea=25*(4-cfg.lev[0]) #used in the test
+maxArea=35*(4-cfg.lev[0]) #the right trade-off
+#maxArea=25*(4-cfg.lev[0]) #used in the test
 #maxArea=15*(4-cfg.lev[0])
 usekmeans=False
 
@@ -346,7 +348,7 @@ pl.show()
 
 ######################### add CRF and rebuild w
 for idm,m in enumerate(models):   
-    models[idm]["cost"]=cfg.valreg*numpy.ones((8,cfg.fy[idm],cfg.fx[idm]))
+    models[idm]["cost"]=0.01*numpy.ones((8,cfg.fy[idm],cfg.fx[idm]))
 
 waux=[]
 rr=[]
@@ -397,7 +399,7 @@ import itertools
 ####################### repeat scan positives
 for it in range(cfg.posit):
 
-    mypool = Pool(numcore)
+    #mypool = Pool(numcore)
     #counters
     padd=0
     pbetter=0
@@ -496,7 +498,7 @@ for it in range(cfg.posit):
     for idl,l in enumerate(lpdet):#enumerate(lndet):
         efeat=lpfeat[idl]#.flatten()
         eedge=lpedge[idl]#.flatten()
-        if lpdet[idl]["id"]>cfg.numcl:#flipped version
+        if lpdet[idl]["id"]>=cfg.numcl:#flipped version
             efeat=pyrHOG2.hogflip(efeat)
             eedge=pyrHOG2.crfflip(eedge)
         trpos.append(numpy.concatenate((efeat.flatten(),eedge.flatten())))
@@ -516,13 +518,13 @@ for it in range(cfg.posit):
         auxdet=[]
         auxfeat=[]
         auxedge=[]
-        for idl in lord[:cfg.maxexamples]:
+        for idl in lord[:cfg.maxexamples/2]:#to maintain space for new samples
             auxdet.append(lndet[idl])
             auxfeat.append(lnfeat[idl])
             auxedge.append(lnedge[idl])
             efeat=lnfeat[idl]#.flatten()
             eedge=lnedge[idl]#.flatten()
-            if lndet[idl]["id"]>cfg.numcl:#flipped version
+            if lndet[idl]["id"]>=cfg.numcl:#flipped version
                 efeat=pyrHOG2.hogflip(efeat)
                 eedge=pyrHOG2.crfflip(eedge)
             trneg.append(numpy.concatenate((efeat.flatten(),eedge.flatten())))
@@ -702,12 +704,13 @@ for it in range(cfg.posit):
                 lnfeat.append(lnfeatnew[newid])
                 lnedge.append(lnedgenew[newid])
                 
-    mypool.close()
-    mypool.join()
+    #mypool.close()
+    #mypool.join()
     ##############test
     import denseCRFtest
     #denseCRFtest.runtest(models,tsImages,cfg,parallel=True,numcore=numcore,save="%s%d"%(testname,it),detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=localshow)
-    denseCRFtest.runtest(models,tsImages,cfg,parallel=True,numcore=numcore,save="%s%d"%(testname,it),show=localshow,detfun=denseCRFtest.test1hypINC)
+
+    denseCRFtest.runtest(models,tsImages,cfg,parallel=True,numcore=numcore,save="%s%d"%(testname,it),show=localshow,pool=mypool,detfun=denseCRFtest.test1hypINC)
 
 
 # unitl positve convergercy
