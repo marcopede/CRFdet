@@ -29,7 +29,7 @@ if len(sys.argv)>2: #specific configuration
     exec "from config_%s import *"%import_name  
     #save a local configuration copy 
     import shutil
-    shutil.copyfile(import_name,cfg.testpath+cfg.cls+"%d"%cfg.numcl)+"_"+cfg.testspec+".cfg.py"
+    shutil.copyfile("config_"+import_name+".py",cfg.testpath+cfg.cls+"%d"%cfg.numcl+"_"+cfg.testspec+".cfg.py")
 
 cfg.cls=sys.argv[1]
 testname=cfg.testpath+cfg.cls+("%d"%cfg.numcl)+"_"+cfg.testspec
@@ -37,10 +37,9 @@ testname=cfg.testpath+cfg.cls+("%d"%cfg.numcl)+"_"+cfg.testspec
 cfg.show=False
 cfg.auxdir=""
 cfg.numhyp=5
-cfg.rescale=True#False
 cfg.numneg= 10
-bias=100
-cfg.bias=bias
+bias=cfg.bias
+#cfg.bias=bias
 cfg.posovr= 0.75
 cfg.perc=0.15
 #just for a fast test
@@ -115,10 +114,11 @@ perc=cfg.perc#10
 minres=10
 minfy=3
 minfx=3
-#maxArea=45*(4-cfg.lev[0])#too high resolution very slow
-maxArea=35*(4-cfg.lev[0]) #the right trade-off
-#maxArea=25*(4-cfg.lev[0]) #used in the test
-#maxArea=15*(4-cfg.lev[0])
+#number of maximum number of HOG blocks (HOG cells /4) to use
+#maxArea=45#*(4-cfg.lev[0])#too high resolution very slow
+#maxArea=35#*(4-cfg.lev[0]) #the right trade-off
+maxArea=25#*(4-cfg.lev[0]) #used in the test
+#maxArea=15#*(4-cfg.lev[0])
 usekmeans=False
 
 sr=numpy.sort(r)
@@ -134,11 +134,13 @@ for l in range(numcl):
     print "Cluster same number",l,":"
     print "Samples:",len(a[cl==l])
     #meanA=numpy.mean(a[cl==l])/16.0/(0.5*4**(cfg.lev[l]-1))#4.0
-    meanA=numpy.mean(a[cl==l])/4.0/(4**(cfg.lev[l]-1))#4.0
+    #meanA=numpy.mean(a[cl==l])/4.0/(4**(cfg.lev[l]-1))#4.0
+    meanA=numpy.mean(a[cl==l])/64.0/4.0#(4**(cfg.lev[l]-1))#4.0
     print "Mean Area:",meanA
     sa=numpy.sort(a[cl==l])
     #minA=numpy.mean(sa[len(sa)/perc])/16.0/(0.5*4**(cfg.lev[l]-1))#4.0
-    minA=numpy.mean(sa[int(len(sa)*perc)])/4.0/(4**(cfg.lev[l]-1))#4.0
+    #minA=numpy.mean(sa[int(len(sa)*perc)])/4.0/(4**(cfg.lev[l]-1))#4.0
+    minA=numpy.mean(sa[int(len(sa)*perc)])/64.0/4.0#(4**(cfg.lev[l]-1))#4.0
     print "Min Area:",minA
     aspt=numpy.mean(r[cl==l])
     print "Aspect:",aspt
