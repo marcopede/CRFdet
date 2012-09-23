@@ -686,7 +686,7 @@ dtype compute_graph2(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,
     delete mrf;
     t1 = clock ();
     //printf("t0=%d t1=%d Diff %f \n",t0,t1,float(t1-t0)/CLOCKS_PER_SEC);
-    return -E;
+    return -bestE;
 }
 
 } //end extern C

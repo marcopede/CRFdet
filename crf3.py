@@ -667,6 +667,124 @@ def match_full2(m1,m2,cost,movy=None,movx=None,padvalue=0,remove=[],pad=0,feat=T
         return scr,res2,frot
     return lscr,res2
 
+def match_bb(m1,pm2,cost,show=True,rot=False,numhyp=10):
+    t=time.time()
+    numy=m1.shape[0]/2#p1.shape[0]
+    numx=m1.shape[1]/2#p1.shape[1]
+    #print numy,numx
+    data=[];minb=[];maxb=[]
+    for idm2,m2 in enumerate(pm2):
+        movy=(m2.shape[0]+m1.shape[0])
+        movx=(m2.shape[1]+m1.shape[1])
+        numlab=movy*movx
+        data.append(numpy.zeros((numy,numx,numlab),dtype=c_float))
+        auxdata=numpy.zeros((3,numy,numx,numlab),dtype=c_float)
+        #print "time preparation",time.time()-t
+        t=time.time()
+        mmax=numpy.zeros(2,dtype=c_int)
+        #original model
+        m2=numpy.ascontiguousarray(m2)
+        scn=numpy.mgrid[:movy,:movx].astype(numpy.int32)
+        scn[0]=scn[0]-m1.shape[0]
+        scn[1]=scn[1]-m1.shape[1]
+        tmp=scn.copy()
+        for px in range(numx):
+            for py in range(numy):
+                ff.scaneigh(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[2*py:2*(py+1),2*px:2*(px+1)]), 2,2,m1.shape[2],scn[0]+2*py,scn[1]+2*px,auxdata[1,py,px],tmp[0],tmp[1],0,0,scn[0].size,0)
+                #print "Done ",py,px 
+        #if output:
+        #    print "time Match",time.time()-t
+        if 0:#rot:
+            #rotate +1
+            m2=numpy.ascontiguousarray(rotate(m2,shift=1))
+            for px in range(numx):
+                for py in range(numy):
+                    ff.refineighfull(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[2*py:2*(py+1),2*px:2*(px+1)]),
+                        2,2,m1.shape[2],0,0,py*2+pad,px*2+pad,movy,movx,auxdata[2,py,px],
+                        mmax,mmax,ctypes.POINTER(c_float)(),0,0,0)
+            #rotate -1
+            m2=numpy.ascontiguousarray(rotate(m2,shift=-2))
+            for px in range(numx):
+                for py in range(numy):
+                    ff.refineighfull(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[2*py:2*(py+1),2*px:2*(px+1)]),
+                        2,2,m1.shape[2],0,0,py*2+pad,px*2+pad,movy,movx,auxdata[0,py,px],
+                        mmax,mmax,ctypes.POINTER(c_float)(),0,0,0)
+
+            #print "time hog",time.time()-t
+            data=numpy.min(auxdata,0)
+            mrot=numpy.argmin(auxdata,0)
+            #print rot
+            #rdata=data.reshape((data.shape[0]*data.shape[1],-1))
+            #rrot=rot.reshape((rot.shape[0]*rot.shape[1],-1))
+        else:
+            data[-1]=auxdata[1]
+            rrdata=data[-1].reshape((data[-1].shape[0]*data[-1].shape[1],-1))
+        #estimate max and min
+        minb.append(numpy.sum(rrdata,0).max())
+        maxb.append(numpy.sum(rrdata.max(1)))
+        print "Lev",idm2,"Min:",minb[-1],"Max:",maxb[-1]
+        #data[-1]=-data[-1]
+        #raw_input()
+    maxb=numpy.array(maxb)
+    minb=numpy.array(minb)
+    lres=numpy.zeros(len(maxb),dtype=object)
+    lscr=numpy.zeros(len(maxb))
+    ldet=[]
+    for h in range(numhyp):
+        stop=False
+        while not(stop):
+            l=maxb.argmax()#the max bound
+            m2=-data[l]
+            #rm2=m2.reshape((data[-1].shape[0]*data[-1].shape[1],-1))
+            movy=(pm2[l].shape[0]+m1.shape[0])
+            movx=(pm2[l].shape[1]+m1.shape[1])
+            auxmin=m2.min()
+            rdata=m2-auxmin
+            auxscr=numpy.zeros(1,dtype=numpy.float32)
+            res=numpy.zeros((1,numy,numx),dtype=c_int)
+            if 0:
+                import pylab
+                pylab.figure(200)
+                pylab.clf()
+                pylab.imshow(-rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)).sum(0).reshape(movy,movx)-auxmin*numy*numx,vmin=0,vmax=3.0,interpolation="nearest")
+                pylab.draw()
+                pylab.show()
+            scr=crfgr2(numy,numx,cost,movy,movx,rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)),1,auxscr,res)  
+            assert(scr==auxscr[0])
+            #print "Before",scr
+            scr=scr-auxmin*numy*numx
+            #update bounds and save detection
+            print "Lev",l,"Old Maxb",maxb[l],"New Maxb",scr
+            assert(scr+0.00001>=minb[l])
+            maxb[l]=scr
+            res2=numpy.zeros((1,2,res.shape[1],res.shape[2]),dtype=c_int)
+            res2[:,0]=(res/(movx))-m1.shape[0]
+            res2[:,1]=(res%(movx))-m1.shape[1]
+            lres[l]=res2
+            lscr[l]=scr
+            #assert(scr>=minb[l])
+            if lscr.max()+0.00001>=maxb.max():
+                stop=True
+                lmax=lscr.argmax()
+                print "Found maxima Lev",lmax,"Scr",lscr[lmax]
+                #raw_input()
+                ldet.append({"scl":lmax,"scr":lscr[lmax],"def":lres[lmax].copy()})
+                #update data
+                res2=lres[lmax]
+                movy=(pm2[lmax].shape[0]+m1.shape[0])
+                movx=(pm2[lmax].shape[1]+m1.shape[1])            
+                for p in range(res2.shape[2]):
+                    for px in range(res2.shape[3]):
+                        rcy=res2[0,0,py,px]+m1.shape[0]
+                        rcx=res2[0,1,py,px]+m1.shape[1]
+                        #data.reshape((data.shape[0],data.shape[1],movy,movx))[py,px,rcy,rcx]=1
+                        data[lmax].reshape((numy,numx,movy,movx))[py,px,rcy-1:rcy+2,rcx-1:rcx+2]=-1
+                #update bounds
+                minb[lmax]=numpy.max(numpy.sum(data[lmax].reshape((data[lmax].shape[0]*data[lmax].shape[1],-1)),0))
+                #maxb[lmax]=numpy.sum(numpy.max(data[l],2))
+   
+    return ldet
+
 
 def getfeat_old(m1,pad,res2,movy=None,movx=None,mode="Best"):
     if movy==None:
@@ -781,6 +899,101 @@ def getfeat_full(m1,pad,res2,movy=None,movx=None,mode="Quad",rot=None):
 if __name__ == "__main__":
 
     if 1:
+        from pylab import *
+        import util
+        im=util.myimread("000379.jpg")[:,::-1,:]#flip
+        #im=util.myimread("005467.jpg")[:,::-1,:]#flip
+        #img=numpy.zeros((100,100,3))
+        #subplot(1,2,1)
+        imshow(im)
+        import pyrHOG2
+        f=pyrHOG2.pyrHOG(im,interv=10,savedir="",notload=True,notsave=True,hallucinate=False,cformat=True)
+
+        import util
+        model1=util.load("./data/bicycle3_bestdef14.model")
+        m1=model1[0]["ww"][2]
+        #m1=numpy.tile(m1,(3,3,1))#m1[:m1.shape[0]/2,:m1.shape[1]/2].copy()
+        m2=f.hog[28]#[2:18,:24] #12x20 --> padding -> 16x24
+
+        import crf3
+        numhyp=10
+        numy=m1.shape[0]/2
+        numx=m1.shape[1]/2
+        factor=1.0#0.3
+        mcostm=factor*model1[0]["cost"]
+        mcostc=numpy.ones((8,numy,numx),dtype=c_float)
+        mcostc=factor*mcostc*numpy.sqrt(numpy.sum(mcostm**2))/numpy.sqrt(numpy.sum(mcostc**2))
+        mcost=mcostc
+        t=time.time()
+        ldet=crf3.match_bb(m1,f.hog,mcost,show=False,rot=False,numhyp=1000)
+        rr=[x["scr"] for x in ldet]
+        figure()
+        plot(rr)
+        show()
+        fdsfd
+        remove=[]
+        totqual=0
+        col=['w','r','g','b','y','c','k','y','c','k']
+        for r in range(len(ldet)):
+            m2=f.hog[r["scl"]]
+            #m2=numpy.zeros((3,3,31),dtype=numpy.float32)
+            lscr,fres=crf3.match_full2(m1,m2,mcost,pad=pad,remove=remove,show=False,feat=False,rot=False,numhyp=numhyp)
+            print "Total time",time.time()-t
+            #print "Score",scr
+            idraw=False
+            if idraw:
+                import drawHOG
+                #rec=drawHOG.drawHOG(dfeat)
+                figure(figsize=(15,5))
+                #subplot(1,2,1)
+                #imshow(rec)
+                title("Reconstructed HOG Image (Learned Costs)")
+                subplot(1,2,2)
+                img=drawHOG.drawHOG(m2)
+            hogpix=15
+            myscr=[]
+            sf=int(8*2/f.scale[r])
+            im2=numpy.zeros((im.shape[0]+sf*numy*2,im.shape[1]+sf*numx*2,im.shape[2]),dtype=im.dtype)
+            im2[sf*numy:sf*numy+im.shape[0],sf*numx:sf*numx+im.shape[1]]=im
+            for hy in range(fres.shape[0]):
+                res=fres[fres.shape[0]-hy-1]
+                dfeat,edge=crf3.getfeat_full(m2,pad,res)
+                print "Scr",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost),"Error",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-lscr[fres.shape[0]-hy-1]
+                #print "Edge Lin",numpy.sum(edge[:4]*mcost[:4]),"Error",numpy.sum(m1*dfeat)+numpy.sum(edge[:4]*mcost[:4])-lscr[fres.shape[0]-hy-1]
+                #print "Edge Quad",numpy.sum(edge[4:]*mcost[4:]),"Error",numpy.sum(m1*dfeat)+numpy.sum(edge[4:]*mcost[4:])-lscr[fres.shape[0]-hy-1]
+                myscr.append(numpy.sum(m1*dfeat)+numpy.sum(edge*mcost))
+                rcim=numpy.zeros((sf*numy,sf*numx,3),dtype=im.dtype)
+                if idraw:
+                    for px in range(res.shape[2]):
+                        for py in range(res.shape[1]):
+                            util.box(py*2*hogpix+res[0,py,px]*hogpix,px*2*hogpix+res[1,py,px]*hogpix,py*2*hogpix+res[0,py,px]*hogpix+2*hogpix,px*2*hogpix+res[1,py,px]*hogpix+2*hogpix, col=col[fres.shape[0]-hy-1], lw=2)  
+                            impy=(py)*sf+(res[0,py,px]+1)*sf/2
+                            impx=(px)*sf+(res[1,py,px]+1)*sf/2
+                            rcim[sf*py:sf*(py+1),sf*px:sf*(px+1)]=im2[sf*numy+impy:sf*numy+impy+sf,sf*numx+impx:sf*numx+impx+sf] 
+                            #m2[py*2+res[0,py,px]:(py+1)*2+res[0,py,px],px*2+res[1,py,px]:(px+1)*2+res[1,py,px]]=0 
+                            #text(px*20+(res[py,px]%(movx*2+1)-movx)*10,py*20+(res[py,px]/(movy*2+1)-movy)*10,"(%d,%d)"%(py,px))
+                #remove.append(res)
+            if idraw:
+                imshow(img)
+                title("Deformed Grid (Learned Costs)")
+                rec=drawHOG.drawHOG(dfeat)
+                subplot(1,2,1)
+                rec=drawHOG.drawHOG(dfeat)
+                imshow(rec)
+                figure(15)
+                clf()
+                imshow(rcim)
+                draw()
+                show()
+                print "QUALITY:",numpy.sum(numpy.array(myscr)*(numpy.arange(numhyp)+1))
+                raw_input()
+            print "QUALITY:",numpy.sum(numpy.array(myscr)*(numpy.arange(numhyp)+1))
+            totqual+=numpy.sum(numpy.array(myscr)*(numpy.arange(numhyp)+1))
+            #raw_input()
+    print "Total QUALITY:",totqual
+
+
+    if 0:
         from pylab import *
         import util
         #im=util.myimread("000125.jpg")#flip

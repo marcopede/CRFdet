@@ -88,7 +88,7 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
 
 #use a different number of hypotheses
 def test1hypINC(x):
-    return detectCRF.test(x,numhyp=1,show=False,inclusion=True,onlybest=True) #in bicycles is better and faster with 1 hypotheses
+    return detectCRF.test(x,numhyp=5,show=False,inclusion=True,onlybest=True) #in bicycles is better and faster with 1 hypotheses
 
 #use a different number of hypotheses
 def test1hyp(x):
@@ -129,6 +129,7 @@ if __name__ == '__main__':
         cfg.testpath="./data/"#"./data/CRF/12_09_19/"
         cfg.testspec="right"#"full2"
         cfg.db="buffy"
+        
 
     testname=cfg.testpath+cfg.cls+("%d"%cfg.numcl)+"_"+cfg.testspec
     ########################load training and test samples
@@ -176,7 +177,7 @@ if __name__ == '__main__':
     #it=l-1
     #models=util.load("%s%d.model"%(testname,it))
     ######to comment down
-    it=4;testname="./data/person3_right"
+    it=6;testname="./data/person3_right"
     models=util.load("%s%d.model"%(testname,it))
     #just for the new
 #    for idm,m in enumerate(models):
