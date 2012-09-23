@@ -381,12 +381,13 @@ if cfg.useRL:
         models[-1]["id"]=idm+cfg.numcl
     #check that flip is correct
     waux1=[]
+    rr2=[]
     w2=numpy.array([])
-    for idm,m in enumerate(models[cfg.numcl:]):
-        waux1.append(model.model2w(models[idm],False,False,False,useCRF=True,k=cfg.k))
-        rr.append(models[idm]["rho"])
-        w2=numpy.concatenate((w1,waux[-1],-numpy.array([models[idm]["rho"]])/bias))
-    assert(numpy.sum(w1*w1)==numpy.sum(w2*w2))#still can be wrong
+    for m in models[cfg.numcl:]:
+        waux1.append(model.model2w(m,False,False,False,useCRF=True,k=cfg.k))
+        w2=numpy.concatenate((w2,waux1[-1],-numpy.array([m["rho"]/bias])))
+    #check that the model and its flip score the same 
+    assert(numpy.sum(w1)==numpy.sum(w2))#still can be wrong
     
 
 lndet=[] #save negative detections
