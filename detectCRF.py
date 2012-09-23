@@ -178,7 +178,7 @@ def hardNegPos(el,numhyp=1):
     return ldet,lfeat,ledge
 
 
-def test(el,docluster=True,numhyp=1,show=False):
+def test(el,docluster=True,numhyp=1,show=False,inclusion=False,onlybest=False):
     t=time.time()
     #[f,det]=detectCRF.detectCrop(el)
     print "----Image-%s-(%d)-----------"%(el["file"].split("/")[-1],el["idim"])
@@ -195,7 +195,8 @@ def test(el,docluster=True,numhyp=1,show=False):
     [f,det]=rundet(img,cfg,models,numhyp=numhyp)
     boundingbox(det)
     if docluster:
-        det=cluster(det,maxcl=100)
+        #det=cluster(det,maxcl=100,inclusion=False)
+        det=cluster(det,maxcl=100,inclusion=inclusion,onlybest=onlybest)
     for idl,l in enumerate(det):
         det[idl]["idim"]=el["file"].split("/")[-1]
     if show:
@@ -204,7 +205,7 @@ def test(el,docluster=True,numhyp=1,show=False):
     return det
 
 
-def cluster(det,ovr=0.5,maxcl=20,inclusion=False):
+def cluster(det,ovr=0.5,maxcl=20,inclusion=False,onlybest=False):
     """
     cluster detection with a minimum area k of overlapping
     """
@@ -218,7 +219,8 @@ def cluster(det,ovr=0.5,maxcl=20,inclusion=False):
                 else:   
                     myovr=util.inclusion(ls["bbox"],cle["bbox"])
                 if myovr>ovr:
-                    cl.append(ls)
+                    if not(onlybest):
+                        cl.append(ls)
                     found=True
                     break
         if not(found):
@@ -402,7 +404,8 @@ def rundet(img,cfg,models,numhyp=5):
     #if cfg.__dict__.has_key("test"):
     #    notsave=cfg.test
     #f=pyrHOG2.pyrHOG(imname,interv=10,savedir=cfg.auxdir+"/hog/",notsave=not(cfg.savefeat),notload=not(cfg.loadfeat),hallucinate=cfg.hallucinate,cformat=True,flip=imageflip,resize=cfg.resize)
-    f=pyrHOG2.pyrHOG(img,interv=10,savedir=cfg.auxdir+"/hog/",notsave=not(cfg.savefeat),notload=not(cfg.loadfeat),hallucinate=cfg.hallucinate,cformat=True)#,flip=imageflip,resize=cfg.resize)
+    #f=pyrHOG2.pyrHOG(img,interv=10,savedir=cfg.auxdir+"/hog/",notsave=not(cfg.savefeat),notload=not(cfg.loadfeat),hallucinate=cfg.hallucinate,cformat=True)#,flip=imageflip,resize=cfg.resize)
+    f=pyrHOG2.pyrHOG(img,interv=10,savedir=cfg.auxdir+"/hog/",notsave=not(cfg.savefeat),notload=not(cfg.loadfeat),hallucinate=False,cformat=True)#,flip=imageflip,resize=cfg.resize)
     det=[]
     for idm,m in enumerate(models):
         mcost=m["cost"].astype(numpy.float32)

@@ -26,8 +26,11 @@ from config import * #default configuration
 if len(sys.argv)>2: #specific configuration
     print "Loading configuration from %s"%sys.argv[2]
     import_name=sys.argv[2]
-    exec "from config_%s import *"%import_name
-    
+    exec "from config_%s import *"%import_name  
+    #save a local configuration copy 
+    import shutil
+    shutil.copyfile(import_name,cfg.testpath+cfg.cls+"%d"%cfg.numcl)+"_"+cfg.testspec+".cfg.py"
+
 cfg.cls=sys.argv[1]
 testname=cfg.testpath+cfg.cls+("%d"%cfg.numcl)+"_"+cfg.testspec
 #cfg.useRL=False#for the moment
@@ -52,7 +55,7 @@ localshow=True
 numcore=cfg.multipr
 notreg=0
 cfg.numcl=3
-cfg.valreg=0.001
+cfg.valreg=0.01
 cfg.useRL=True
 
 ########################load training and test samples
@@ -112,8 +115,8 @@ minfy=3
 minfx=3
 #maxArea=45*(4-cfg.lev[0])#too high resolution very slow
 #maxArea=35*(4-cfg.lev[0]) #the right trade-off
-#maxArea=25*(4-cfg.lev[0]) #used in the test
-maxArea=15*(4-cfg.lev[0])
+maxArea=25*(4-cfg.lev[0]) #used in the test
+#maxArea=15*(4-cfg.lev[0])
 usekmeans=False
 
 sr=numpy.sort(r)
@@ -704,7 +707,7 @@ for it in range(cfg.posit):
     ##############test
     import denseCRFtest
     #denseCRFtest.runtest(models,tsImages,cfg,parallel=True,numcore=numcore,save="%s%d"%(testname,it),detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=localshow)
-    denseCRFtest.runtest(models,tsImages,cfg,parallel=True,numcore=numcore,save="%s%d"%(testname,it),show=localshow)
+    denseCRFtest.runtest(models,tsImages,cfg,parallel=True,numcore=numcore,save="%s%d"%(testname,it),show=localshow,detfun=denseCRFtest.test1hypINC)
 
 
 # unitl positve convergercy

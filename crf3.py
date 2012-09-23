@@ -805,6 +805,7 @@ if __name__ == "__main__":
         #model1=util.load("./data/rigid/12_08_17/bicycle3_complete8.model")
         model1=util.load("./data/bicycle3_bestdef14.model")
         m1=model1[0]["ww"][2]
+        m1=numpy.tile(m1,(3,3,1))#m1[:m1.shape[0]/2,:m1.shape[1]/2].copy()
         #model1=util.load("./data/CRF/12_09_15/person3_buffy0.model")
         #m1=model1[1]["ww"][0]
         #model1=util.load("../../CFdet/data/CRF/12_08_31/bicycle3_newbiask1011.model")
@@ -842,6 +843,7 @@ if __name__ == "__main__":
         mcostc=numpy.ones((8,numy,numx),dtype=c_float)
         mcostc=factor*mcostc*numpy.sqrt(numpy.sum(mcostm**2))/numpy.sqrt(numpy.sum(mcostc**2))
         mcost=mcostc
+        #mcost=numpy.tile(mcost,(1,2,2))
         #mcost[0,-1,:]=0#vertical 
         #mcost[0,0,:]=0#added v
         #mcost[1,:,-1]=0#horizontal
