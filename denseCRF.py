@@ -350,13 +350,13 @@ pl.show()
 
 ######################### add CRF and rebuild w
 for idm,m in enumerate(models):   
-    models[idm]["cost"]=0.01*numpy.ones((8,cfg.fy[idm],cfg.fx[idm]))
+    models[idm]["cost"]=cfg.initdef*numpy.ones((8,cfg.fy[idm],cfg.fx[idm]))
 
 waux=[]
 rr=[]
 w1=numpy.array([])
 sizereg=numpy.zeros(cfg.numcl,dtype=numpy.int32)
-#from w to model m1
+#from model m to w
 for idm,m in enumerate(models):
     waux.append(model.model2w(models[idm],False,False,False,useCRF=True,k=cfg.k))
     rr.append(models[idm]["rho"])
@@ -379,6 +379,15 @@ if cfg.useRL:
     for idm in range(cfg.numcl):
         models.append(extra.flip(models[idm]))
         models[-1]["id"]=idm+cfg.numcl
+    #check that flip is correct
+    waux1=[]
+    w2=numpy.array([])
+    for idm,m in enumerate(models[cfg.numcl:]):
+        waux1.append(model.model2w(models[idm],False,False,False,useCRF=True,k=cfg.k))
+        rr.append(models[idm]["rho"])
+        w2=numpy.concatenate((w1,waux[-1],-numpy.array([models[idm]["rho"]])/bias))
+    assert(numpy.sum(w1*w1)==numpy.sum(w2*w2))#still can be wrong
+    
 
 lndet=[] #save negative detections
 lnfeat=[] #

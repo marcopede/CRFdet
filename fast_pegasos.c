@@ -50,6 +50,7 @@ static void reg(ftype *a,ftype b,ftype d,int len,int sizereg)
     }*/
 }
 
+
 static void limit(ftype *a,ftype d,int len,int sizereg)
 {
     int c;
@@ -205,7 +206,9 @@ void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype *
         bwscr=-1.0;
         for (cp=0;cp<numcomp;cp++)
         {   
-            wscr=score(w+sumszx[cp],w+sumszx[cp],compx[cp]);
+            //wscr=score(w+sumszx[cp],w+sumszx[cp],compx[cp]);
+            //just a test
+            wscr=score(w+sumszx[cp],w+sumszx[cp],compx[cp]-sizereg[cp]);
             //printf("Wscore(%d)=%f\n",cp,wscr);
             if (wscr>bwscr)
             {
@@ -214,7 +217,9 @@ void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype *
             }
         }
         //printf("Regularize Component %d Valreg:%f Sizereg:%d \n",bcp,valreg,sizereg[bcp]);
-        reg(w+sumszx[bcp],n,valreg,compx[bcp],sizereg[bcp]);//0.01    
+        //not regularize pairwise
+        reg(w+sumszx[bcp],n,valreg,compx[bcp]-sizereg[bcp],0);//0.01    
+        //reg(w+sumszx[bcp],n,valreg,compx[bcp],sizereg[bcp]);//0.01    
         //mul22(w+sumszx[bcp],1-n,valreg,compx[bcp],sizereg[bcp]);//0.01    
         //all the vector
         //mul(w,1-n*lambda,wxtot);
