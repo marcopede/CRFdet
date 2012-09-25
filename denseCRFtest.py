@@ -88,7 +88,10 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
 
 #use a different number of hypotheses
 def test1hypINC(x):
-    return detectCRF.test(x,numhyp=5,show=False,inclusion=True,onlybest=True) #in bicycles is better and faster with 1 hypotheses
+    return detectCRF.test(x,numhyp=3,show=False,inclusion=True,onlybest=True) #in bicycles is better and faster with 1 hypotheses
+
+def test1hypINCBB(x):
+    return detectCRF.test(x,numhyp=50,show=False,inclusion=True,onlybest=True,usebb=True) #in bicycles is 
 
 #use a different number of hypotheses
 def test1hyp(x):
@@ -125,10 +128,11 @@ if __name__ == '__main__':
         from config import * #default configuration      
         cfg.cls=sys.argv[1]
         cfg.numcl=3
-        cfg.dbpath="/home/owner/databases/"#"/users/visics/mpederso/databases/"
+        #cfg.dbpath="/home/owner/databases/"
+        cfg.dbpath="/users/visics/mpederso/databases/"
         cfg.testpath="./data/"#"./data/CRF/12_09_19/"
         cfg.testspec="right"#"full2"
-        cfg.db="buffy"
+        cfg.db="VOC"
         
 
     testname=cfg.testpath+cfg.cls+("%d"%cfg.numcl)+"_"+cfg.testspec
@@ -177,7 +181,8 @@ if __name__ == '__main__':
     #it=l-1
     #models=util.load("%s%d.model"%(testname,it))
     ######to comment down
-    it=6;testname="./data/person3_right"
+    #it=6;testname="./data/person3_right"
+    it=3;testname="./data/CRF/12_09_22/bicycle3_right"
     models=util.load("%s%d.model"%(testname,it))
     #just for the new
 #    for idm,m in enumerate(models):
@@ -188,5 +193,5 @@ if __name__ == '__main__':
     ##############test
     #import itertools
     #runtest(models,tsImages,cfg,parallel=False,numcore=4,detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=True)#,save="%s%d"%(testname,it))
-    runtest(models,tsImages,cfg,parallel=True,numcore=4,show=True,detfun=test1hypINC)#,save="%s%d"%(testname,it))
+    runtest(models,tsImagesFull,cfg,parallel=True,numcore=4,show=True,detfun=test1hypINCBB)#,save="%s%d"%(testname,it))
 

@@ -722,7 +722,7 @@ def match_bb(m1,pm2,cost,show=True,rot=False,numhyp=10):
         #estimate max and min
         minb.append(numpy.sum(rrdata,0).max())
         maxb.append(numpy.sum(rrdata.max(1)))
-        print "Lev",idm2,"Min:",minb[-1],"Max:",maxb[-1]
+        ##print "Lev",idm2,"Min:",minb[-1],"Max:",maxb[-1]
         #data[-1]=-data[-1]
         #raw_input()
     maxb=numpy.array(maxb)
@@ -754,8 +754,8 @@ def match_bb(m1,pm2,cost,show=True,rot=False,numhyp=10):
             #print "Before",scr
             scr=scr-auxmin*numy*numx
             #update bounds and save detection
-            print "Lev",l,"Old Maxb",maxb[l],"New Maxb",scr
-            assert(scr+0.00001>=minb[l])
+            ##print "Lev",l,"Old Maxb",maxb[l],"New Maxb",scr
+            #assert(scr+0.00001>=minb[l])# not always true because alpha expansion doen not give the global optimum
             maxb[l]=scr
             res2=numpy.zeros((1,2,res.shape[1],res.shape[2]),dtype=c_int)
             res2[:,0]=(res/(movx))-m1.shape[0]
@@ -766,7 +766,7 @@ def match_bb(m1,pm2,cost,show=True,rot=False,numhyp=10):
             if lscr.max()+0.00001>=maxb.max():
                 stop=True
                 lmax=lscr.argmax()
-                print "Found maxima Lev",lmax,"Scr",lscr[lmax]
+                ##print "Found maxima Lev",lmax,"Scr",lscr[lmax]
                 #raw_input()
                 ldet.append({"scl":lmax,"scr":lscr[lmax],"def":lres[lmax].copy()})
                 #update data
@@ -901,7 +901,8 @@ if __name__ == "__main__":
     if 1:
         from pylab import *
         import util
-        im=util.myimread("000379.jpg")[:,::-1,:]#flip
+        im=util.myimread("000535.jpg")[:,::-1,:]#flip
+        #im=util.myimread("000379.jpg")[:,::-1,:]#flip
         #im=util.myimread("005467.jpg")[:,::-1,:]#flip
         #img=numpy.zeros((100,100,3))
         #subplot(1,2,1)
@@ -925,86 +926,21 @@ if __name__ == "__main__":
         mcostc=factor*mcostc*numpy.sqrt(numpy.sum(mcostm**2))/numpy.sqrt(numpy.sum(mcostc**2))
         mcost=mcostc
         t=time.time()
-        ldet=crf3.match_bb(m1,f.hog,mcost,show=False,rot=False,numhyp=1000)
+        ldet=crf3.match_bb(m1,f.hog,mcost,show=False,rot=False,numhyp=120)
+        print "Time:",time.time()-t
         rr=[x["scr"] for x in ldet]
-        figure()
+        figure(22)
         plot(rr)
         show()
-        fdsfd
-        remove=[]
-        totqual=0
-        col=['w','r','g','b','y','c','k','y','c','k']
-        for r in range(len(ldet)):
-            m2=f.hog[r["scl"]]
-            #m2=numpy.zeros((3,3,31),dtype=numpy.float32)
-            lscr,fres=crf3.match_full2(m1,m2,mcost,pad=pad,remove=remove,show=False,feat=False,rot=False,numhyp=numhyp)
-            print "Total time",time.time()-t
-            #print "Score",scr
-            idraw=False
-            if idraw:
-                import drawHOG
-                #rec=drawHOG.drawHOG(dfeat)
-                figure(figsize=(15,5))
-                #subplot(1,2,1)
-                #imshow(rec)
-                title("Reconstructed HOG Image (Learned Costs)")
-                subplot(1,2,2)
-                img=drawHOG.drawHOG(m2)
-            hogpix=15
-            myscr=[]
-            sf=int(8*2/f.scale[r])
-            im2=numpy.zeros((im.shape[0]+sf*numy*2,im.shape[1]+sf*numx*2,im.shape[2]),dtype=im.dtype)
-            im2[sf*numy:sf*numy+im.shape[0],sf*numx:sf*numx+im.shape[1]]=im
-            for hy in range(fres.shape[0]):
-                res=fres[fres.shape[0]-hy-1]
-                dfeat,edge=crf3.getfeat_full(m2,pad,res)
-                print "Scr",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost),"Error",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-lscr[fres.shape[0]-hy-1]
-                #print "Edge Lin",numpy.sum(edge[:4]*mcost[:4]),"Error",numpy.sum(m1*dfeat)+numpy.sum(edge[:4]*mcost[:4])-lscr[fres.shape[0]-hy-1]
-                #print "Edge Quad",numpy.sum(edge[4:]*mcost[4:]),"Error",numpy.sum(m1*dfeat)+numpy.sum(edge[4:]*mcost[4:])-lscr[fres.shape[0]-hy-1]
-                myscr.append(numpy.sum(m1*dfeat)+numpy.sum(edge*mcost))
-                rcim=numpy.zeros((sf*numy,sf*numx,3),dtype=im.dtype)
-                if idraw:
-                    for px in range(res.shape[2]):
-                        for py in range(res.shape[1]):
-                            util.box(py*2*hogpix+res[0,py,px]*hogpix,px*2*hogpix+res[1,py,px]*hogpix,py*2*hogpix+res[0,py,px]*hogpix+2*hogpix,px*2*hogpix+res[1,py,px]*hogpix+2*hogpix, col=col[fres.shape[0]-hy-1], lw=2)  
-                            impy=(py)*sf+(res[0,py,px]+1)*sf/2
-                            impx=(px)*sf+(res[1,py,px]+1)*sf/2
-                            rcim[sf*py:sf*(py+1),sf*px:sf*(px+1)]=im2[sf*numy+impy:sf*numy+impy+sf,sf*numx+impx:sf*numx+impx+sf] 
-                            #m2[py*2+res[0,py,px]:(py+1)*2+res[0,py,px],px*2+res[1,py,px]:(px+1)*2+res[1,py,px]]=0 
-                            #text(px*20+(res[py,px]%(movx*2+1)-movx)*10,py*20+(res[py,px]/(movy*2+1)-movy)*10,"(%d,%d)"%(py,px))
-                #remove.append(res)
-            if idraw:
-                imshow(img)
-                title("Deformed Grid (Learned Costs)")
-                rec=drawHOG.drawHOG(dfeat)
-                subplot(1,2,1)
-                rec=drawHOG.drawHOG(dfeat)
-                imshow(rec)
-                figure(15)
-                clf()
-                imshow(rcim)
-                draw()
-                show()
-                print "QUALITY:",numpy.sum(numpy.array(myscr)*(numpy.arange(numhyp)+1))
-                raw_input()
-            print "QUALITY:",numpy.sum(numpy.array(myscr)*(numpy.arange(numhyp)+1))
-            totqual+=numpy.sum(numpy.array(myscr)*(numpy.arange(numhyp)+1))
-            #raw_input()
-    print "Total QUALITY:",totqual
-
-
-    if 0:
+        #fdsfd
+        
+    if 1:
+        ldet2=[]
         from pylab import *
         import util
         #im=util.myimread("000125.jpg")#flip
-        #im=util.myimread("000535.jpg")[:,::-1,:]#
-        #im=util.myimread("/users/visics/mpederso/databases/VOC2007/VOCdevkit/VOC2007/JPEGImages/000230.jpg")[:,::-1,:]
-        #im=util.myimread("/users/visics/mpederso/databases/VOC2007/VOCdevkit/VOC2007/JPEGImages/000038.jpg")[:,::-1,:]
-        #im=util.myimread("/users/visics/mpederso/databases/VOC2007/VOCdevkit/VOC2007/JPEGImages/005540.jpg")[:,::-1,:] #besides
-        #im=util.myimread("Weiwei_bicycles.jpg")
-        #im=util.myimread("407223044_692.jpg")#[:,::-1,:]#
-        #im=util.myimread("imges3.jpg")#[:,::-1,:]#
-        im=util.myimread("000379.jpg")[:,::-1,:]#flip
+        im=util.myimread("000535.jpg")[:,::-1,:]#
+        #im=util.myimread("000379.jpg")[:,::-1,:]#flip
         #im=util.myimread("005467.jpg")[:,::-1,:]#flip
         #img=numpy.zeros((100,100,3))
         #subplot(1,2,1)
@@ -1018,7 +954,7 @@ if __name__ == "__main__":
         #model1=util.load("./data/rigid/12_08_17/bicycle3_complete8.model")
         model1=util.load("./data/bicycle3_bestdef14.model")
         m1=model1[0]["ww"][2]
-        m1=numpy.tile(m1,(3,3,1))#m1[:m1.shape[0]/2,:m1.shape[1]/2].copy()
+        #m1=numpy.tile(m1,(3,3,1))#m1[:m1.shape[0]/2,:m1.shape[1]/2].copy()
         #model1=util.load("./data/CRF/12_09_15/person3_buffy0.model")
         #m1=model1[1]["ww"][0]
         #model1=util.load("../../CFdet/data/CRF/12_08_31/bicycle3_newbiask1011.model")
@@ -1046,7 +982,7 @@ if __name__ == "__main__":
 
         import crf3
         reload(crf3)
-        numhyp=10
+        numhyp=3
         numy=m1.shape[0]/2
         numx=m1.shape[1]/2
         #movy=(numy*2-1)/2
@@ -1088,6 +1024,7 @@ if __name__ == "__main__":
             im2=numpy.zeros((im.shape[0]+sf*numy*2,im.shape[1]+sf*numx*2,im.shape[2]),dtype=im.dtype)
             im2[sf*numy:sf*numy+im.shape[0],sf*numx:sf*numx+im.shape[1]]=im
             for hy in range(fres.shape[0]):
+                ldet2.append(lscr[hy])
                 res=fres[fres.shape[0]-hy-1]
                 dfeat,edge=crf3.getfeat_full(m2,pad,res)
                 print "Scr",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost),"Error",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-lscr[fres.shape[0]-hy-1]
@@ -1122,8 +1059,14 @@ if __name__ == "__main__":
             print "QUALITY:",numpy.sum(numpy.array(myscr)*(numpy.arange(numhyp)+1))
             totqual+=numpy.sum(numpy.array(myscr)*(numpy.arange(numhyp)+1))
             #raw_input()
-    print "Total QUALITY:",totqual
-
+        print "Total QUALITY:",totqual
+        ldet2=-numpy.sort(-numpy.array(ldet2))
+        figure(22)
+        clf()
+        rr=-numpy.sort(-numpy.array(rr))
+        plot(rr)
+        plot(ldet2,"r")
+        show()
 
     if 0:
         from pylab import *

@@ -67,6 +67,8 @@ cfg.checkpoint=False
 #cfg.variablecache=False
 cfg.rotate=False
 cfg.valreg=0.01
+cfg.initdef=0.01
+cfg.rescale=True
 
 #cfg.savedir=InriaPosData(basepath=dbpath).getStorageDir() #where to save
 #    mydebug=False

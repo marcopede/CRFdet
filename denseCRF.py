@@ -41,7 +41,7 @@ cfg.numneg= 10
 bias=cfg.bias
 #cfg.bias=bias
 cfg.posovr= 0.75
-cfg.perc=0.15
+#cfg.perc=0.25
 #just for a fast test
 #cfg.maxpos = 50
 #cfg.maxneg = 20
@@ -53,7 +53,7 @@ cfg.neginpos=False
 localshow=True
 numcore=cfg.multipr
 notreg=0
-cfg.numcl=3
+#cfg.numcl=3
 #cfg.valreg=0.01#set in configuration
 #cfg.useRL=True
 
@@ -116,8 +116,8 @@ minfy=3
 minfx=3
 #number of maximum number of HOG blocks (HOG cells /4) to use
 #maxArea=45#*(4-cfg.lev[0])#too high resolution very slow
-#maxArea=35#*(4-cfg.lev[0]) #the right trade-off
-maxArea=25#*(4-cfg.lev[0]) #used in the test
+maxArea=35#*(4-cfg.lev[0]) #the right trade-off
+#maxArea=25#*(4-cfg.lev[0]) #used in the test
 #maxArea=15#*(4-cfg.lev[0])
 usekmeans=False
 
@@ -616,6 +616,7 @@ for it in range(cfg.posit):
         util.save("%s%d.model"%(testname,it),models)
 
         #visualize models
+        atrposcl=numpy.array(trposcl)
         for idm,m in enumerate(models[:cfg.numcl]):   
             import drawHOG
             imm=drawHOG.drawHOG(m["ww"][0])
@@ -623,6 +624,7 @@ for it in range(cfg.posit):
             pl.clf()
             pl.imshow(imm)
             pl.title("b:%.3f h:%.4f d:%.4f"%(m["rho"],numpy.sum(m["ww"][0]**2),numpy.sum(m["cost"]**2)))
+            pl.xlabel("#%d"%(numpy.sum(atrposcl==idm)))
             pl.draw()
             pl.show()
             pylab.savefig("%s_hog%d_cl%d.png"%(testname,it,idm))

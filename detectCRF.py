@@ -178,7 +178,7 @@ def hardNegPos(el,numhyp=1):
     return ldet,lfeat,ledge
 
 
-def test(el,docluster=True,numhyp=1,show=False,inclusion=False,onlybest=False):
+def test(el,docluster=True,numhyp=1,show=False,inclusion=False,onlybest=False,usebb=False):
     t=time.time()
     #[f,det]=detectCRF.detectCrop(el)
     print "----Image-%s-(%d)-----------"%(el["file"].split("/")[-1],el["idim"])
@@ -192,7 +192,10 @@ def test(el,docluster=True,numhyp=1,show=False,inclusion=False,onlybest=False):
     else:
         img=util.myimread(imname,resize=cfg.resize)
     #imageflip=el["flip"]
-    [f,det]=rundet(img,cfg,models,numhyp=numhyp)
+    if usebb:
+        [f,det]=rundetbb(img,cfg,models,numdet=numhyp)
+    else:
+        [f,det]=rundet(img,cfg,models,numhyp=numhyp)
     boundingbox(det)
     if docluster:
         #det=cluster(det,maxcl=100,inclusion=False)
@@ -393,18 +396,7 @@ def visualize2(det,img,text=""):
 
 
 def rundet(img,cfg,models,numhyp=5):
-    #if cfg.show:
-        #img=util.myimread(imname,imageflip,resize=cfg.resize)
-    #    pylab.figure(10)
-    #    pylab.ioff()
-    #    pylab.clf()
-    #    pylab.axis("off")
-    #    pylab.imshow(img,interpolation="nearest",animated=True) 
     notsave=False
-    #if cfg.__dict__.has_key("test"):
-    #    notsave=cfg.test
-    #f=pyrHOG2.pyrHOG(imname,interv=10,savedir=cfg.auxdir+"/hog/",notsave=not(cfg.savefeat),notload=not(cfg.loadfeat),hallucinate=cfg.hallucinate,cformat=True,flip=imageflip,resize=cfg.resize)
-    #f=pyrHOG2.pyrHOG(img,interv=10,savedir=cfg.auxdir+"/hog/",notsave=not(cfg.savefeat),notload=not(cfg.loadfeat),hallucinate=cfg.hallucinate,cformat=True)#,flip=imageflip,resize=cfg.resize)
     f=pyrHOG2.pyrHOG(img,interv=10,savedir=cfg.auxdir+"/hog/",notsave=not(cfg.savefeat),notload=not(cfg.loadfeat),hallucinate=True,cformat=True)#,flip=imageflip,resize=cfg.resize)
     det=[]
     for idm,m in enumerate(models):
@@ -438,6 +430,21 @@ def rundet(img,cfg,models,numhyp=5):
         pylab.show()
     return [f,det]
 
+def rundetbb(img,cfg,models,numdet=50):
+    #notsave=False
+    f=pyrHOG2.pyrHOG(img,interv=10,savedir=cfg.auxdir+"/hog/",notsave=not(cfg.savefeat),notload=not(cfg.loadfeat),hallucinate=True,cformat=True)
+    ldet2=[]
+    for idm,m in enumerate(models):
+        mcost=m["cost"].astype(numpy.float32)
+        m1=m["ww"][0]
+        numy=m["ww"][0].shape[0]#models[idm]["ww"][0].shape[0]#cfg.fy[idm]
+        numx=m["ww"][0].shape[1]#models[idm]["ww"][0].shape[1]#cfg.fx
+        ldet=crf3.match_bb(m1,f.hog,mcost,show=False,rot=False,numhyp=numdet)
+        for l in ldet:
+            r=l["scl"]
+            ldet2.append({"id":m["id"],"hog":r,"scl":f.scale[r],"def":l["def"][0],"scr":l["scr"]-models[idm]["rho"]})            
+    ldet2.sort(key=lambda by: -by["scr"])
+    return [f,ldet2]
 
 
 def detectCrop(a):
