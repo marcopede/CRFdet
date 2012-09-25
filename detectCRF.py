@@ -11,7 +11,7 @@ import copy
 #from scipy.ndimage import zoom
 from extra import myzoom as zoom
 
-def refinePos(el,numhyp=5):
+def refinePos(el,numhyp=5,useclip=False):
     t=time.time()
     rescale=1.0
     #[f,det]=detectCRF.detectCrop(el)
@@ -56,23 +56,18 @@ def refinePos(el,numhyp=5):
                 rescale=16/float(min(tiley,tilex))
                 img=zoom(img,(rescale,rescale,1),order=1)
                 newbbox=numpy.array(newbbox)*rescale
-        #if min(marginx,marginy)/8 > min(maxy,maxx) and max(marginx,marginy)/8 > max(maxy,maxx):
-        #    rescale=max(maxy,maxx)/(min(marginx,marginy)/8.0)
-        #    print rescale
-        #    img=zoom(img,rescale,order=1)
-        #imy=bb[2]-bb[0]
-        #imx=bb[3]-bb[1]
-        #idm=numpy.argmin(abs(dratios-cropratio)) #select only the best aspect to reduce cost
-                                           # the right thing should be to select bbox with close aspect ration
-        #print idm,dist
-        selmodels=[models[x] for x in idm]
-        #raw_input()
+        if useclip:
+            if bbox[5]==1:# use all models for truncated
+               idm=range(len(models)) 
+        selmodels=[models[x] for x in idm]          
         [f,det]=rundet(img,cfg,selmodels,numhyp=numhyp)
     #else: #for negatives
     #    [f,det]=rundet(img,cfg,models)
     print "Detection time:",time.time()-t
     #detectCRF.check(det[:10],f,models)
     boundingbox(det)
+    if useclip:
+        clip(det,img.shape)
     #detectCRF.visualize(det[:10],f,img,cfgpos)
     bestscr=-100
     best=-1
@@ -132,7 +127,7 @@ def hardNeg(el,numhyp=1):
     print "Found %d hard negatives"%len(ldet)
     return ldet,lfeat,ledge
 
-def hardNegPos(el,numhyp=1):
+def hardNegPos(el,numhyp=1,useclip=False):
     t=time.time()
     #[f,det]=detectCRF.detectCrop(el)
     print "----Image-%s-(%d)-----------"%(el["file"].split("/")[-1],el["idim"])
@@ -153,6 +148,8 @@ def hardNegPos(el,numhyp=1):
     lfeat=[]
     ledge=[]
     boundingbox(det)
+    if useclip:
+        clip(det,img.shape)
     for idl,l in enumerate(det):#(det[:cfg.numneg]):
         #add bias
         #det[idl]["scr"]-=models[det[idl]["id"]]["rho"]/float(cfg.bias)
@@ -178,7 +175,7 @@ def hardNegPos(el,numhyp=1):
     return ldet,lfeat,ledge
 
 
-def test(el,docluster=True,numhyp=1,show=False,inclusion=False,onlybest=False,usebb=False):
+def test(el,docluster=True,numhyp=1,show=False,inclusion=False,onlybest=False,usebb=False,useclip=False):
     t=time.time()
     #[f,det]=detectCRF.detectCrop(el)
     print "----Image-%s-(%d)-----------"%(el["file"].split("/")[-1],el["idim"])
@@ -197,6 +194,8 @@ def test(el,docluster=True,numhyp=1,show=False,inclusion=False,onlybest=False,us
     else:
         [f,det]=rundet(img,cfg,models,numhyp=numhyp)
     boundingbox(det)
+    if useclip:
+        clip(det,img.shape)
     if docluster:
         #det=cluster(det,maxcl=100,inclusion=False)
         det=cluster(det,maxcl=100,inclusion=inclusion,onlybest=onlybest)
@@ -273,7 +272,7 @@ def getfeature(det,f,models,bias):
 
 def boundingbox(det):
     """extract the detection boundig box"""
-    for l in range(len(det)):#lsort[:100]:
+    for l in range(len(det)):
         scl=det[l]["scl"]
         scr=det[l]["scr"]
         idm=det[l]["id"]
@@ -288,6 +287,17 @@ def boundingbox(det):
                 pos[0,py,px]=(py)*sf+(res[0,py,px]+1)*sf/2
                 pos[1,py,px]=(px)*sf+(res[1,py,px]+1)*sf/2
         det[l]["bbox"]=(numpy.min(pos[0]),numpy.min(pos[1]),numpy.max(pos[0])+sf,numpy.max(pos[1])+sf)
+
+def clip(det,imsize):#imsize(y,x)
+    """clip the deteciton bboxes to be inside the image"""
+    for idl,l in enumerate(det):
+        #print l["bbox"],
+        y1=max(0,l["bbox"][0])
+        x1=max(0,l["bbox"][1])
+        y2=min(imsize[0],l["bbox"][2])
+        x2=min(imsize[1],l["bbox"][3])
+        det[idl]["bbox"]=(y1,x1,y2,x2)
+        #print det[idl]["bbox"]
 
 def visualize(det,f,img):
     """visualize a detection and the corresponding featues"""

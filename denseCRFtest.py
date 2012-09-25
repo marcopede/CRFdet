@@ -88,9 +88,12 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
 
 #use a different number of hypotheses
 def test1hypINC(x):
+    return detectCRF.test(x,numhyp=1,show=False,inclusion=True,onlybest=True,useclip=True) #in bicycles is 
+
+def test3hypINC(x):
     return detectCRF.test(x,numhyp=3,show=False,inclusion=True,onlybest=True) #in bicycles is better and faster with 1 hypotheses
 
-def test1hypINCBB(x):
+def test50hypINCBB(x):
     return detectCRF.test(x,numhyp=50,show=False,inclusion=True,onlybest=True,usebb=True) #in bicycles is 
 
 #use a different number of hypotheses
@@ -193,5 +196,5 @@ if __name__ == '__main__':
     ##############test
     #import itertools
     #runtest(models,tsImages,cfg,parallel=False,numcore=4,detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=True)#,save="%s%d"%(testname,it))
-    runtest(models,tsImagesFull,cfg,parallel=True,numcore=4,show=True,detfun=test1hypINCBB)#,save="%s%d"%(testname,it))
+    runtest(models,tsImages,cfg,parallel=False,numcore=4,show=True,detfun=test1hypINC)#,save="%s%d"%(testname,it))
 
