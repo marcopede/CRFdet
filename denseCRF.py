@@ -57,6 +57,26 @@ notreg=0
 #cfg.valreg=0.01#set in configuration
 #cfg.useRL=True
 
+#################### wrappers
+
+import detectCRF
+from multiprocessing import Manager
+
+manager=Manager()
+d=manager.dict()       
+
+def hardNegCache(x):
+    if x["control"]["cache_full"]:
+        return [],[],[]
+    else:
+        return detectCRF.hardNeg(x)
+
+def hardNegPosCache(x):
+    if x["control"]["cache_full"]:
+        return [],[],[]
+    else:
+        return detectCRF.hardNegPos(x)
+
 mypool = Pool(numcore) #keep the child processes as small as possible 
 
 ########################load training and test samples
@@ -686,20 +706,22 @@ for it in range(cfg.posit):
         ########### scan negatives
         #if last_round:
         #    trNegImages=trNegImagesFull
+        from multiprocessing import Manager
+        d["cache_full"]=False
         cache_full=False
         lndetnew=[];lnfeatnew=[];lnedgenew=[]
         arg=[]
         for idl,l in enumerate(trNegImages):
             #bb=l["bbox"]
             #for idb,b in enumerate(bb):
-            arg.append({"idim":idl,"file":l["name"],"idbb":0,"bbox":[],"models":models,"cfg":cfg,"flip":False})    
-
+            arg.append({"idim":idl,"file":l["name"],"idbb":0,"bbox":[],"models":models,"cfg":cfg,"flip":False,"control":d})    
         if not(parallel):
             itr=itertools.imap(detectCRF.hardNeg,arg)        
         else:
-            itr=mypool.imap(detectCRF.hardNeg,arg)
+            itr=mypool.imap(hardNegCache,arg)
 
         for ii,res in enumerate(itr):
+            print "Total negatives:",len(lndetnew)
             if localshow:
                 im=myimread(arg[ii]["file"])
                 detectCRF.visualize2(res[0],im)
@@ -710,8 +732,9 @@ for it in range(cfg.posit):
                 print "Examples exeding the cache limit!"
                 #raw_input()
                 #mypool.terminate()
-                mypool.join()
+                #mypool.join()
                 cache_full=True
+                d["cache_full"]=True
         ########### scan negatives in positives
         
         if cfg.neginpos:
@@ -719,15 +742,16 @@ for it in range(cfg.posit):
             for idl,l in enumerate(trPosImages[:100]):#only first 100
                 #bb=l["bbox"]
                 #for idb,b in enumerate(bb):
-                arg.append({"idim":idl,"file":l["name"],"idbb":0,"bbox":l["bbox"],"models":models,"cfg":cfg,"flip":False})    
+                arg.append({"idim":idl,"file":l["name"],"idbb":0,"bbox":l["bbox"],"models":models,"cfg":cfg,"flip":False,"control":d})    
 
             lndetnew=[];lnfeatnew=[];lnedgenew=[]
             if not(parallel):
                 itr=itertools.imap(detectCRF.hardNegPos,arg)        
             else:
-                itr=mypool.imap(detectCRF.hardNegPos,arg)
+                itr=mypool.imap(hardNegPosCache,arg)
 
             for ii,res in enumerate(itr):
+                print "Total Number of harvested negatives:",len(lndetnew)
                 if localshow:
                     im=myimread(arg[ii]["file"])
                     detectCRF.visualize2(res[0],im)
@@ -737,9 +761,10 @@ for it in range(cfg.posit):
                 if len(lndetnew)+len(lndet)>cfg.maxexamples:
                     print "Examples exeding the cache limit!"
                     #raw_input()
-                    mypool.terminate()
+                    #mypool.terminate()
                     #mypool.join()
                     cache_full=True
+                    d["cache_full"]=True
 
         ########## rescore old negative detections
         for idl,l in enumerate(lndet):
@@ -780,10 +805,10 @@ for it in range(cfg.posit):
     import denseCRFtest
     #denseCRFtest.runtest(models,tsImages,cfg,parallel=True,numcore=numcore,save="%s%d"%(testname,it),detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=localshow)
 
-    denseCRFtest.runtest(models,tsImages,cfg,parallel=True,numcore=numcore,save="%s%d"%(testname,it),show=localshow,pool=mypool,detfun=denseCRFtest.test1hypINC)
+    denseCRFtest.runtest(models,tsImages,cfg,parallel=parallel,numcore=numcore,save="%s%d"%(testname,it),show=localshow,pool=mypool,detfun=denseCRFtest.test1hypINC)
     if last_round:
         util.save("%s_final.model"%(testname),models)
-        denseCRFtest.runtest(models,tsImages,cfg,parallel=True,numcore=numcore,save="%s_final"%(testname),show=localshow,pool=mypool,detfun=denseCRFtest.test1hypINC)
+        denseCRFtest.runtest(models,tsImages,cfg,parallel=parallel,numcore=numcore,save="%s_final"%(testname),show=localshow,pool=mypool,detfun=denseCRFtest.test1hypINC)
         print "Training Finished!!!"
         break
 
