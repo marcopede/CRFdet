@@ -74,7 +74,7 @@ def refinePos(el,numhyp=5):
     best=-1
     for idl,l in enumerate(det):
         ovr=util.overlap(newbbox,l["bbox"])
-        if ovr>cfg.posovr:#valid detection
+        if ovr>cfg.posovr and l["scr"]>cfg.posthr:#valid detection
             if l["scr"]>bestscr:
                 best=idl
                 bestscr=l["scr"]

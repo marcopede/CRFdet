@@ -409,8 +409,11 @@ lpfeat=[] #
 lpedge=[] #
 
 total=[]
+posratio=[]
 negratio=[]
 negratio2=[]
+last_round=False
+cache_full=False
 
 #from scipy.ndimage import zoom
 import detectCRF
@@ -438,6 +441,7 @@ for it in range(cfg.posit):
             else:
                 arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":False})    
 
+    totPosEx=len(arg)
     #lpdet=[];lpfeat=[];lpedge=[]
     if not(parallel):
         itr=itertools.imap(detectCRF.refinePos,arg)        
@@ -512,8 +516,13 @@ for it in range(cfg.posit):
     print "Old examples bbox",pold
     total.append(padd+pbetter+pworst+pold)
     print "Total",total,"/",len(arg)
-    #raw_input()
-              
+    #be sure that total is counted correctly
+    assert(total[-1]==len(lpdet))
+
+    
+    if it>0:
+        oldposl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias,sizereg=sizereg,valreg=cfg.valreg)              
+
     #build training data for positives
     trpos=[]
     trposcl=[]
@@ -525,6 +534,26 @@ for it in range(cfg.posit):
             eedge=pyrHOG2.crfflip(eedge)
         trpos.append(numpy.concatenate((efeat.flatten(),eedge.flatten())))
         trposcl.append(l["id"]%cfg.numcl)
+
+    ########### check positive convergence    
+    if it>0:
+        newposl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias,sizereg=sizereg,valreg=cfg.valreg)
+        #lposl.append(newposl)
+        #add a bound on not found examples
+        boldposl=oldposl+(totPosEx-total[-2])*(1-cfg.posthr)
+        bnewposl=newposl+(totPosEx-total[-1])*(1-cfg.posthr)
+        posratio.append((boldposl-bnewposl)/boldposl)
+        print "Old pos loss:",oldposl,boldposl
+        print "New pos loss:",newposl,bnewposl
+        print "Ratio Pos loss",posratio
+        if bnewposl>boldposl:
+            print "Warning increasing positive loss\n"
+            raw_input()
+        if (posratio[-1]<cfg.convPos):
+            print "Very small positive improvement: convergence at iteration %d!"%it
+            last_round=True 
+            trNegImages=trNegImagesFull
+            tsImages=tsImagesFull
  
     ########### repeat scan negatives
     for nit in range(cfg.negit):
@@ -561,7 +590,9 @@ for it in range(cfg.posit):
         print "Negative Support Vectors:",numpy.sum(-numpy.array(ltosort)>-1)
         print "Negative Cache Vectors:",len(lndet)
         print "Kept negative Support Vectors:",cfg.maxexamples
-        #raw_input()
+        if len(lndetnew)+numpy.sum(-numpy.array(ltosort)>-1)>cfg.maxexamples:
+            print "Warning support vectors do not fit in cache!!!!"
+            raw_input()
 
         #if no negative sample add empty negatives
         for l in range(cfg.numcl):
@@ -569,7 +600,7 @@ for it in range(cfg.posit):
                 trneg.append(numpy.concatenate((numpy.zeros(models[l]["ww"][0].shape).flatten(),numpy.zeros(models[l]["cost"].shape).flatten())))
                 trnegcl.append(l)
 
-        ############ check convergency
+        ############ check negative convergency
         if nit>0: # and not(limit):
             posl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias,sizereg=sizereg,valreg=cfg.valreg)#,notreg)
             print "NIT:",nit,"OLDLOSS",old_nobj,"NEWLOSS:",nobj
@@ -578,7 +609,7 @@ for it in range(cfg.posit):
             print "RATIO: newobj/oldobj:",negratio,negratio2
             output="Negative not converging yet!"
             #if (negratio[-1]<1.05):
-            if (negratio[-1]<cfg.convNeg):
+            if (negratio[-1]<cfg.convNeg) and not(cache_full):
                 print "Very small invrement of loss: negative convergence at iteration %d!"%nit
                 break
 
@@ -653,6 +684,9 @@ for it in range(cfg.posit):
             pylab.savefig("%s_def%dq_cl%d.png"%(testname,it,idm))
 
         ########### scan negatives
+        #if last_round:
+        #    trNegImages=trNegImagesFull
+        cache_full=False
         lndetnew=[];lnfeatnew=[];lnedgenew=[]
         arg=[]
         for idl,l in enumerate(trNegImages):
@@ -672,11 +706,17 @@ for it in range(cfg.posit):
             lndetnew+=res[0]
             lnfeatnew+=res[1]
             lnedgenew+=res[2]
+            if len(lndetnew)+len(lndet)>cfg.maxexamples:
+                print "Examples exeding the cache limit!"
+                #raw_input()
+                #mypool.terminate()
+                mypool.join()
+                cache_full=True
         ########### scan negatives in positives
         
         if cfg.neginpos:
             arg=[]
-            for idl,l in enumerate(trPosImages):
+            for idl,l in enumerate(trPosImages[:100]):#only first 100
                 #bb=l["bbox"]
                 #for idb,b in enumerate(bb):
                 arg.append({"idim":idl,"file":l["name"],"idbb":0,"bbox":l["bbox"],"models":models,"cfg":cfg,"flip":False})    
@@ -694,6 +734,12 @@ for it in range(cfg.posit):
                 lndetnew+=res[0]
                 lnfeatnew+=res[1]
                 lnedgenew+=res[2]
+                if len(lndetnew)+len(lndet)>cfg.maxexamples:
+                    print "Examples exeding the cache limit!"
+                    #raw_input()
+                    mypool.terminate()
+                    #mypool.join()
+                    cache_full=True
 
         ########## rescore old negative detections
         for idl,l in enumerate(lndet):
@@ -735,7 +781,11 @@ for it in range(cfg.posit):
     #denseCRFtest.runtest(models,tsImages,cfg,parallel=True,numcore=numcore,save="%s%d"%(testname,it),detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=localshow)
 
     denseCRFtest.runtest(models,tsImages,cfg,parallel=True,numcore=numcore,save="%s%d"%(testname,it),show=localshow,pool=mypool,detfun=denseCRFtest.test1hypINC)
-
+    if last_round:
+        util.save("%s_final.model"%(testname),models)
+        denseCRFtest.runtest(models,tsImages,cfg,parallel=True,numcore=numcore,save="%s_final"%(testname),show=localshow,pool=mypool,detfun=denseCRFtest.test1hypINC)
+        print "Training Finished!!!"
+        break
 
 # unitl positve convergercy
 

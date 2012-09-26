@@ -88,13 +88,13 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
 
 #use a different number of hypotheses
 def test1hypINC(x):
-    return detectCRF.test(x,numhyp=1,show=False,inclusion=True,onlybest=True,useclip=True) #in bicycles is 
+    return detectCRF.test(x,numhyp=1,show=False,inclusion=True,onlybest=True) #in bicycles is 
 
 def test3hypINC(x):
     return detectCRF.test(x,numhyp=3,show=False,inclusion=True,onlybest=True) #in bicycles is better and faster with 1 hypotheses
 
 def test50hypINCBB(x):
-    return detectCRF.test(x,numhyp=50,show=False,inclusion=True,onlybest=True,usebb=True,useclip=True) #in bicycles is 
+    return detectCRF.test(x,numhyp=50,show=False,inclusion=True,onlybest=True,usebb=True) #in bicycles is 
 
 #use a different number of hypotheses
 def test1hyp(x):
