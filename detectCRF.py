@@ -11,7 +11,7 @@ import copy
 #from scipy.ndimage import zoom
 from extra import myzoom as zoom
 
-def refinePos(el,numhyp=5,useclip=False):
+def refinePos(el,numhyp=5):
     t=time.time()
     rescale=1.0
     #[f,det]=detectCRF.detectCrop(el)
@@ -56,9 +56,10 @@ def refinePos(el,numhyp=5,useclip=False):
                 rescale=16/float(min(tiley,tilex))
                 img=zoom(img,(rescale,rescale,1),order=1)
                 newbbox=numpy.array(newbbox)*rescale
-        if useclip:
-            if bbox[5]==1:# use all models for truncated
-               idm=range(len(models)) 
+        if cfg.useclip:
+            if bbox[4]==1:# use all models for truncated
+                #print "TRUNCATED!!!"
+                idm=range(len(models)) 
         selmodels=[models[x] for x in idm]          
         [f,det]=rundet(img,cfg,selmodels,numhyp=numhyp)
     #else: #for negatives
@@ -66,7 +67,7 @@ def refinePos(el,numhyp=5,useclip=False):
     print "Detection time:",time.time()-t
     #detectCRF.check(det[:10],f,models)
     boundingbox(det)
-    if useclip:
+    if cfg.useclip:
         clip(det,img.shape)
     #detectCRF.visualize(det[:10],f,img,cfgpos)
     bestscr=-100
@@ -127,7 +128,7 @@ def hardNeg(el,numhyp=1):
     print "Found %d hard negatives"%len(ldet)
     return ldet,lfeat,ledge
 
-def hardNegPos(el,numhyp=1,useclip=False):
+def hardNegPos(el,numhyp=1):
     t=time.time()
     #[f,det]=detectCRF.detectCrop(el)
     print "----Image-%s-(%d)-----------"%(el["file"].split("/")[-1],el["idim"])
@@ -148,7 +149,7 @@ def hardNegPos(el,numhyp=1,useclip=False):
     lfeat=[]
     ledge=[]
     boundingbox(det)
-    if useclip:
+    if cfg.useclip:
         clip(det,img.shape)
     for idl,l in enumerate(det):#(det[:cfg.numneg]):
         #add bias
@@ -175,7 +176,7 @@ def hardNegPos(el,numhyp=1,useclip=False):
     return ldet,lfeat,ledge
 
 
-def test(el,docluster=True,numhyp=1,show=False,inclusion=False,onlybest=False,usebb=False,useclip=False):
+def test(el,docluster=True,numhyp=1,show=False,inclusion=False,onlybest=False,usebb=False):
     t=time.time()
     #[f,det]=detectCRF.detectCrop(el)
     print "----Image-%s-(%d)-----------"%(el["file"].split("/")[-1],el["idim"])
@@ -194,7 +195,7 @@ def test(el,docluster=True,numhyp=1,show=False,inclusion=False,onlybest=False,us
     else:
         [f,det]=rundet(img,cfg,models,numhyp=numhyp)
     boundingbox(det)
-    if useclip:
+    if cfg.useclip:
         clip(det,img.shape)
     if docluster:
         #det=cluster(det,maxcl=100,inclusion=False)

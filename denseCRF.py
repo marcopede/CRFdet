@@ -105,6 +105,15 @@ elif cfg.db=="buffy":
     tsImages=tsPosImages#numpy.concatenate((tsPosImages,tsNegImages),0)
     tsImagesFull=tsPosImages
 
+elif cfg.db=="inria":
+    trPosImages=getRecord(InriaPosData(basepath=cfg.dbpath),cfg.maxpos)
+    trPosImagesNoTrunc=trPosImages
+    trNegImages=getRecord(InriaNegData(basepath=cfg.dbpath),cfg.maxneg)#check if it works better like this
+    trNegImagesFull=getRecord(InriaNegData(basepath=cfg.dbpath),5000)
+    #test
+    tsImages=getRecord(InriaTestFullData(basepath=cfg.dbpath),cfg.maxtest)
+    tsImagesFull=tsImages
+
 ########################compute aspect ratio and dector size 
 name,bb,r,a=extractInfo(trPosImages)
 trpos={"name":name,"bb":bb,"ratio":r,"area":a}
@@ -116,8 +125,8 @@ minfy=3
 minfx=3
 #number of maximum number of HOG blocks (HOG cells /4) to use
 #maxArea=45#*(4-cfg.lev[0])#too high resolution very slow
-maxArea=35#*(4-cfg.lev[0]) #the right trade-off
-#maxArea=25#*(4-cfg.lev[0]) #used in the test
+#maxArea=35#*(4-cfg.lev[0]) #the right trade-off
+maxArea=25#*(4-cfg.lev[0]) #used in the test
 #maxArea=15#*(4-cfg.lev[0])
 usekmeans=False
 
@@ -422,6 +431,7 @@ for it in range(cfg.posit):
     for idl,l in enumerate(trPosImages):
         bb=l["bbox"]
         for idb,b in enumerate(bb):
+            #if b[4]==1:#only for truncated
             if cfg.useRL:
                 arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":False})    
                 arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":True})    
