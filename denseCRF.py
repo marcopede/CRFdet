@@ -729,7 +729,7 @@ for it in range(cfg.posit):
             lnfeatnew+=res[1]
             lnedgenew+=res[2]
             if len(lndetnew)+len(lndet)>cfg.maxexamples:
-                print "Examples exeding the cache limit!"
+                print "Examples exceeding the cache limit!"
                 #raw_input()
                 #mypool.terminate()
                 #mypool.join()
@@ -739,7 +739,7 @@ for it in range(cfg.posit):
         
         if cfg.neginpos:
             arg=[]
-            for idl,l in enumerate(trPosImages[:100]):#only first 100
+            for idl,l in enumerate(trPosImages[:len(trNegImages)/2]):#only first 100
                 #bb=l["bbox"]
                 #for idb,b in enumerate(bb):
                 arg.append({"idim":idl,"file":l["name"],"idbb":0,"bbox":l["bbox"],"models":models,"cfg":cfg,"flip":False,"control":d})    
@@ -751,7 +751,7 @@ for it in range(cfg.posit):
                 itr=mypool.imap(hardNegPosCache,arg)
 
             for ii,res in enumerate(itr):
-                print "Total Number of harvested negatives:",len(lndetnew)
+                print "Total Negatives:",len(lndetnew)
                 if localshow:
                     im=myimread(arg[ii]["file"])
                     detectCRF.visualize2(res[0],im)
