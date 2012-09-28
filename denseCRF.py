@@ -50,7 +50,7 @@ cfg.posovr= 0.75
 parallel=True
 cfg.show=False
 cfg.neginpos=False
-localshow=True
+localshow=False#True
 numcore=cfg.multipr
 notreg=0
 #cfg.numcl=3
@@ -487,7 +487,7 @@ for it in range(cfg.posit):
                             found=True
                             pbetter+=1
                         else:
-                            print "New detection has worst score"
+                            print "New detection has worse score"
                             found=True
                             pworst+=1
             if not(found):
