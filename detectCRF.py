@@ -11,7 +11,7 @@ import copy
 #from scipy.ndimage import zoom
 from extra import myzoom as zoom
 
-def refinePos(el,numhyp=5):
+def refinePos(el):
     t=time.time()
     rescale=1.0
     #[f,det]=detectCRF.detectCrop(el)
@@ -60,8 +60,12 @@ def refinePos(el,numhyp=5):
             if bbox[4]==1:# use all models for truncated
                 #print "TRUNCATED!!!"
                 idm=range(len(models)) 
-        selmodels=[models[x] for x in idm]          
-        [f,det]=rundet(img,cfg,selmodels,numhyp=numhyp)
+        selmodels=[models[x] for x in idm] 
+        if cfg.usebbPOS:
+            [f,det]=rundetbb(img,cfg,selmodels,numdet=cfg.numhypPOS, interv=cfg.intervPOS,aiter=cfg.aiterPOS,restart=cfg.restartPOS)
+        else:         
+            [f,det]=rundet(img,cfg,selmodels,numhyp=cfg.numhypPOS,interv=cfg.intervPOS,aiter=cfg.
+aiterPOS,restart=cfg.restartPOS)
     #else: #for negatives
     #    [f,det]=rundet(img,cfg,models)
     print "Detection time:",time.time()-t
@@ -93,7 +97,7 @@ def refinePos(el,numhyp=5):
         return det[best],feat[0],edge[0],[rescale,y1,x1,y2,x2]#last just for drawing
     return [],[],[],[rescale,y1,x1,y2,x2]
 
-def hardNeg(el,numhyp=1):
+def hardNeg(el):
     t=time.time()
     #[f,det]=detectCRF.detectCrop(el)
     print "----Image-%s-(%d)-----------"%(el["file"].split("/")[-1],el["idim"])
@@ -109,7 +113,10 @@ def hardNeg(el,numhyp=1):
     else:
         img=util.myimread(imname,resize=cfg.resize)
     #imageflip=el["flip"]
-    [f,det]=rundet(img,cfg,models,numhyp=numhyp)
+    if cfg.usebbNEG:
+        [f,det]=rundetbb(img,cfg,models,numdet=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG)
+    else:
+        [f,det]=rundet(img,cfg,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG)
     ldet=[]
     lfeat=[]
     ledge=[]
@@ -128,7 +135,7 @@ def hardNeg(el,numhyp=1):
     print "Found %d hard negatives"%len(ldet)
     return ldet,lfeat,ledge
 
-def hardNegPos(el,numhyp=1):
+def hardNegPos(el):
     t=time.time()
     #[f,det]=detectCRF.detectCrop(el)
     print "----Image-%s-(%d)-----------"%(el["file"].split("/")[-1],el["idim"])
@@ -144,7 +151,10 @@ def hardNegPos(el,numhyp=1):
     else:
         img=util.myimread(imname,resize=cfg.resize)
     #imageflip=el["flip"]
-    [f,det]=rundet(img,cfg,models,numhyp=numhyp)
+    if cfg.usebbNEG:
+        [f,det]=rundetbb(img,cfg,models,numdet=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG)
+    else:
+        [f,det]=rundet(img,cfg,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG)
     ldet=[]
     lfeat=[]
     ledge=[]
@@ -176,7 +186,7 @@ def hardNegPos(el,numhyp=1):
     return ldet,lfeat,ledge
 
 
-def test(el,docluster=True,numhyp=1,show=False,inclusion=False,onlybest=False,usebb=False):
+def test(el,docluster=True,show=False,inclusion=False,onlybest=False):
     t=time.time()
     #[f,det]=detectCRF.detectCrop(el)
     print "----Image-%s-(%d)-----------"%(el["file"].split("/")[-1],el["idim"])
@@ -190,10 +200,10 @@ def test(el,docluster=True,numhyp=1,show=False,inclusion=False,onlybest=False,us
     else:
         img=util.myimread(imname,resize=cfg.resize)
     #imageflip=el["flip"]
-    if usebb:
-        [f,det]=rundetbb(img,cfg,models,numdet=numhyp)
+    if cfg.usebbTEST:
+        [f,det]=rundetbb(img,cfg,models,numdet=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST)
     else:
-        [f,det]=rundet(img,cfg,models,numhyp=numhyp)
+        [f,det]=rundet(img,cfg,models,numhyp=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST)
     boundingbox(det)
     if cfg.useclip:
         clip(det,img.shape)
@@ -406,9 +416,10 @@ def visualize2(det,img,text=""):
     pl.show()
 
 
-def rundet(img,cfg,models,numhyp=5):
+def rundet(img,cfg,models,numhyp=5,interv=10,aiter=3,restart=0):
     notsave=False
-    f=pyrHOG2.pyrHOG(img,interv=10,savedir=cfg.auxdir+"/hog/",notsave=not(cfg.savefeat),notload=not(cfg.loadfeat),hallucinate=True,cformat=True)#,flip=imageflip,resize=cfg.resize)
+    #print "Normal"
+    f=pyrHOG2.pyrHOG(img,interv=interv,savedir=cfg.auxdir+"/hog/",notsave=not(cfg.savefeat),notload=not(cfg.loadfeat),hallucinate=True,cformat=True)#,flip=imageflip,resize=cfg.resize)
     det=[]
     for idm,m in enumerate(models):
         mcost=m["cost"].astype(numpy.float32)
@@ -420,7 +431,7 @@ def rundet(img,cfg,models,numhyp=5):
             #    break
             m2=f.hog[r]
             #print numy,numx
-            lscr,fres=crf3.match_full2(m1,m2,mcost,show=False,feat=False,rot=False,numhyp=numhyp)
+            lscr,fres=crf3.match_full2(m1,m2,mcost,show=False,feat=False,rot=False,numhyp=numhyp,aiter=aiter,restart=restart)
             #print "Total time",time.time()-t
             #print "Score",lscr
             idraw=False
@@ -441,16 +452,17 @@ def rundet(img,cfg,models,numhyp=5):
         pylab.show()
     return [f,det]
 
-def rundetbb(img,cfg,models,numdet=50):
+def rundetbb(img,cfg,models,numdet=50,interv=10,aiter=3,restart=0):
     #notsave=False
-    f=pyrHOG2.pyrHOG(img,interv=10,savedir=cfg.auxdir+"/hog/",notsave=not(cfg.savefeat),notload=not(cfg.loadfeat),hallucinate=True,cformat=True)
+    #print "Branc and bound"
+    f=pyrHOG2.pyrHOG(img,interv=interv,savedir=cfg.auxdir+"/hog/",notsave=not(cfg.savefeat),notload=not(cfg.loadfeat),hallucinate=True,cformat=True)
     ldet2=[]
     for idm,m in enumerate(models):
         mcost=m["cost"].astype(numpy.float32)
         m1=m["ww"][0]
         numy=m["ww"][0].shape[0]#models[idm]["ww"][0].shape[0]#cfg.fy[idm]
         numx=m["ww"][0].shape[1]#models[idm]["ww"][0].shape[1]#cfg.fx
-        ldet=crf3.match_bb(m1,f.hog,mcost,show=False,rot=False,numhyp=numdet)
+        ldet=crf3.match_bb(m1,f.hog,mcost,show=False,rot=False,numhyp=numdet,aiter=aiter,restart=restart)
         for l in ldet:
             r=l["scl"]
             ldet2.append({"id":m["id"],"hog":r,"scl":f.scale[r],"def":l["def"][0],"scr":l["scr"]-models[idm]["rho"]})            

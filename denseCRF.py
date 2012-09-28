@@ -33,11 +33,15 @@ if len(sys.argv)>2: #specific configuration
 
 cfg.cls=sys.argv[1]
 testname=cfg.testpath+cfg.cls+("%d"%cfg.numcl)+"_"+cfg.testspec
+import os
+if not os.path.exists(cfg.localdata):
+    os.makedirs(cfg.localdata)
+localsave=cfg.localdata+cfg.cls+("%d"%cfg.numcl)+"_"+cfg.testspec
 #cfg.useRL=False#for the moment
 cfg.show=False
 cfg.auxdir=""
 cfg.numhyp=5
-cfg.numneg= 10
+#cfg.numneg= 10
 bias=cfg.bias
 #cfg.bias=bias
 cfg.posovr= 0.75
@@ -49,8 +53,8 @@ cfg.posovr= 0.75
 #cfg.maxtest = 20#100
 parallel=True
 cfg.show=False
-cfg.neginpos=False
-localshow=False#True
+#cfg.neginpos=False
+localshow=True
 numcore=cfg.multipr
 notreg=0
 #cfg.numcl=3
@@ -146,9 +150,11 @@ minfx=3
 #number of maximum number of HOG blocks (HOG cells /4) to use
 #maxArea=45#*(4-cfg.lev[0])#too high resolution very slow
 #maxArea=35#*(4-cfg.lev[0]) #the right trade-off
-maxArea=25#*(4-cfg.lev[0]) #used in the test
+#maxArea=25#*(4-cfg.lev[0]) #used in the test
+maxArea=cfg.maxHOG
 #maxArea=15#*(4-cfg.lev[0])
 usekmeans=False
+nh=2 #number of hogs per part (for the moment everything works only with 2)
 
 sr=numpy.sort(r)
 spl=[]
@@ -164,12 +170,12 @@ for l in range(numcl):
     print "Samples:",len(a[cl==l])
     #meanA=numpy.mean(a[cl==l])/16.0/(0.5*4**(cfg.lev[l]-1))#4.0
     #meanA=numpy.mean(a[cl==l])/4.0/(4**(cfg.lev[l]-1))#4.0
-    meanA=numpy.mean(a[cl==l])/64.0/4.0#(4**(cfg.lev[l]-1))#4.0
+    meanA=numpy.mean(a[cl==l])/16.0/float(nh*nh)#(4**(cfg.lev[l]-1))#4.0
     print "Mean Area:",meanA
     sa=numpy.sort(a[cl==l])
     #minA=numpy.mean(sa[len(sa)/perc])/16.0/(0.5*4**(cfg.lev[l]-1))#4.0
     #minA=numpy.mean(sa[int(len(sa)*perc)])/4.0/(4**(cfg.lev[l]-1))#4.0
-    minA=numpy.mean(sa[int(len(sa)*perc)])/64.0/4.0#(4**(cfg.lev[l]-1))#4.0
+    minA=numpy.mean(sa[int(len(sa)*perc)])/16.0/float(nh*nh)#(4**(cfg.lev[l]-1))#4.0
     print "Min Area:",minA
     aspt=numpy.mean(r[cl==l])
     print "Aspect:",aspt
@@ -192,232 +198,248 @@ for l in range(numcl):
 cfg.fy=lfy#[7,10]#lfy
 cfg.fx=lfx#[11,7]#lfx
 # the real detector size would be (cfg.fy,cfg.fx)*2 hog cells
+initial=True
+if cfg.checkpoint:
+    try:
+        print "Loading old status..."
+        dpos=util.load(localsave)
+        lpdet=dpos["lpdet"]
+        lpfeat=dpos["lpfeat"]
+        lpedge=dpos["lpedge"]
+        dneg=util.load(localsave)
+        lndet=dneg["lndet"]
+        lnfeat=dneg["lnfeat"]
+        lnedge=dneg["lnedge"]
+        initial=False
+    except:
+        pass
 
+if initial:
+    print "Starting from scratch"
+    ############################ initialize positive using cropped bounidng boxes
+    check = False
+    import pylab as pl
+    dratios=numpy.array(cfg.fy)/numpy.array(cfg.fx)
+    hogp=[[] for x in range(cfg.numcl)]
+    hogpcl=[]
+    annp=[[] for x in range(cfg.numcl)]
 
-############################ initialize positive using cropped bounidng boxes
-check = False
-import pylab as pl
-dratios=numpy.array(cfg.fy)/numpy.array(cfg.fx)
-hogp=[[] for x in range(cfg.numcl)]
-hogpcl=[]
-annp=[[] for x in range(cfg.numcl)]
+    #from scipy.ndimage import zoom
+    from extra import myzoom as zoom
+    for im in trPosImagesNoTrunc: # for each image
 
-#from scipy.ndimage import zoom
-from extra import myzoom as zoom
-for im in trPosImagesNoTrunc: # for each image
+        aim=util.myimread(im["name"])  
+        for bb in im["bbox"]: # for each bbox (y1,x1,y2,x2)
+            imy=bb[2]-bb[0]
+            imx=bb[3]-bb[1]
+            cropratio= imy/float(imx)
+            #select the right model based on aspect ratio
+            idm=numpy.argmin(abs(dratios-cropratio))
+            crop=aim[max(0,bb[0]-imy/cfg.fy[idm]/2):min(bb[2]+imy/cfg.fy[idm]/2,aim.shape[0]),max(0,bb[1]-imx/cfg.fx[idm]/2):min(bb[3]+imx/cfg.fx[idm]/2,aim.shape[1])]
+            #crop=extra.getfeat(aim,abb[0]-imy/(cfg.fy[idm]*2),bb[2]+imy/(cfg.fy[idm]*2),bb[1]-imx/(cfg.fx[idm]*2),bb[3]+imx/(cfg.fx[idm]*2))
+            imy=crop.shape[0]
+            imx=crop.shape[1]
+            zcim=zoom(crop,(((cfg.fy[idm]*2+2)*8/float(imy)),((cfg.fx[idm]*2+2)*8/float(imx)),1),order=1)
+            hogp[idm].append(numpy.ascontiguousarray(pyrHOG2.hog(zcim)))
+            #hogpcl.append(idm)
+            annp[idm].append({"file":im["name"],"bbox":bb})
+            if check:
+                print "Aspect:",idm,"Det Size",cfg.fy[idm]*2,cfg.fx[idm]*2,"Shape:",zcim.shape
+                pl.figure(1,figsize=(20,5))
+                pl.clf()
+                pl.subplot(1,3,1)
+                pl.imshow(aim,interpolation="nearest")            
+                pl.subplot(1,3,2)
+                pl.imshow(zcim,interpolation="nearest")
+                pl.subplot(1,3,3)
+                import drawHOG
+                imh=drawHOG.drawHOG(hogp[-1])
+                pl.imshow(imh,interpolation="nearest")
+                pl.draw()
+                pl.show()
+                raw_input()
+    for l in range(cfg.numcl):
+        print "Aspect",l,":",len(hogp[l]),"samples"
+        hogpcl=hogpcl+[l]*len(hogp[l])    
 
-    aim=util.myimread(im["name"])  
-    for bb in im["bbox"]: # for each bbox (y1,x1,y2,x2)
-        imy=bb[2]-bb[0]
-        imx=bb[3]-bb[1]
-        cropratio= imy/float(imx)
-        #select the right model based on aspect ratio
-        idm=numpy.argmin(abs(dratios-cropratio))
-        crop=aim[max(0,bb[0]-imy/cfg.fy[idm]/2):min(bb[2]+imy/cfg.fy[idm]/2,aim.shape[0]),max(0,bb[1]-imx/cfg.fx[idm]/2):min(bb[3]+imx/cfg.fx[idm]/2,aim.shape[1])]
-        #crop=extra.getfeat(aim,abb[0]-imy/(cfg.fy[idm]*2),bb[2]+imy/(cfg.fy[idm]*2),bb[1]-imx/(cfg.fx[idm]*2),bb[3]+imx/(cfg.fx[idm]*2))
-        imy=crop.shape[0]
-        imx=crop.shape[1]
-        zcim=zoom(crop,(((cfg.fy[idm]*2+2)*8/float(imy)),((cfg.fx[idm]*2+2)*8/float(imx)),1),order=1)
-        hogp[idm].append(numpy.ascontiguousarray(pyrHOG2.hog(zcim)))
-        #hogpcl.append(idm)
-        annp[idm].append({"file":im["name"],"bbox":bb})
-        if check:
-            print "Aspect:",idm,"Det Size",cfg.fy[idm]*2,cfg.fx[idm]*2,"Shape:",zcim.shape
-            pl.figure(1,figsize=(20,5))
-            pl.clf()
-            pl.subplot(1,3,1)
-            pl.imshow(aim,interpolation="nearest")            
-            pl.subplot(1,3,2)
-            pl.imshow(zcim,interpolation="nearest")
-            pl.subplot(1,3,3)
-            import drawHOG
-            imh=drawHOG.drawHOG(hogp[-1])
-            pl.imshow(imh,interpolation="nearest")
-            pl.draw()
-            pl.show()
-            raw_input()
-for l in range(cfg.numcl):
-    print "Aspect",l,":",len(hogp[l]),"samples"
-    hogpcl=hogpcl+[l]*len(hogp[l])    
+    # get some random negative images
+    hogn=[[] for x in range(cfg.numcl)]
+    hogncl=[]
+    check=False
+    numpy.random.seed(3) # to reproduce results
+    #from scipy.ndimage import zoom
+    for im in trNegImages: # for each image
+        aim=util.myimread(im["name"])
+        for idm in range(cfg.numcl):
+            szy=(cfg.fy[idm]*2+2)
+            szx=(cfg.fx[idm]*2+2)
+            rndy=numpy.random.randint(0,aim.shape[0]-szy*8-1)
+            rndx=numpy.random.randint(0,aim.shape[1]-szx*8-1)
+            #zcim=zoom(crop,(((cfg.fy[idm]*2+2)*8/float(imy)),((cfg.fx[idm]*2+2)*8/float(imx)),1),order=1)
+            zcim=aim[rndy:rndy+szy*8,rndx:rndx+szx*8]
+            hogn[idm].append(numpy.ascontiguousarray(pyrHOG2.hog(zcim)).flatten())
+            #hogncl.append(idm)
+            if check:
+                print "Aspcet",idm,"HOG",hogn[-1].shape
+    for l in range(cfg.numcl):  
+        print "Aspect",l,":",len(hogn[l]),"samples"
+        hogncl=hogncl+[l]*len(hogn[l])    
 
-# get some random negative images
-hogn=[[] for x in range(cfg.numcl)]
-hogncl=[]
-check=False
-numpy.random.seed(3) # to reproduce results
-#from scipy.ndimage import zoom
-for im in trNegImages: # for each image
-    aim=util.myimread(im["name"])
-    for idm in range(cfg.numcl):
-        szy=(cfg.fy[idm]*2+2)
-        szx=(cfg.fx[idm]*2+2)
-        rndy=numpy.random.randint(0,aim.shape[0]-szy*8-1)
-        rndx=numpy.random.randint(0,aim.shape[1]-szx*8-1)
-        #zcim=zoom(crop,(((cfg.fy[idm]*2+2)*8/float(imy)),((cfg.fx[idm]*2+2)*8/float(imx)),1),order=1)
-        zcim=aim[rndy:rndy+szy*8,rndx:rndx+szx*8]
-        hogn[idm].append(numpy.ascontiguousarray(pyrHOG2.hog(zcim)).flatten())
-        #hogncl.append(idm)
-        if check:
-            print "Aspcet",idm,"HOG",hogn[-1].shape
-for l in range(cfg.numcl):  
-    print "Aspect",l,":",len(hogn[l]),"samples"
-    hogncl=hogncl+[l]*len(hogn[l])    
-
-#################### cluster left right
-trpos=[]
-#trposcl=[]
-if cfg.useRL:
-    for l in range(numcl):
-        mytrpos=[]            
-        #for c in range(len(trpos)):
-        #    if hogpcl[c]==l:
-        for idel,el in enumerate(hogp[l]):
-            if 0:#annp[l][idel]["bbox"][6]=="Left":
-                faux=pyrHOG2.hogflip(el)
-                #mytrpos.append(pyrHOG2.hogflip(el))    
-            else:
-                faux=el.copy()
-                #mytrpos.append(el)
-        #laux=mytrpos[:]
-        #for idel,el in enumerate(laux):
-            mytrpos.append((faux))            
-            mytrpos.append(pyrHOG2.hogflip(faux))            
-            #print idel,el.shape
-            #raw_input()
-        mytrpos=numpy.array(mytrpos)
-        cl1=range(0,len(mytrpos),2)
-        cl2=range(1,len(mytrpos),2)
-        #rrnum=len(mytrpos)
-        rrnum=min(len(mytrpos),1000)#to avoid too long clustering
-        for rr in range(rrnum):
-            print "Clustering iteration ",rr
-            oldvar=numpy.sum(numpy.var(mytrpos[cl1],0))+numpy.sum(numpy.var(mytrpos[cl2],0))
-            #print "Variance",oldvar
-            #print "Var1",numpy.sum(numpy.var(mytrpos[cl1],0))
-            #print "Var2",numpy.sum(numpy.var(mytrpos[cl2],0))
-            #c1=numpy.mean(mytrpos[cl1])
-            #c2=numpy.mean(mytrpos[cl1])
-            rel=numpy.random.randint(len(cl1))
-            tmp=cl1[rel]
-            cl1[rel]=cl2[rel]
-            cl2[rel]=tmp
-            newvar=numpy.sum(numpy.var(mytrpos[cl1],0))+numpy.sum(numpy.var(mytrpos[cl2],0))
-            if newvar>oldvar:#go back
+    #################### cluster left right
+    trpos=[]
+    #trposcl=[]
+    if cfg.useRL:
+        for l in range(numcl):
+            mytrpos=[]            
+            #for c in range(len(trpos)):
+            #    if hogpcl[c]==l:
+            for idel,el in enumerate(hogp[l]):
+                if 0:#annp[l][idel]["bbox"][6]=="Left":
+                    faux=pyrHOG2.hogflip(el)
+                    #mytrpos.append(pyrHOG2.hogflip(el))    
+                else:
+                    faux=el.copy()
+                    #mytrpos.append(el)
+            #laux=mytrpos[:]
+            #for idel,el in enumerate(laux):
+                mytrpos.append((faux))            
+                mytrpos.append(pyrHOG2.hogflip(faux))            
+                #print idel,el.shape
+                #raw_input()
+            mytrpos=numpy.array(mytrpos)
+            cl1=range(0,len(mytrpos),2)
+            cl2=range(1,len(mytrpos),2)
+            #rrnum=len(mytrpos)
+            rrnum=min(len(mytrpos),1000)#to avoid too long clustering
+            for rr in range(rrnum):
+                print "Clustering iteration ",rr
+                oldvar=numpy.sum(numpy.var(mytrpos[cl1],0))+numpy.sum(numpy.var(mytrpos[cl2],0))
+                #print "Variance",oldvar
+                #print "Var1",numpy.sum(numpy.var(mytrpos[cl1],0))
+                #print "Var2",numpy.sum(numpy.var(mytrpos[cl2],0))
+                #c1=numpy.mean(mytrpos[cl1])
+                #c2=numpy.mean(mytrpos[cl1])
+                rel=numpy.random.randint(len(cl1))
                 tmp=cl1[rel]
                 cl1[rel]=cl2[rel]
                 cl2[rel]=tmp
-            else:
-                print "Variance",newvar
-        print "Elements Cluster ",l,": ",len(cl1)
-        for cc in cl1:
-            trpos.append(mytrpos[cc].flatten())
-        #trpos+=(mytrpos[cl1]).tolist()
-        #trposcl+=([l]*len(cl1))
-    #flatten
-    #for idl,l in enumerate(trpos):
-    #    trpos[idl]=trpos[idl].flatten()
-else:   
-    for l in range(cfg.numcl):
-        trpos+=hogp[l]
- 
-#################### train a first detector
+                newvar=numpy.sum(numpy.var(mytrpos[cl1],0))+numpy.sum(numpy.var(mytrpos[cl2],0))
+                if newvar>oldvar:#go back
+                    tmp=cl1[rel]
+                    cl1[rel]=cl2[rel]
+                    cl2[rel]=tmp
+                else:
+                    print "Variance",newvar
+            print "Elements Cluster ",l,": ",len(cl1)
+            for cc in cl1:
+                trpos.append(mytrpos[cc].flatten())
+            #trpos+=(mytrpos[cl1]).tolist()
+            #trposcl+=([l]*len(cl1))
+        #flatten
+        #for idl,l in enumerate(trpos):
+        #    trpos[idl]=trpos[idl].flatten()
+    else:   
+        for l in range(cfg.numcl):
+            trpos+=hogp[l]
+     
+    #################### train a first detector
 
-#empty rigid model
-models=[]
-for c in range(cfg.numcl):      
-    models.append(model.initmodel(cfg.fy[c]*2,cfg.fx[c]*2,1,cfg.useRL,deform=False))
+    #empty rigid model
+    models=[]
+    for c in range(cfg.numcl):      
+        models.append(model.initmodel(cfg.fy[c]*2,cfg.fx[c]*2,1,cfg.useRL,deform=False))
 
-#array with dimensions of w
-cumsize=numpy.zeros(numcl+1,dtype=numpy.int)
-for idl in range(numcl):
-    cumsize[idl+1]=cumsize[idl]+(cfg.fy[idl]*2*cfg.fx[idl]*2)*31+1
+    #array with dimensions of w
+    cumsize=numpy.zeros(numcl+1,dtype=numpy.int)
+    for idl in range(numcl):
+        cumsize[idl+1]=cumsize[idl]+(cfg.fy[idl]*2*cfg.fx[idl]*2)*31+1
 
-try:
-    fsf
-    models=util.load("%s%d.model"%(testname,0))
-    print "Loading Pretrained Initial detector"
-except:
-    # train detector
-    import pegasos
-    #trpos=[]
-    trneg=[]
-    for l in range(cfg.numcl):
-        #trpos+=hogp[l]
-        trneg+=hogn[l]
+    try:
+        fsf
+        models=util.load("%s%d.model"%(testname,0))
+        print "Loading Pretrained Initial detector"
+    except:
+        # train detector
+        import pegasos
+        #trpos=[]
+        trneg=[]
+        for l in range(cfg.numcl):
+            #trpos+=hogp[l]
+            trneg+=hogn[l]
 
-    w,r,prloss=pegasos.trainComp(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=1,numthr=1,eps=0.01,bias=bias)#,notreg=notreg)
+        w,r,prloss=pegasos.trainComp(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=1,numthr=1,eps=0.01,bias=bias)#,notreg=notreg)
+
+        waux=[]
+        rr=[]
+        w1=numpy.array([])
+        #from w to model m1
+        for idm,m in enumerate(models):
+            models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],-w[cumsize[idm+1]-1]*bias,len(m["ww"]),31,m["ww"][0].shape[0],m["ww"][0].shape[1])
+            #models[idm]["ra"]=w[cumsize[idm+1]-1]
+            #from model to w #changing the clip...
+            waux.append(model.model2w(models[idm],False,False,False))
+            rr.append(models[idm]["rho"])
+            w1=numpy.concatenate((w1,waux[-1],-numpy.array([models[idm]["rho"]])/bias))
+        w2=w
+        w=w1
+
+        util.save("%s%d.model"%(testname,0),models)
+
+    #show model 
+    #mm=w[:1860].reshape((cfg.fy[0]*2,cfg.fx[0]*2,31))
+    it = 0
+    for idm,m in enumerate(models):   
+        import drawHOG
+        imm=drawHOG.drawHOG(m["ww"][0])
+        pl.figure(100+idm,figsize=(3,3))
+        pl.imshow(imm)
+        pylab.savefig("%s_hog%d_cl%d.png"%(testname,it,idm))
+
+    pl.draw()
+    pl.show()    
+    #raw_input()
+
+    ######################### add CRF and rebuild w
+    for idm,m in enumerate(models):   
+        models[idm]["cost"]=cfg.initdef*numpy.ones((8,cfg.fy[idm],cfg.fx[idm]))
 
     waux=[]
     rr=[]
     w1=numpy.array([])
-    #from w to model m1
+    sizereg=numpy.zeros(cfg.numcl,dtype=numpy.int32)
+    #from model m to w
     for idm,m in enumerate(models):
-        models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],-w[cumsize[idm+1]-1]*bias,len(m["ww"]),31,m["ww"][0].shape[0],m["ww"][0].shape[1])
-        #models[idm]["ra"]=w[cumsize[idm+1]-1]
-        #from model to w #changing the clip...
-        waux.append(model.model2w(models[idm],False,False,False))
+        waux.append(model.model2w(models[idm],False,False,False,useCRF=True,k=cfg.k))
         rr.append(models[idm]["rho"])
         w1=numpy.concatenate((w1,waux[-1],-numpy.array([models[idm]["rho"]])/bias))
-    w2=w
+        sizereg[idm]=models[idm]["cost"].size
+    #w2=w #old w
     w=w1
 
-    util.save("%s%d.model"%(testname,0),models)
+    #add ids clsize and cumsize for each model
+    clsize=[]
+    cumsize=numpy.zeros(numcl+1,dtype=numpy.int)
+    for l in range(cfg.numcl):
+        models[l]["id"]=l
+        clsize.append(len(waux[l])+1)
+        cumsize[l+1]=cumsize[l]+len(waux[l])+1
+    clsize=numpy.array(clsize)
 
-#show model 
-#mm=w[:1860].reshape((cfg.fy[0]*2,cfg.fx[0]*2,31))
-it = 0
-for idm,m in enumerate(models):   
-    import drawHOG
-    imm=drawHOG.drawHOG(m["ww"][0])
-    pl.figure(100+idm,figsize=(3,3))
-    pl.imshow(imm)
-    pylab.savefig("%s_hog%d_cl%d.png"%(testname,it,idm))
-
-pl.draw()
-pl.show()    
-#raw_input()
-
-######################### add CRF and rebuild w
-for idm,m in enumerate(models):   
-    models[idm]["cost"]=cfg.initdef*numpy.ones((8,cfg.fy[idm],cfg.fx[idm]))
-
-waux=[]
-rr=[]
-w1=numpy.array([])
-sizereg=numpy.zeros(cfg.numcl,dtype=numpy.int32)
-#from model m to w
-for idm,m in enumerate(models):
-    waux.append(model.model2w(models[idm],False,False,False,useCRF=True,k=cfg.k))
-    rr.append(models[idm]["rho"])
-    w1=numpy.concatenate((w1,waux[-1],-numpy.array([models[idm]["rho"]])/bias))
-    sizereg[idm]=models[idm]["cost"].size
-#w2=w #old w
-w=w1
-
-#add ids clsize and cumsize for each model
-clsize=[]
-cumsize=numpy.zeros(numcl+1,dtype=numpy.int)
-for l in range(cfg.numcl):
-    models[l]["id"]=l
-    clsize.append(len(waux[l])+1)
-    cumsize[l+1]=cumsize[l]+len(waux[l])+1
-clsize=numpy.array(clsize)
-
-if cfg.useRL:
-    #add flipped models
-    for idm in range(cfg.numcl):
-        models.append(extra.flip(models[idm]))
-        models[-1]["id"]=idm+cfg.numcl
-    #check that flip is correct
-    waux1=[]
-    rr2=[]
-    w2=numpy.array([])
-    for m in models[cfg.numcl:]:
-        waux1.append(model.model2w(m,False,False,False,useCRF=True,k=cfg.k))
-        w2=numpy.concatenate((w2,waux1[-1],-numpy.array([m["rho"]/bias])))
-    #check that the model and its flip score the same 
-    assert(numpy.sum(w1)==numpy.sum(w2))#still can be wrong
-    
+    if cfg.useRL:
+        #add flipped models
+        for idm in range(cfg.numcl):
+            models.append(extra.flip(models[idm]))
+            models[-1]["id"]=idm+cfg.numcl
+        #check that flip is correct
+        waux1=[]
+        rr2=[]
+        w2=numpy.array([])
+        for m in models[cfg.numcl:]:
+            waux1.append(model.model2w(m,False,False,False,useCRF=True,k=cfg.k))
+            w2=numpy.concatenate((w2,waux1[-1],-numpy.array([m["rho"]/bias])))
+        #check that the model and its flip score the same 
+        assert(numpy.sum(w1)==numpy.sum(w2))#still can be wrong
+        
 
 lndet=[] #save negative detections
 lnfeat=[] #
@@ -555,6 +577,10 @@ for it in range(cfg.posit):
         trpos.append(numpy.concatenate((efeat.flatten(),eedge.flatten())))
         trposcl.append(l["id"]%cfg.numcl)
 
+    #save positives
+    if cfg.checkpoint:
+        util.save(localsave,"lpdet",lpdet,"lpedge",lpedge,'lpfeat',lpfeat)
+
     ########### check positive convergence    
     if it>0:
         newposl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias,sizereg=sizereg,valreg=cfg.valreg)
@@ -589,7 +615,9 @@ for it in range(cfg.posit):
         auxdet=[]
         auxfeat=[]
         auxedge=[]
-        for idl in lord[:cfg.maxexamples/2]:#to maintain space for new samples
+        #limit=max(cfg.maxexamples/2,len(lndet)) #at least half of the cache
+        #limit=min(cfg.maxexamples,limit) #as maximum full cache
+        for idl in lord[:cfg.maxexamples]:#to maintain space for new samples
             auxdet.append(lndet[idl])
             auxfeat.append(lnfeat[idl])
             auxedge.append(lnedge[idl])
@@ -724,7 +752,7 @@ for it in range(cfg.posit):
             print "Total negatives:",len(lndetnew)
             if localshow:
                 im=myimread(arg[ii]["file"])
-                detectCRF.visualize2(res[0],im)
+                detectCRF.visualize2(res[0][:5],im)
             lndetnew+=res[0]
             lnfeatnew+=res[1]
             lnedgenew+=res[2]
@@ -744,7 +772,7 @@ for it in range(cfg.posit):
                 #for idb,b in enumerate(bb):
                 arg.append({"idim":idl,"file":l["name"],"idbb":0,"bbox":l["bbox"],"models":models,"cfg":cfg,"flip":False,"control":d})    
 
-            lndetnew=[];lnfeatnew=[];lnedgenew=[]
+            #lndetnew=[];lnfeatnew=[];lnedgenew=[]
             if not(parallel):
                 itr=itertools.imap(detectCRF.hardNegPos,arg)        
             else:
@@ -754,7 +782,7 @@ for it in range(cfg.posit):
                 print "Total Negatives:",len(lndetnew)
                 if localshow:
                     im=myimread(arg[ii]["file"])
-                    detectCRF.visualize2(res[0],im)
+                    detectCRF.visualize2(res[0][:5],im)
                 lndetnew+=res[0]
                 lnfeatnew+=res[1]
                 lnedgenew+=res[2]
@@ -798,6 +826,10 @@ for it in range(cfg.posit):
                 lndet.append(lndetnew[newid])
                 lnfeat.append(lnfeatnew[newid])
                 lnedge.append(lnedgenew[newid])
+
+    #save negatives
+    if cfg.checkpoint:
+        util.save(localsave,"lndet",lndet,"lnedge",lnedge,'lnfeat',lnfeat)
                 
     #mypool.close()
     #mypool.join()

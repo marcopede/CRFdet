@@ -543,7 +543,7 @@ dtype compute_graph(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,i
 
 }
 
-dtype compute_graph2(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,int num_lab_x,dtype *data,int numhyp,dtype* lscr,int *reslab)
+dtype compute_graph2(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,int num_lab_x,dtype *data,int numhyp,dtype* lscr,int *reslab,int aiter,int restart)
 {
     MRF* mrf;
     //Expansion* mrf; 
@@ -614,7 +614,7 @@ dtype compute_graph2(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,
         //t0 = clock ();
 	    mrf->initialize();
         tot_t = 0;
-	int restart=0;//set this to a different value to try multiple starts
+	//int restart=0;//set this to a different value to try multiple starts
                   // look likr it is better optimize than restart
     int aux;
         //printf("Before C\n");
@@ -633,12 +633,12 @@ dtype compute_graph2(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,
                 //((Expansion*)mrf)->setMyLabelOrder(ilaborder);
             //printf("Before(%d,%d)\n",num_lab_y,num_lab_x);
             if (restart==0)
-		        mrf->optimize(3, t);
+		        mrf->optimize(aiter, t);
 		    else
 		    {
 			    //mrf->initialize();
                 ((Expansion*)mrf)->clearAnswer();
-			    mrf->optimize(2,t);	
+			    mrf->optimize(aiter,t);	
 		    }
                 //printf("After C\n");
       		E = mrf->totalEnergy();

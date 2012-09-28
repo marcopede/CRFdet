@@ -36,6 +36,8 @@ lib.compute_graph2.argtypes=[
     c_int,#num hypotheses
     numpy.ctypeslib.ndpointer(dtype=c_float,ndim=1,flags="C_CONTIGUOUS"),
     numpy.ctypeslib.ndpointer(dtype=c_int,ndim=3,flags="C_CONTIGUOUS"),#labels
+    c_int,#aiter
+    c_int#restart
     ]
 lib.compute_graph2.restype=ctypes.c_float
 
@@ -568,7 +570,7 @@ def match_full(m1,m2,cost,movy=None,movx=None,padvalue=0,remove=[],pad=0,feat=Tr
     return scr,res2
 
 
-def match_full2(m1,m2,cost,movy=None,movx=None,padvalue=0,remove=[],pad=0,feat=True,show=True,rot=False,    numhyp=10,output=False):
+def match_full2(m1,m2,cost,movy=None,movx=None,padvalue=0,remove=[],pad=0,feat=True,show=True,rot=False,    numhyp=10,output=False,aiter=3,restart=0):
     t=time.time()
     numy=m1.shape[0]/2#p1.shape[0]
     numx=m1.shape[1]/2#p1.shape[1]
@@ -650,7 +652,7 @@ def match_full2(m1,m2,cost,movy=None,movx=None,padvalue=0,remove=[],pad=0,feat=T
     #t=time.time()
     t=time.time()
     lscr=numpy.zeros(numhyp,dtype=numpy.float32)
-    scr=crfgr2(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res)  
+    scr=crfgr2(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart)  
     #print "after",rdata.sum()
     scr=scr-rmin*numy*numx
     lscr=lscr-rmin*numy*numx
@@ -667,7 +669,7 @@ def match_full2(m1,m2,cost,movy=None,movx=None,padvalue=0,remove=[],pad=0,feat=T
         return scr,res2,frot
     return lscr,res2
 
-def match_bb(m1,pm2,cost,show=True,rot=False,numhyp=10):
+def match_bb(m1,pm2,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0):
     t=time.time()
     numy=m1.shape[0]/2#p1.shape[0]
     numx=m1.shape[1]/2#p1.shape[1]
@@ -749,7 +751,7 @@ def match_bb(m1,pm2,cost,show=True,rot=False,numhyp=10):
                 pylab.imshow(-rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)).sum(0).reshape(movy,movx)-auxmin*numy*numx,vmin=0,vmax=3.0,interpolation="nearest")
                 pylab.draw()
                 pylab.show()
-            scr=crfgr2(numy,numx,cost,movy,movx,rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)),1,auxscr,res)  
+            scr=crfgr2(numy,numx,cost,movy,movx,rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)),1,auxscr,res,aiter,restart)  
             assert(scr==auxscr[0])
             #print "Before",scr
             scr=scr-auxmin*numy*numx
