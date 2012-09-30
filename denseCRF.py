@@ -54,7 +54,7 @@ cfg.posovr= 0.75
 parallel=True
 cfg.show=False
 #cfg.neginpos=False
-localshow=True
+localshow=False
 numcore=cfg.multipr
 notreg=0
 #cfg.numcl=3
@@ -96,7 +96,7 @@ if cfg.db=="VOC":
                         basepath=cfg.dbpath,#"/home/databases/",#"/share/ISE/marcopede/database/",
                         usetr=True,usedf=False),cfg.maxneg)
         trNegImagesFull=getRecord(VOC07Data(select="neg",cl="%s_trainval.txt"%cfg.cls,
-                        basepath=cfg.dbpath,usetr=True,usedf=False),5000)
+                        basepath=cfg.dbpath,usetr=True,usedf=False),cfg.maxnegfull)
         #test
         tsPosImages=getRecord(VOC07Data(select="pos",cl="%s_test.txt"%cfg.cls,
                         basepath=cfg.dbpath,#"/home/databases/",#"/share/ISE/marcopede/database/",
@@ -133,7 +133,7 @@ elif cfg.db=="inria":
     trPosImages=getRecord(InriaPosData(basepath=cfg.dbpath),cfg.maxpos)
     trPosImagesNoTrunc=trPosImages
     trNegImages=getRecord(InriaNegData(basepath=cfg.dbpath),cfg.maxneg)#check if it works better like this
-    trNegImagesFull=getRecord(InriaNegData(basepath=cfg.dbpath),5000)
+    trNegImagesFull=getRecord(InriaNegData(basepath=cfg.dbpath),cfg.maxnegfull)
     #test
     tsImages=getRecord(InriaTestFullData(basepath=cfg.dbpath),cfg.maxtest)
     tsImagesFull=tsImages
@@ -270,17 +270,19 @@ if initial:
     #from scipy.ndimage import zoom
     for im in trNegImages: # for each image
         aim=util.myimread(im["name"])
-        for idm in range(cfg.numcl):
-            szy=(cfg.fy[idm]*2+2)
-            szx=(cfg.fx[idm]*2+2)
-            rndy=numpy.random.randint(0,aim.shape[0]-szy*8-1)
-            rndx=numpy.random.randint(0,aim.shape[1]-szx*8-1)
-            #zcim=zoom(crop,(((cfg.fy[idm]*2+2)*8/float(imy)),((cfg.fx[idm]*2+2)*8/float(imx)),1),order=1)
-            zcim=aim[rndy:rndy+szy*8,rndx:rndx+szx*8]
-            hogn[idm].append(numpy.ascontiguousarray(pyrHOG2.hog(zcim)).flatten())
-            #hogncl.append(idm)
-            if check:
-                print "Aspcet",idm,"HOG",hogn[-1].shape
+        for mul in range(20):
+            for idm in range(cfg.numcl):
+                szy=(cfg.fy[idm]*2+2)
+                szx=(cfg.fx[idm]*2+2)
+                if aim.shape[0]-szy*8-1>0 and aim.shape[1]-szx*8-1>0:
+                    rndy=numpy.random.randint(0,aim.shape[0]-szy*8-1)
+                    rndx=numpy.random.randint(0,aim.shape[1]-szx*8-1)
+                #zcim=zoom(crop,(((cfg.fy[idm]*2+2)*8/float(imy)),((cfg.fx[idm]*2+2)*8/float(imx)),1),order=1)
+                    zcim=aim[rndy:rndy+szy*8,rndx:rndx+szx*8]
+                    hogn[idm].append(numpy.ascontiguousarray(pyrHOG2.hog(zcim)).flatten())
+                #hogncl.append(idm)
+                    if check:
+                        print "Aspcet",idm,"HOG",hogn[-1].shape
     for l in range(cfg.numcl):  
         print "Aspect",l,":",len(hogn[l]),"samples"
         hogncl=hogncl+[l]*len(hogn[l])    
@@ -311,6 +313,7 @@ if initial:
             cl2=range(1,len(mytrpos),2)
             #rrnum=len(mytrpos)
             rrnum=min(len(mytrpos),1000)#to avoid too long clustering
+            #rrnum=min(len(mytrpos),10)#to avoid too long clustering
             for rr in range(rrnum):
                 print "Clustering iteration ",rr
                 oldvar=numpy.sum(numpy.var(mytrpos[cl1],0))+numpy.sum(numpy.var(mytrpos[cl2],0))
@@ -519,6 +522,7 @@ for it in range(cfg.posit):
                 lpedge.append(res[2])
                 padd+=1
         else: #not found any detection with enough overlap
+            print "Example not found!"
             for idl,l in enumerate(lpdet):
                 iname=arg[ii]["file"].split("/")[-1]
                 if cfg.useRL:
@@ -526,15 +530,12 @@ for it in range(cfg.posit):
                         iname=iname+".flip"
                 if (iname==l["idim"]): #same image
                     if (arg[ii]["idbb"]==l["idbb"]): #same bbox
-                        print "Example not found, but keep old detection"                        
+                        print "Keep old detection"                        
                         pold+=1
                         found=True
         if localshow:
             im=util.myimread(arg[ii]["file"],arg[ii]["flip"])
             rescale,y1,x1,y2,x2=res[3]
-            #bb=arg[ii]["bbox"]#res[0]["bbox"]
-            #dy=bb[2]-bb[0]
-            #dx=bb[3]-bb[1]
             if res[0]!=[]:
                 if found:
                     text="Already detected example"
@@ -545,11 +546,19 @@ for it in range(cfg.posit):
                     text="Keep old detection"
                 else:
                     text="No detection"
+            cbb=arg[ii]["bbox"]
+            if arg[ii]["flip"]:
+                cbb = (util.flipBBox(im,[cbb])[0])
+            cbb=numpy.array(cbb)
+            cbb[0]=(cbb[0]-y1)*rescale
+            cbb[1]=(cbb[1]-x1)*rescale
+            cbb[2]=(cbb[2]-y1)*rescale
+            cbb[3]=(cbb[3]-x1)*rescale
             im=extra.myzoom(im[y1:y2,x1:x2],(rescale,rescale,1),1)
             if res[0]!=[]:
-                detectCRF.visualize2([res[0]],im,text)
+                detectCRF.visualize2([res[0]],im,cbb,text)
             else:
-                detectCRF.visualize2([],im,text)
+                detectCRF.visualize2([],im,cbb,text)
             #if it>0:
                 #raw_input()
     print "Added examples",padd
@@ -602,25 +611,13 @@ for it in range(cfg.posit):
             tsImages=tsImagesFull
  
     ########### repeat scan negatives
+    lastcount=0
     for nit in range(cfg.negit):
 
         ########### from detections build training data
-        
-        ltosort=[-x["scr"] for x in lndet]
-        lord=numpy.argsort(ltosort)
         trneg=[]
         trnegcl=[]
-
-        #filter and build negative vectors
-        auxdet=[]
-        auxfeat=[]
-        auxedge=[]
-        #limit=max(cfg.maxexamples/2,len(lndet)) #at least half of the cache
-        #limit=min(cfg.maxexamples,limit) #as maximum full cache
-        for idl in lord[:cfg.maxexamples]:#to maintain space for new samples
-            auxdet.append(lndet[idl])
-            auxfeat.append(lnfeat[idl])
-            auxedge.append(lnedge[idl])
+        for idl,l in enumerate(lndet):
             efeat=lnfeat[idl]#.flatten()
             eedge=lnedge[idl]#.flatten()
             if lndet[idl]["id"]>=cfg.numcl:#flipped version
@@ -628,19 +625,6 @@ for it in range(cfg.posit):
                 eedge=pyrHOG2.crfflip(eedge)
             trneg.append(numpy.concatenate((efeat.flatten(),eedge.flatten())))
             trnegcl.append(lndet[idl]["id"]%cfg.numcl)
-            
-        lndet=auxdet
-        lnfeat=auxfeat
-        lnedge=auxedge
-
-        print "Total Negative Samples:",len(ltosort)
-        print "New Extracted Negatives",len(lndetnew)
-        print "Negative Support Vectors:",numpy.sum(-numpy.array(ltosort)>-1)
-        print "Negative Cache Vectors:",len(lndet)
-        print "Kept negative Support Vectors:",cfg.maxexamples
-        if len(lndetnew)+numpy.sum(-numpy.array(ltosort)>-1)>cfg.maxexamples:
-            print "Warning support vectors do not fit in cache!!!!"
-            raw_input()
 
         #if no negative sample add empty negatives
         for l in range(cfg.numcl):
@@ -731,6 +715,59 @@ for it in range(cfg.posit):
             pl.show()
             pylab.savefig("%s_def%dq_cl%d.png"%(testname,it,idm))
 
+        ########## rescore old negative detections
+        for idl,l in enumerate(lndet):
+            idm=l["id"]
+            lndet[idl]["scr"]=numpy.sum(models[idm]["ww"][0]*lnfeat[idl])+numpy.sum(models[idm]["cost"]*lnedge[idl])-models[idm]["rho"]#-rr[idm]/bias
+
+        ########## rescore old positive detections
+        for idl,l in enumerate(lpdet):
+            idm=l["id"]
+            lpdet[idl]["scr"]=numpy.sum(models[idm]["ww"][0]*lpfeat[idl])+numpy.sum(models[idm]["cost"]*lpedge[idl])-models[idm]["rho"]#-rr[idm]/bias
+
+        ######### filter negatives
+        ltosort=[-x["scr"] for x in lndet]
+        lord=numpy.argsort(ltosort)
+        #remove dense data
+        trneg=[]
+        trnegcl=[]
+
+        #filter and build negative vectors
+        auxdet=[]
+        auxfeat=[]
+        auxedge=[]
+        nsv=numpy.sum(-numpy.array(ltosort)>-1)
+        limit=max(cfg.maxexamples/2,nsv) #at least half of the cache
+        if (nsv>cfg.maxexamples):
+            print "Warning SVs don't fit in cache"
+            raw_input()
+        #limit=min(cfg.maxexamples,limit) #as maximum full cache
+        for idl in lord[:limit]:#to maintain space for new samples
+            auxdet.append(lndet[idl])
+            auxfeat.append(lnfeat[idl])
+            auxedge.append(lnedge[idl])
+            #efeat=lnfeat[idl]#.flatten()
+            #eedge=lnedge[idl]#.flatten()
+            #if lndet[idl]["id"]>=cfg.numcl:#flipped version
+            #    efeat=pyrHOG2.hogflip(efeat)
+            #    eedge=pyrHOG2.crfflip(eedge)
+            #trneg.append(numpy.concatenate((efeat.flatten(),eedge.flatten())))
+            #trnegcl.append(lndet[idl]["id"]%cfg.numcl)
+            
+        lndet=auxdet
+        lnfeat=auxfeat
+        lnedge=auxedge
+
+        print "Negative Samples before filtering:",len(ltosort)
+        #print "New Extracted Negatives",len(lndetnew)
+        print "Negative Support Vectors:",nsv
+        print "Negative Cache Vectors:",len(lndet)
+        print "Maximum cache vectors:",cfg.maxexamples
+        #if len(lndetnew)+numpy.sum(-numpy.array(ltosort)>-1)>cfg.maxexamples:
+        #    print "Warning support vectors do not fit in cache!!!!"
+        #    raw_input()
+
+
         ########### scan negatives
         #if last_round:
         #    trNegImages=trNegImagesFull
@@ -739,24 +776,30 @@ for it in range(cfg.posit):
         cache_full=False
         lndetnew=[];lnfeatnew=[];lnedgenew=[]
         arg=[]
-        for idl,l in enumerate(trNegImages):
+        #for idl,l in enumerate(trNegImages):
+        totn=len(trNegImages)
+        for idl1 in range(totn):
+            idl=(idl1+lastcount)%totn
+            l=trNegImages[idl]
             #bb=l["bbox"]
             #for idb,b in enumerate(bb):
             arg.append({"idim":idl,"file":l["name"],"idbb":0,"bbox":[],"models":models,"cfg":cfg,"flip":False,"control":d})    
         if not(parallel):
-            itr=itertools.imap(detectCRF.hardNeg,arg)        
+            itr=itertools.imap(hardNegCache,arg)        
         else:
             itr=mypool.imap(hardNegCache,arg)
 
         for ii,res in enumerate(itr):
             print "Total negatives:",len(lndetnew)
-            if localshow:
+            if localshow and res[0]!=[]:
                 im=myimread(arg[ii]["file"])
                 detectCRF.visualize2(res[0][:5],im)
             lndetnew+=res[0]
             lnfeatnew+=res[1]
             lnedgenew+=res[2]
             if len(lndetnew)+len(lndet)>cfg.maxexamples:
+                #if not cache_full:
+                lastcount=idl
                 print "Examples exceeding the cache limit!"
                 #raw_input()
                 #mypool.terminate()
@@ -780,7 +823,7 @@ for it in range(cfg.posit):
 
             for ii,res in enumerate(itr):
                 print "Total Negatives:",len(lndetnew)
-                if localshow:
+                if localshow and res[0]!=[]:
                     im=myimread(arg[ii]["file"])
                     detectCRF.visualize2(res[0][:5],im)
                 lndetnew+=res[0]
@@ -794,15 +837,6 @@ for it in range(cfg.posit):
                     cache_full=True
                     d["cache_full"]=True
 
-        ########## rescore old negative detections
-        for idl,l in enumerate(lndet):
-            idm=l["id"]
-            lndet[idl]["scr"]=numpy.sum(models[idm]["ww"][0]*lnfeat[idl])+numpy.sum(models[idm]["cost"]*lnedge[idl])-models[idm]["rho"]#-rr[idm]/bias
-
-        ########## rescore old positive detections
-        for idl,l in enumerate(lpdet):
-            idm=l["id"]
-            lpdet[idl]["scr"]=numpy.sum(models[idm]["ww"][0]*lpfeat[idl])+numpy.sum(models[idm]["cost"]*lpedge[idl])-models[idm]["rho"]#-rr[idm]/bias
 
         ########### include new detections in the old pool discarding doubles
         #auxdet=[]
@@ -817,8 +851,9 @@ for it in range(cfg.posit):
                         if (newdet["id"]==olddet["id"]): #same model
                             if (numpy.all(newdet["def"]==olddet["def"])): #same deformation
                                 #same features
-                                assert(newdet["scr"]-olddet["scr"]<0.00001)
-                                assert(numpy.all(lnfeatnew[newid]-lnfeat[oldid]<0.00001))
+                                print "diff:",abs(newdet["scr"]-olddet["scr"]),
+                                assert(abs(newdet["scr"]-olddet["scr"])<0.00005)
+                                assert(numpy.all(abs(lnfeatnew[newid]-lnfeat[oldid])<0.00005))
                                 assert(numpy.all(lnedgenew[newid]==lnedge[oldid]))
                                 print "Detection",newdet["idim"],newdet["scl"],newdet["id"],"is double --> removed!"
                                 remove=True

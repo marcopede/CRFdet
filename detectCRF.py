@@ -168,7 +168,7 @@ def hardNegPos(el):
         if det[idl]["scr"]>-1:
             for gt in bbox:
                 ovr=util.overlap(det[idl]["bbox"],gt)
-                if ovr>0.3:#is not a false positive 
+                if ovr>0.3 and (cfg.db!="inria" or ovr<0):#is not a false positive 
                     skip=True
                     break
             if not(skip):
@@ -368,7 +368,7 @@ def visualize(det,f,img):
     pl.show()
     #raw_input()
 
-def visualize2(det,img,text=""):
+def visualize2(det,img,bb=[],text=""):
     """visualize a detection and the corresponding featues"""
     pl=pylab
     col=['w','r','g','b','y','c','k','y','c','k']
@@ -380,6 +380,8 @@ def visualize2(det,img,text=""):
     im=img
     pad=0
     cc=0
+    if bb!=[]:
+        util.box(bb[0],bb[1],bb[2],bb[3], col="b--", lw=2)  
     for l in range(len(det)):#lsort[:100]:
         scl=det[l]["scl"]
         idm=det[l]["id"]
