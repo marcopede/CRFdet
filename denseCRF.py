@@ -33,10 +33,11 @@ if len(sys.argv)>2: #specific configuration
 
 cfg.cls=sys.argv[1]
 testname=cfg.testpath+cfg.cls+("%d"%cfg.numcl)+"_"+cfg.testspec
-import os
-if not os.path.exists(cfg.localdata):
-    os.makedirs(cfg.localdata)
-localsave=cfg.localdata+cfg.cls+("%d"%cfg.numcl)+"_"+cfg.testspec
+if cfg.checkpoint:
+    import os
+    if not os.path.exists(cfg.localdata):
+        os.makedirs(cfg.localdata)
+    localsave=cfg.localdata+cfg.cls+("%d"%cfg.numcl)+"_"+cfg.testspec
 #cfg.useRL=False#for the moment
 cfg.show=False
 cfg.auxdir=""
@@ -54,7 +55,7 @@ cfg.posovr= 0.75
 parallel=True
 cfg.show=False
 #cfg.neginpos=False
-localshow=False
+localshow=True
 numcore=cfg.multipr
 notreg=0
 #cfg.numcl=3
@@ -875,7 +876,7 @@ for it in range(cfg.posit):
     denseCRFtest.runtest(models,tsImages,cfg,parallel=parallel,numcore=numcore,save="%s%d"%(testname,it),show=localshow,pool=mypool,detfun=denseCRFtest.test1hypINC)
     if last_round:
         util.save("%s_final.model"%(testname),models)
-        denseCRFtest.runtest(models,tsImages,cfg,parallel=parallel,numcore=numcore,save="%s_final"%(testname),show=localshow,pool=mypool,detfun=denseCRFtest.test1hypINC)
+        denseCRFtest.runtest(models,tsImagesFull,cfg,parallel=parallel,numcore=numcore,save="%s_final"%(testname),show=localshow,pool=mypool,detfun=denseCRFtest.test1hypINC)
         print "Training Finished!!!"
         break
 
