@@ -653,7 +653,7 @@ for it in range(cfg.posit):
             print "Very small positive improvement: convergence at iteration %d!"%it
             last_round=True 
             trNegImages=trNegImagesFull
-            tsImages=tsImagesFull
+            #tsImages=tsImagesFull
  
     ########### repeat scan negatives
     lastcount=0
@@ -955,8 +955,7 @@ Negative in cache vectors %d
         util.save("%s_final.model"%(testname),models)
         denseCRFtest.runtest(models,tsImagesFull,cfg,parallel=parallel,numcore=numcore,save="%s_final"%(testname),show=localshow,pool=mypool,detfun=denseCRFtest.test1hypINC)
         print "Training Finished!!!"
-        exit()
-        #break
+        break
 
 lg.info("End of the training!!!!")
 # unitl positve convergercy
