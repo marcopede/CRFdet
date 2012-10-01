@@ -200,9 +200,10 @@ for l in range(numcl):
     lfy.append(round(fy))
     lfx.append(round(fx))
     print
-    lg.info("Using %d models",cfg.numcl)
-    for l in range(cfg.numcl):
-        lg.info("Fy:%d Fx:%d",lfy[l],lfx[l])
+
+lg.info("Using %d models",cfg.numcl)
+for l in range(cfg.numcl):
+    lg.info("Fy:%d Fx:%d",lfy[l],lfx[l])
 
 #raw_input()
 
@@ -577,7 +578,7 @@ for it in range(cfg.posit):
             cbb=arg[ii]["bbox"]
             if arg[ii]["flip"]:
                 cbb = (util.flipBBox(im,[cbb])[0])
-            cbb=numpy.array(cbb)
+            cbb=numpy.array(cbb)[:4].astype(numpy.int)
             cbb[0]=(cbb[0]-y1)*rescale
             cbb[1]=(cbb[1]-x1)*rescale
             cbb[2]=(cbb[2]-y1)*rescale
