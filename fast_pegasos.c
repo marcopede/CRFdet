@@ -220,7 +220,7 @@ void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype *
         //not regularize pairwise
         //reg(w+sumszx[bcp],n,valreg,compx[bcp]-sizereg[bcp],0);//0.01    
         //|w-w_0|
-        reg(w+sumszx[bcp],n,valreg,compx[bcp],sizereg[bcp]);//0.01    
+        //reg(w+sumszx[bcp],n,valreg,compx[bcp],sizereg[bcp]);//0.01    
         //|w|
         reg(w+sumszx[bcp],n,valreg,compx[bcp],0);//0.01    
         //mul22(w+sumszx[bcp],1-n,valreg,compx[bcp],sizereg[bcp]);//0.01    

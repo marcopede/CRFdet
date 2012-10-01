@@ -954,7 +954,8 @@ Negative in cache vectors %d
         util.save("%s_final.model"%(testname),models)
         denseCRFtest.runtest(models,tsImagesFull,cfg,parallel=parallel,numcore=numcore,save="%s_final"%(testname),show=localshow,pool=mypool,detfun=denseCRFtest.test1hypINC)
         print "Training Finished!!!"
-        break
+        exit()
+        #break
 
 lg.info("End of the training!!!!")
 # unitl positve convergercy
