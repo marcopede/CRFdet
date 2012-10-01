@@ -413,7 +413,8 @@ def visualize2(det,img,bb=[],text=""):
             pl.title("scr:%.3f id:%d"%(scr,idm))
             pl.imshow(rcim)    
     pl.subplot(1,2,1)    
-    pl.axis("image")
+    #pl.axis("image")
+    pl.axis([0,img.shape[1],img.shape[0],0])
     pl.draw()
     pl.show()
 

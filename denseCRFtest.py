@@ -49,7 +49,8 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
     for ii,res in enumerate(itr):
         if show:
             im=myimread(arg[ii]["file"])
-            detectCRF.visualize2(res[:10],im)
+            detectCRF.visualize2(res[:3],im)
+            print [x["scr"] for x in res[:5]]
         ltdet+=res
 
     if parallel:
@@ -131,11 +132,11 @@ if __name__ == '__main__':
         from config import * #default configuration      
         cfg.cls=sys.argv[1]
         cfg.numcl=3
-        cfg.dbpath="/home/owner/databases/"
-        #cfg.dbpath="/users/visics/mpederso/databases/"
+        #cfg.dbpath="/home/owner/databases/"
+        cfg.dbpath="/users/visics/mpederso/databases/"
         cfg.testpath="./data/"#"./data/CRF/12_09_19/"
         cfg.testspec="right"#"full2"
-        cfg.db="VOC"
+        cfg.db="inria"
         
 
     testname=cfg.testpath+cfg.cls+("%d"%cfg.numcl)+"_"+cfg.testspec
@@ -173,6 +174,14 @@ if __name__ == '__main__':
                         usetr=True,usedf=False),cfg.maxtest)
         tsImages=tsPosImages#numpy.concatenate((tsPosImages,tsNegImages),0)
         tsImagesFull=tsPosImages
+    elif cfg.db=="inria":
+        trPosImages=getRecord(InriaPosData(basepath=cfg.dbpath),cfg.maxpos)
+        trPosImagesNoTrunc=trPosImages
+        trNegImages=getRecord(InriaNegData(basepath=cfg.dbpath),cfg.maxneg)#check if it works better like this
+        trNegImagesFull=getRecord(InriaNegData(basepath=cfg.dbpath),cfg.maxnegfull)
+        #test
+        tsImages=getRecord(InriaTestFullData(basepath=cfg.dbpath),cfg.maxtest)
+        tsImagesFull=tsImages
 
     ##############load model
     for l in range(cfg.posit):
@@ -186,7 +195,8 @@ if __name__ == '__main__':
     ######to comment down
     #it=6;testname="./data/person3_right"
     #it=12;testname="./data/CRF/12_09_23/bicycle3_fixed"
-    it=4;testname="./data/bicycle3_full"
+    #it=4;testname="./data/bicycle3_full"
+    it=0;testname="./data/inria1_inria"
     models=util.load("%s%d.model"%(testname,it))
     #just for the new
 #    for idm,m in enumerate(models):
@@ -197,5 +207,5 @@ if __name__ == '__main__':
     ##############test
     #import itertools
     #runtest(models,tsImages,cfg,parallel=False,numcore=4,detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=True)#,save="%s%d"%(testname,it))
-    runtest(models,tsImages,cfg,parallel=False,numcore=8,show=True,detfun=test50hypINCBB,save="./bicycleFullBB50Clip")
+    runtest(models,tsImages,cfg,parallel=True,numcore=4,show=True,detfun=test50hypINCBB,save="./bicycleFullBB50Clip")
 

@@ -17,21 +17,23 @@ import copy
 import itertools
 import sys
 import crf3
+import logging as lg
 
 ########################## load configuration parametes
 
 print "Loading defautl configuration config.py"
 from config import * #default configuration      
 
+import_name=""
 if len(sys.argv)>2: #specific configuration
     print "Loading configuration from %s"%sys.argv[2]
     import_name=sys.argv[2]
     exec "from config_%s import *"%import_name  
-    #save a local configuration copy 
-    import shutil
-    shutil.copyfile("config_"+import_name+".py",cfg.testpath+cfg.cls+"%d"%cfg.numcl+"_"+cfg.testspec+".cfg.py")
 
 cfg.cls=sys.argv[1]
+#save a local configuration copy 
+import shutil
+shutil.copyfile("config_"+import_name+".py",cfg.testpath+cfg.cls+"%d"%cfg.numcl+"_"+cfg.testspec+".cfg.py")
 testname=cfg.testpath+cfg.cls+("%d"%cfg.numcl)+"_"+cfg.testspec
 if cfg.checkpoint:
     import os
@@ -61,6 +63,11 @@ notreg=0
 #cfg.numcl=3
 #cfg.valreg=0.01#set in configuration
 #cfg.useRL=True
+
+######################### setup log file 
+lg.basicConfig(filename=testname+".log",format='%(asctime)s %(message)s',datefmt='%I:%M:%S %p',level=lg.DEBUG)
+lg.info("#################################################################################")
+lg.info("############## Starting the training on %s dataset ################",cfg.db)
 
 #################### wrappers
 
@@ -193,6 +200,9 @@ for l in range(numcl):
     lfy.append(round(fy))
     lfx.append(round(fx))
     print
+    lg.info("Using %d models",cfg.numcl)
+    for l in range(cfg.numcl):
+        lg.info("Fy:%d Fx:%d",lfy[l],lfx[l])
 
 #raw_input()
 
@@ -212,11 +222,16 @@ if cfg.checkpoint:
         lnfeat=dneg["lnfeat"]
         lnedge=dneg["lnedge"]
         initial=False
+        lg.info("""Loading old checkpoint:
+Number Positive SV:%d                        
+Number Negative SV:%d                                
+        """%(len(lpdet),len(lndet)))
     except:
         pass
 
 if initial:
     print "Starting from scratch"
+    lg.info("Starting from scratch")
     ############################ initialize positive using cropped bounidng boxes
     check = False
     import pylab as pl
@@ -262,6 +277,7 @@ if initial:
     for l in range(cfg.numcl):
         print "Aspect",l,":",len(hogp[l]),"samples"
         hogpcl=hogpcl+[l]*len(hogp[l])    
+        lg.info("Model %d: collected %d postive examples"%(l,len(hogp[l])))
 
     # get some random negative images
     hogn=[[] for x in range(cfg.numcl)]
@@ -287,10 +303,13 @@ if initial:
     for l in range(cfg.numcl):  
         print "Aspect",l,":",len(hogn[l]),"samples"
         hogncl=hogncl+[l]*len(hogn[l])    
+        lg.info("Model %d: collected %d negative examples"%(l,len(hogn[l])))
+
 
     #################### cluster left right
     trpos=[]
     #trposcl=[]
+    lg.info("Starting Left-Right clustering")
     if cfg.useRL:
         for l in range(numcl):
             mytrpos=[]            
@@ -345,6 +364,7 @@ if initial:
     else:   
         for l in range(cfg.numcl):
             trpos+=hogp[l]
+    lg.info("Finished Left-Right clustering")
      
     #################### train a first detector
 
@@ -388,7 +408,8 @@ if initial:
         w=w1
 
         util.save("%s%d.model"%(testname,0),models)
-
+        lg.info("Built first model")
+        
     #show model 
     #mm=w[:1860].reshape((cfg.fy[0]*2,cfg.fx[0]*2,31))
     it = 0
@@ -456,8 +477,6 @@ lpedge=[] #
 
 total=[]
 posratio=[]
-negratio=[]
-negratio2=[]
 last_round=False
 cache_full=False
 
@@ -466,15 +485,22 @@ import detectCRF
 from multiprocessing import Pool
 import itertools
 
+lg.info("Starting Main loop!")
 ####################### repeat scan positives
 for it in range(cfg.posit):
-
+    lg.info("############# Positive iteration %d ################"%it)
     #mypool = Pool(numcore)
     #counters
     padd=0
     pbetter=0
     pworst=0
     pold=0
+
+    ########## rescore old positive detections
+    lg.info("Rescoring %d Positive detections"%len(lpdet))
+    for idl,l in enumerate(lpdet):
+        idm=l["id"]
+        lpdet[idl]["scr"]=numpy.sum(models[idm]["ww"][0]*lpfeat[idl])+numpy.sum(models[idm]["cost"]*lpedge[idl])-models[idm]["rho"]#-rr[idm]/bias
 
     arg=[]
     for idl,l in enumerate(trPosImages):
@@ -494,6 +520,7 @@ for it in range(cfg.posit):
     else:
         itr=mypool.imap(detectCRF.refinePos,arg)
 
+    lg.info("############## Staritng Scan of %d Positives BBoxs ###############"%totPosEx)
     for ii,res in enumerate(itr):
         found=False
         if res[0]!=[]:
@@ -568,6 +595,13 @@ for it in range(cfg.posit):
     print "Old examples bbox",pold
     total.append(padd+pbetter+pworst+pold)
     print "Total",total,"/",len(arg)
+    lg.info("############## End Scan of Positives BBoxs ###############")
+    lg.info("""Added examples %d
+    Improved examples %d
+    Old examples score %d
+    Old examples bbox %d
+    Total %d/%d
+    """%(padd,pbetter,pworst,pold,total[-1],len(arg)))
     #be sure that total is counted correctly
     assert(total[-1]==len(lpdet))
 
@@ -578,6 +612,7 @@ for it in range(cfg.posit):
     #build training data for positives
     trpos=[]
     trposcl=[]
+    lg.info("Building Training data from positive detections")
     for idl,l in enumerate(lpdet):#enumerate(lndet):
         efeat=lpfeat[idl]#.flatten()
         eedge=lpedge[idl]#.flatten()
@@ -589,10 +624,13 @@ for it in range(cfg.posit):
 
     #save positives
     if cfg.checkpoint:
+        lg.info("Begin Positive check point it:%d"%it)
         util.save(localsave,"lpdet",lpdet,"lpedge",lpedge,'lpfeat',lpfeat)
+        lg.info("End Positive check point")
 
     ########### check positive convergence    
     if it>0:
+        lg.info("################# Checking Positive Convergence ##############")
         newposl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias,sizereg=sizereg,valreg=cfg.valreg)
         #lposl.append(newposl)
         #add a bound on not found examples
@@ -602,10 +640,15 @@ for it in range(cfg.posit):
         print "Old pos loss:",oldposl,boldposl
         print "New pos loss:",newposl,bnewposl
         print "Ratio Pos loss",posratio
+        lg.info("Old pos loss:%f Bounded:%f"%(oldposl,boldposl))
+        lg.info("New pos loss:%f Bounded:%f"%(newposl,bnewposl))
+        lg.info("Ratio Pos loss:%f"%posratio[-1])
         if bnewposl>boldposl:
             print "Warning increasing positive loss\n"
+            lg.error("Warning increasing positive loss")
             raw_input()
         if (posratio[-1]<cfg.convPos):
+            lg.info("Very small positive improvement: convergence at iteration %d!"%it)
             print "Very small positive improvement: convergence at iteration %d!"%it
             last_round=True 
             trNegImages=trNegImagesFull
@@ -613,11 +656,15 @@ for it in range(cfg.posit):
  
     ########### repeat scan negatives
     lastcount=0
+    negratio=[]
+    negratio2=[]
     for nit in range(cfg.negit):
-
+        
+        lg.info("############### Negative Scan iteration %d ##############"%nit)
         ########### from detections build training data
         trneg=[]
         trnegcl=[]
+        lg.info("Building Training data from negative detections")
         for idl,l in enumerate(lndet):
             efeat=lnfeat[idl]#.flatten()
             eedge=lnedge[idl]#.flatten()
@@ -632,27 +679,36 @@ for it in range(cfg.posit):
             if numpy.sum(numpy.array(trnegcl)==l)==0:
                 trneg.append(numpy.concatenate((numpy.zeros(models[l]["ww"][0].shape).flatten(),numpy.zeros(models[l]["cost"].shape).flatten())))
                 trnegcl.append(l)
+                lg.info("No negative samples; add empty negatives")
 
         ############ check negative convergency
         if nit>0: # and not(limit):
+            lg.info("################ Checking Negative Convergence ##############")
             posl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias,sizereg=sizereg,valreg=cfg.valreg)#,notreg)
             print "NIT:",nit,"OLDLOSS",old_nobj,"NEWLOSS:",nobj
             negratio.append(nobj/(old_nobj+0.000001))
             negratio2.append((posl+negl)/(old_posl+old_negl+0.000001))
             print "RATIO: newobj/oldobj:",negratio,negratio2
-            output="Negative not converging yet!"
+            lg.info("OldLoss:%f NewLoss:%f"%(old_nobj,nobj))
+            lg.info("Ratio %f"%(negratio[-1]))
+            lg.info("Ratio without reg %f"%(negratio2[-1]))
             #if (negratio[-1]<1.05):
             if (negratio[-1]<cfg.convNeg) and not(cache_full):
+                lg.info("Very small invrement of loss: negative convergence at iteration %d!"%nit)
                 print "Very small invrement of loss: negative convergence at iteration %d!"%nit
                 break
 
         ############train a new detector with new positive and all negatives
+        lg.info("############# Building a new Model ####################")
         #print elements per model
         for l in range(cfg.numcl):
             print "Model",l
             print "Positive Examples:",numpy.sum(numpy.array(trposcl)==l)
             print "Negative Examples:",numpy.sum(numpy.array(trnegcl)==l)
-    
+            lg.info("Before training Model %d"%l)
+            lg.info("Positive Examples:%d"%(numpy.sum(numpy.array(trposcl)==l)))
+            lg.info("Negative Examples:%d"%(numpy.sum(numpy.array(trnegcl)==l)))    
+
         import pegasos   
         w,r,prloss=pegasos.trainComp(trpos,trneg,"",trposcl,trnegcl,oldw=w,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.01,bias=cfg.bias,sizereg=sizereg,valreg=cfg.valreg)#,notreg=notreg)
 
@@ -688,6 +744,7 @@ for it in range(cfg.posit):
 
 
         util.save("%s%d.model"%(testname,it),models)
+        lg.info("Saved model it:%d nit:%d"%(it,nit))
 
         #visualize models
         atrposcl=numpy.array(trposcl)
@@ -699,6 +756,7 @@ for it in range(cfg.posit):
             pl.imshow(imm)
             pl.title("b:%.3f h:%.4f d:%.4f"%(m["rho"],numpy.sum(m["ww"][0]**2),numpy.sum(m["cost"]**2)))
             pl.xlabel("#%d"%(numpy.sum(atrposcl==idm)))
+            lg.info("Model %d Samples:%d bias:%f |hog|:%f |def|:%f"%(idm,numpy.sum(atrposcl==idm),m["rho"],numpy.sum(m["ww"][0]**2),numpy.sum(m["cost"]**2)))
             pl.draw()
             pl.show()
             pylab.savefig("%s_hog%d_cl%d.png"%(testname,it,idm))
@@ -709,6 +767,7 @@ for it in range(cfg.posit):
             pl.draw()
             pl.show()
             pylab.savefig("%s_def%dl_cl%d.png"%(testname,it,idm))
+            lg.info("Deformation Min:%f Max:%f"%(m["cost"].min(),m["cost"].max()))
             pl.figure(120+idm,figsize=(5,5))
             pl.clf()
             extra.showDef(m["cost"][4:])
@@ -717,16 +776,13 @@ for it in range(cfg.posit):
             pylab.savefig("%s_def%dq_cl%d.png"%(testname,it,idm))
 
         ########## rescore old negative detections
+        lg.info("Rescoring %d Negative detections"%len(lndet))
         for idl,l in enumerate(lndet):
             idm=l["id"]
             lndet[idl]["scr"]=numpy.sum(models[idm]["ww"][0]*lnfeat[idl])+numpy.sum(models[idm]["cost"]*lnedge[idl])-models[idm]["rho"]#-rr[idm]/bias
 
-        ########## rescore old positive detections
-        for idl,l in enumerate(lpdet):
-            idm=l["id"]
-            lpdet[idl]["scr"]=numpy.sum(models[idm]["ww"][0]*lpfeat[idl])+numpy.sum(models[idm]["cost"]*lpedge[idl])-models[idm]["rho"]#-rr[idm]/bias
-
         ######### filter negatives
+        lg.info("############### Filtering Negative Detections ###########")
         ltosort=[-x["scr"] for x in lndet]
         lord=numpy.argsort(ltosort)
         #remove dense data
@@ -740,6 +796,7 @@ for it in range(cfg.posit):
         nsv=numpy.sum(-numpy.array(ltosort)>-1)
         limit=max(cfg.maxexamples/2,nsv) #at least half of the cache
         if (nsv>cfg.maxexamples):
+            lg.error("Negative SVs(%d) don't fit in cache %d"%(nsv,cfg.maxexamples))
             print "Warning SVs don't fit in cache"
             raw_input()
         #limit=min(cfg.maxexamples,limit) #as maximum full cache
@@ -764,6 +821,10 @@ for it in range(cfg.posit):
         print "Negative Support Vectors:",nsv
         print "Negative Cache Vectors:",len(lndet)
         print "Maximum cache vectors:",cfg.maxexamples
+        lg.info("""Negative samples before filtering:%d
+Negative Support Vectors %d
+Negative in cache vectors %d
+        """%(len(ltosort),nsv,len(lndet)))
         #if len(lndetnew)+numpy.sum(-numpy.array(ltosort)>-1)>cfg.maxexamples:
         #    print "Warning support vectors do not fit in cache!!!!"
         #    raw_input()
@@ -784,7 +845,8 @@ for it in range(cfg.posit):
             l=trNegImages[idl]
             #bb=l["bbox"]
             #for idb,b in enumerate(bb):
-            arg.append({"idim":idl,"file":l["name"],"idbb":0,"bbox":[],"models":models,"cfg":cfg,"flip":False,"control":d})    
+            arg.append({"idim":idl,"file":l["name"],"idbb":0,"bbox":[],"models":models,"cfg":cfg,"flip":False,"control":d}) 
+        lg.info("############### Starting Scan of %d negative images #############"%len(arg))
         if not(parallel):
             itr=itertools.imap(hardNegCache,arg)        
         else:
@@ -807,6 +869,9 @@ for it in range(cfg.posit):
                 #mypool.join()
                 cache_full=True
                 d["cache_full"]=True
+                lg.info("Cache is full!!!")
+        lg.info("############### End Scan negatives #############")
+        lg.info("Found %d hard negatives"%len(lndetnew))
         ########### scan negatives in positives
         
         if cfg.neginpos:
@@ -816,6 +881,7 @@ for it in range(cfg.posit):
                 #for idb,b in enumerate(bb):
                 arg.append({"idim":idl,"file":l["name"],"idbb":0,"bbox":l["bbox"],"models":models,"cfg":cfg,"flip":False,"control":d})    
 
+            lg.info("############### Starting Scan negatives in %d positves images #############"%len(arg))
             #lndetnew=[];lnfeatnew=[];lnedgenew=[]
             if not(parallel):
                 itr=itertools.imap(detectCRF.hardNegPos,arg)        
@@ -837,12 +903,16 @@ for it in range(cfg.posit):
                     #mypool.join()
                     cache_full=True
                     d["cache_full"]=True
-
+            lg.info("############### End Scan neg in positives #############")
+            lg.info("Found %d hard negatives"%len(lndetnew))
 
         ########### include new detections in the old pool discarding doubles
         #auxdet=[]
         #auxfeat=[]
         #aux=[]
+        lg.info("############# Insert new detections in the pool #################")
+        oldpool=len(lndet)
+        lg.info("Old pool size:%d"%len(lndet))
         for newid,newdet in enumerate(lndetnew): # for each newdet
             #newdet=ldetnew[newid]
             remove=False
@@ -862,10 +932,14 @@ for it in range(cfg.posit):
                 lndet.append(lndetnew[newid])
                 lnfeat.append(lnfeatnew[newid])
                 lnedge.append(lnedgenew[newid])
-
+        lg.info("New pool size:%d"%(len(lndet)))
+        lg.info("Dobles removed:%d"%(oldpool+len(lndetnew)-len(lndet)))
     #save negatives
     if cfg.checkpoint:
+        lg.info("Begin saving negative detections")
         util.save(localsave,"lndet",lndet,"lnedge",lnedge,'lnfeat',lnfeat)
+        #touch a file to be sure you have finished
+        lg.info("End saving negative detections")
                 
     #mypool.close()
     #mypool.join()
@@ -873,12 +947,15 @@ for it in range(cfg.posit):
     import denseCRFtest
     #denseCRFtest.runtest(models,tsImages,cfg,parallel=True,numcore=numcore,save="%s%d"%(testname,it),detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=localshow)
 
+    lg.info("############# Run test on %d positive examples #################"%len(tsImages))
     denseCRFtest.runtest(models,tsImages,cfg,parallel=parallel,numcore=numcore,save="%s%d"%(testname,it),show=localshow,pool=mypool,detfun=denseCRFtest.test1hypINC)
     if last_round:
+        lg.info("############# Run test on all (%d) examples #################"%len(tsImagesFull))
         util.save("%s_final.model"%(testname),models)
         denseCRFtest.runtest(models,tsImagesFull,cfg,parallel=parallel,numcore=numcore,save="%s_final"%(testname),show=localshow,pool=mypool,detfun=denseCRFtest.test1hypINC)
         print "Training Finished!!!"
         break
 
+lg.info("End of the training!!!!")
 # unitl positve convergercy
 
