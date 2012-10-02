@@ -65,9 +65,10 @@ notreg=0
 #cfg.useRL=True
 
 ######################### setup log file 
+import os
 lg.basicConfig(filename=testname+".log",format='%(asctime)s %(message)s',datefmt='%I:%M:%S %p',level=lg.DEBUG)
 lg.info("#################################################################################")
-lg.info("############## Starting the training on %s dataset ################",cfg.db)
+lg.info("############## Starting the training on %s on %s dataset ################"%(os.uname()[1],cfg.db))
 
 #################### wrappers
 
@@ -949,11 +950,13 @@ Negative in cache vectors %d
     #denseCRFtest.runtest(models,tsImages,cfg,parallel=True,numcore=numcore,save="%s%d"%(testname,it),detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=localshow)
 
     lg.info("############# Run test on %d positive examples #################"%len(tsImages))
-    denseCRFtest.runtest(models,tsImages,cfg,parallel=parallel,numcore=numcore,save="%s%d"%(testname,it),show=localshow,pool=mypool,detfun=denseCRFtest.test1hypINC)
+    ap=denseCRFtest.runtest(models,tsImages,cfg,parallel=parallel,numcore=numcore,save="%s%d"%(testname,it),show=localshow,pool=mypool,detfun=denseCRFtest.test1hypINC)
+    lg.info("Ap is:%d"%ap)
     if last_round:
         lg.info("############# Run test on all (%d) examples #################"%len(tsImagesFull))
         util.save("%s_final.model"%(testname),models)
-        denseCRFtest.runtest(models,tsImagesFull,cfg,parallel=parallel,numcore=numcore,save="%s_final"%(testname),show=localshow,pool=mypool,detfun=denseCRFtest.test1hypINC)
+        ap=denseCRFtest.runtest(models,tsImagesFull,cfg,parallel=parallel,numcore=numcore,save="%s_final"%(testname),show=localshow,pool=mypool,detfun=denseCRFtest.test1hypINC)
+        lg.info("Ap is:%d"%ap)
         print "Training Finished!!!"
         break
 

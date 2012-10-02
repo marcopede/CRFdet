@@ -82,9 +82,10 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
     if type(save)==str:
         testname=save
         util.savedetVOC(detVOC,testname+".txt")
-        #util.save(testname+".det",{"det":ltdet})#takes a lot of space
+        util.save(testname+".det",{"det":ltdet[:500]})#takes a lot of space use only first 500
         util.savemat(testname+".mat",{"tp":tp,"fp":fp,"scr":scr,"tot":tot,"rc":rc,"pr":pr,"ap":ap})
         pylab.savefig(testname+".png")
+    return ap
 
 
 #use a different number of hypotheses
