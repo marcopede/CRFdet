@@ -871,7 +871,8 @@ Negative in cache vectors %d
                 #mypool.join()
                 cache_full=True
                 d["cache_full"]=True
-                lg.info("Cache is full!!!")
+        if cache_full:
+            lg.info("Cache is full!!!")
         lg.info("############### End Scan negatives #############")
         lg.info("Found %d hard negatives"%len(lndetnew))
         ########### scan negatives in positives
@@ -905,6 +906,8 @@ Negative in cache vectors %d
                     #mypool.join()
                     cache_full=True
                     d["cache_full"]=True
+            if cache_full:
+                lg.info("Cache is full!!!")    
             lg.info("############### End Scan neg in positives #############")
             lg.info("Found %d hard negatives"%len(lndetnew))
 
@@ -951,12 +954,12 @@ Negative in cache vectors %d
 
     lg.info("############# Run test on %d positive examples #################"%len(tsImages))
     ap=denseCRFtest.runtest(models,tsImages,cfg,parallel=parallel,numcore=numcore,save="%s%d"%(testname,it),show=localshow,pool=mypool,detfun=denseCRFtest.testINC)
-    lg.info("Ap is:%d"%ap)
+    lg.info("Ap is:%f"%ap)
     if last_round:
         lg.info("############# Run test on all (%d) examples #################"%len(tsImagesFull))
         util.save("%s_final.model"%(testname),models)
         ap=denseCRFtest.runtest(models,tsImagesFull,cfg,parallel=parallel,numcore=numcore,save="%s_final"%(testname),show=localshow,pool=mypool,detfun=denseCRFtest.testINC)
-        lg.info("Ap is:%d"%ap)
+        lg.info("Ap is:%f"%ap)
         print "Training Finished!!!"
         break
 
