@@ -98,8 +98,10 @@ def showDefNodes(cost):
     pl=pylab
     if cost[0].shape[0]>cost[0].shape[1]:
         ny=3;nx=2
+        pl.figure(figsize=(5,10))
     else:
         ny=2;nx=3
+        pl.figure(figsize=(10,5))
     #pl.figure(figsize=(4,12))
     vy=(cost[0])
     vx=(cost[1])
@@ -109,16 +111,16 @@ def showDefNodes(cost):
     vxn=uniform_filter(vx,[2,1],mode="constant")
     hyn=uniform_filter(hy,[1,2],mode="constant")
     hxn=uniform_filter(hx,[1,2],mode="constant")
-    vmin=(vyn+hyn+vxn+hxn).min()
-    vmax=(vyn+hyn+vxn+hxn).max()
+    vmin=(vyn+hyn+vxn+hxn).min()/2.0
+    vmax=(vyn+hyn+vxn+hxn).max()/2.0
     pl.subplot(ny,nx,1)
-    pl.imshow(vyn+hyn,interpolation="nearest",vmin=vmin,vmax=vmax)
+    pl.imshow(vyn+hyn,interpolation="nearest")#,vmin=vmin,vmax=vmax)
     pl.xlabel("lin Y (%.5f,%.5f)"%((vyn+hyn).min(),(vyn+hyn).max()))
     pl.subplot(ny,nx,2)
-    pl.imshow(vxn+hxn,interpolation="nearest",vmin=vmin,vmax=vmax)
+    pl.imshow(vxn+hxn,interpolation="nearest")#,vmin=vmin,vmax=vmax)
     pl.xlabel("lin X (%.5f,%.5f)"%((vxn+hxn).min(),(vxn+hxn).max()))
     pl.subplot(ny,nx,3)
-    pl.imshow(vyn+hyn+vxn+hxn,interpolation="nearest",vmin=vmin,vmax=vmax)
+    pl.imshow(vyn+hyn+vxn+hxn,interpolation="nearest")#,vmin=vmin*2,vmax=vmax*2)
     pl.xlabel("lin All (%.5f,%.5f)"%((vxn+hxn+vyn+hyn).min(),(vxn+hxn+vyn+hyn).max()))
 
     vy=(cost[4])
@@ -132,13 +134,13 @@ def showDefNodes(cost):
     vmin=(vyn+hyn+vxn+hxn).min()
     vmax=(vyn+hyn+vxn+hxn).max()    
     pl.subplot(ny,nx,4)
-    pl.imshow(vyn+hyn,interpolation="nearest",vmin=vmin,vmax=vmax)
+    pl.imshow(vyn+hyn,interpolation="nearest")#,vmin=vmin,vmax=vmax)
     pl.xlabel("quad Y (%.5f,%.5f)"%((vyn+hyn).min(),(vyn+hyn).max()))
     pl.subplot(ny,nx,5)
-    pl.imshow(vxn+hxn,interpolation="nearest",vmin=vmin,vmax=vmax)
+    pl.imshow(vxn+hxn,interpolation="nearest")#,vmin=vmin,vmax=vmax)
     pl.xlabel("quad X (%.5f,%.5f)"%((vxn+hxn).min(),(vxn+hxn).max()))
     pl.subplot(ny,nx,6)
-    pl.imshow(vyn+hyn+vxn+hxn,interpolation="nearest",vmin=vmin,vmax=vmax)
+    pl.imshow(vyn+hyn+vxn+hxn,interpolation="nearest")#,vmin=vmin,vmax=vmax)
     pl.xlabel("quad All (%.5f,%.5f)"%((vxn+hxn+vyn+hyn).min(),(vxn+hxn+vyn+hyn).max()))
 
 
