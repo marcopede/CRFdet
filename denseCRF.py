@@ -116,7 +116,7 @@ if cfg.db=="VOC":
         tsImages=numpy.concatenate((tsPosImages,tsNegImages),0)
         tsImagesFull=getRecord(VOC07Data(select="all",cl="%s_test.txt"%cfg.cls,
                         basepath=cfg.dbpath,
-                        usetr=True,usedf=False),5000)
+                        usetr=True,usedf=False),cfg.maxtestfull)
 
 elif cfg.db=="buffy":
     trPosImages=getRecord(Buffy(select="all",cl="trainval.txt",
@@ -153,9 +153,9 @@ trpos={"name":name,"bb":bb,"ratio":r,"area":a}
 import scipy.cluster.vq as vq
 numcl=cfg.numcl
 perc=cfg.perc#10
-minres=10
-minfy=3
-minfx=3
+minres=4#10
+minfy=2#3
+minfx=2#3
 #number of maximum number of HOG blocks (HOG cells /4) to use
 #maxArea=45#*(4-cfg.lev[0])#too high resolution very slow
 #maxArea=35#*(4-cfg.lev[0]) #the right trade-off
@@ -163,7 +163,7 @@ minfx=3
 maxArea=cfg.maxHOG
 #maxArea=15#*(4-cfg.lev[0])
 usekmeans=False
-nh=2 #number of hogs per part (for the moment everything works only with 2)
+nh=cfg.N #number of hogs per part (for the moment everything works only with 2)
 
 sr=numpy.sort(r)
 spl=[]
@@ -257,12 +257,12 @@ if initial:
             #crop=extra.getfeat(aim,abb[0]-imy/(cfg.fy[idm]*2),bb[2]+imy/(cfg.fy[idm]*2),bb[1]-imx/(cfg.fx[idm]*2),bb[3]+imx/(cfg.fx[idm]*2))
             imy=crop.shape[0]
             imx=crop.shape[1]
-            zcim=zoom(crop,(((cfg.fy[idm]*2+2)*8/float(imy)),((cfg.fx[idm]*2+2)*8/float(imx)),1),order=1)
+            zcim=zoom(crop,(((cfg.fy[idm]*cfg.N+2)*8/float(imy)),((cfg.fx[idm]*cfg.N+2)*8/float(imx)),1),order=1)
             hogp[idm].append(numpy.ascontiguousarray(pyrHOG2.hog(zcim)))
             #hogpcl.append(idm)
             annp[idm].append({"file":im["name"],"bbox":bb})
             if check:
-                print "Aspect:",idm,"Det Size",cfg.fy[idm]*2,cfg.fx[idm]*2,"Shape:",zcim.shape
+                print "Aspect:",idm,"Det Size",cfg.fy[idm]*cfg.N,cfg.fx[idm]*cfg.N,"Shape:",zcim.shape
                 pl.figure(1,figsize=(20,5))
                 pl.clf()
                 pl.subplot(1,3,1)
@@ -291,8 +291,8 @@ if initial:
         aim=util.myimread(im["name"])
         for mul in range(20):
             for idm in range(cfg.numcl):
-                szy=(cfg.fy[idm]*2+2)
-                szx=(cfg.fx[idm]*2+2)
+                szy=(cfg.fy[idm]*cfg.N+2)
+                szx=(cfg.fx[idm]*cfg.N+2)
                 if aim.shape[0]-szy*8-1>0 and aim.shape[1]-szx*8-1>0:
                     rndy=numpy.random.randint(0,aim.shape[0]-szy*8-1)
                     rndx=numpy.random.randint(0,aim.shape[1]-szx*8-1)
@@ -373,12 +373,12 @@ if initial:
     #empty rigid model
     models=[]
     for c in range(cfg.numcl):      
-        models.append(model.initmodel(cfg.fy[c]*2,cfg.fx[c]*2,1,cfg.useRL,deform=False))
+        models.append(model.initmodel(cfg.fy[c]*cfg.N,cfg.fx[c]*cfg.N,cfg.N,cfg.useRL,deform=False))
 
     #array with dimensions of w
     cumsize=numpy.zeros(numcl+1,dtype=numpy.int)
     for idl in range(numcl):
-        cumsize[idl+1]=cumsize[idl]+(cfg.fy[idl]*2*cfg.fx[idl]*2)*31+1
+        cumsize[idl+1]=cumsize[idl]+(cfg.fy[idl]*cfg.N*cfg.fx[idl]*cfg.N)*31+1
 
     try:
         fsf
@@ -400,7 +400,7 @@ if initial:
         w1=numpy.array([])
         #from w to model m1
         for idm,m in enumerate(models):
-            models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],-w[cumsize[idm+1]-1]*bias,len(m["ww"]),31,m["ww"][0].shape[0],m["ww"][0].shape[1])
+            models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],cfg.N,-w[cumsize[idm+1]-1]*bias,len(m["ww"]),31,m["ww"][0].shape[0],m["ww"][0].shape[1])
             #models[idm]["ra"]=w[cumsize[idm+1]-1]
             #from model to w #changing the clip...
             waux.append(model.model2w(models[idm],False,False,False))
@@ -586,9 +586,9 @@ for it in range(cfg.posit):
             cbb[3]=(cbb[3]-x1)*rescale
             im=extra.myzoom(im[y1:y2,x1:x2],(rescale,rescale,1),1)
             if res[0]!=[]:
-                detectCRF.visualize2([res[0]],im,cbb,text)
+                detectCRF.visualize2([res[0]],cfg.N,im,cbb,text)
             else:
-                detectCRF.visualize2([],im,cbb,text)
+                detectCRF.visualize2([],cfg.N,im,cbb,text)
             #if it>0:
                 #raw_input()
     print "Added examples",padd
@@ -728,7 +728,7 @@ for it in range(cfg.posit):
         w1=numpy.array([])
         #from w to model m1
         for idm,m in enumerate(models[:cfg.numcl]):
-            models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],-w[cumsize[idm+1]-1]*bias,len(m["ww"]),31,m["ww"][0].shape[0],m["ww"][0].shape[1],useCRF=True,k=cfg.k)
+            models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],cfg.N,-w[cumsize[idm+1]-1]*bias,len(m["ww"]),31,m["ww"][0].shape[0],m["ww"][0].shape[1],useCRF=True,k=cfg.k)
             models[idm]["id"]=idm
             #models[idm]["ra"]=w[cumsize[idm+1]-1]
             #from model to w #changing the clip...
@@ -858,7 +858,7 @@ Negative in cache vectors %d
             print "Total negatives:",len(lndetnew)
             if localshow and res[0]!=[]:
                 im=myimread(arg[ii]["file"])
-                detectCRF.visualize2(res[0][:5],im)
+                detectCRF.visualize2(res[0][:5],cfg.N,im)
             lndetnew+=res[0]
             lnfeatnew+=res[1]
             lnedgenew+=res[2]
@@ -894,7 +894,7 @@ Negative in cache vectors %d
                 print "Total Negatives:",len(lndetnew)
                 if localshow and res[0]!=[]:
                     im=myimread(arg[ii]["file"])
-                    detectCRF.visualize2(res[0][:5],im)
+                    detectCRF.visualize2(res[0][:5],cfg.N,im)
                 lndetnew+=res[0]
                 lnfeatnew+=res[1]
                 lnedgenew+=res[2]
@@ -950,12 +950,12 @@ Negative in cache vectors %d
     #denseCRFtest.runtest(models,tsImages,cfg,parallel=True,numcore=numcore,save="%s%d"%(testname,it),detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=localshow)
 
     lg.info("############# Run test on %d positive examples #################"%len(tsImages))
-    ap=denseCRFtest.runtest(models,tsImages,cfg,parallel=parallel,numcore=numcore,save="%s%d"%(testname,it),show=localshow,pool=mypool,detfun=denseCRFtest.test1hypINC)
+    ap=denseCRFtest.runtest(models,tsImages,cfg,parallel=parallel,numcore=numcore,save="%s%d"%(testname,it),show=localshow,pool=mypool,detfun=denseCRFtest.testINC)
     lg.info("Ap is:%d"%ap)
     if last_round:
         lg.info("############# Run test on all (%d) examples #################"%len(tsImagesFull))
         util.save("%s_final.model"%(testname),models)
-        ap=denseCRFtest.runtest(models,tsImagesFull,cfg,parallel=parallel,numcore=numcore,save="%s_final"%(testname),show=localshow,pool=mypool,detfun=denseCRFtest.test1hypINC)
+        ap=denseCRFtest.runtest(models,tsImagesFull,cfg,parallel=parallel,numcore=numcore,save="%s_final"%(testname),show=localshow,pool=mypool,detfun=denseCRFtest.testINC)
         lg.info("Ap is:%d"%ap)
         print "Training Finished!!!"
         break

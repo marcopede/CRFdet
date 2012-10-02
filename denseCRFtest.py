@@ -49,7 +49,7 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
     for ii,res in enumerate(itr):
         if show:
             im=myimread(arg[ii]["file"])
-            detectCRF.visualize2(res[:3],im)
+            detectCRF.visualize2(res[:3],cfg.N,im)
             print [x["scr"] for x in res[:5]]
         ltdet+=res
 
@@ -130,6 +130,7 @@ if __name__ == '__main__':
         cfg.testpath="./data/"#"./data/CRF/12_09_19/"
         cfg.testspec="right"#"full2"
         cfg.db="VOC"
+        #cfg.N=
         
 
     testname=cfg.testpath+cfg.cls+("%d"%cfg.numcl)+"_"+cfg.testspec
@@ -189,7 +190,7 @@ if __name__ == '__main__':
     #it=6;testname="./data/person3_right"
     #it=12;testname="./data/CRF/12_09_23/bicycle3_fixed"
     #it=4;testname="./data/bicycle3_full"
-    it=6;testname="./data/bicycle2_testk1"
+    it=2;testname="./data/bicycle2_test"
     models=util.load("%s%d.model"%(testname,it))
     #just for the new
 #    for idm,m in enumerate(models):

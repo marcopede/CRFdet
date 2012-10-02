@@ -3,13 +3,14 @@ import numpy
 #danger: code dupicated in pyrHOG2.py: find a solution
 
 
-def initmodel(fy,fx,lev,useRL,deform,numbow=6**4,onlybow=False,CRF=False,small2=False):
+def initmodel(fy,fx,N,useRL,deform,numbow=6**4,onlybow=False,CRF=False,small2=False):
     #fy=cfg.fy[c]
     #fx=cfg.fx[c]
     ww=[]
     hww=[]
     voc=[]
     dd=[]    
+    lev=1
     for l in range(lev):
         if useRL:
             lowf=numpy.zeros((fy*2**l,fx*2**l,31)).astype(numpy.float32)
@@ -57,7 +58,7 @@ def initmodel(fy,fx,lev,useRL,deform,numbow=6**4,onlybow=False,CRF=False,small2=
         if onlybow:
             ww[idw][:,:,:]=0.0
             dd[idw][:,:,:]=0.0
-    model={"ww":ww,"hist":hww,"rho":rho,"df":dd,"fy":ww[0].shape[0],"fx":ww[0].shape[1]}
+    model={"ww":ww,"hist":hww,"rho":rho,"df":dd,"fy":ww[0].shape[0],"fx":ww[0].shape[1],"N":N}
     if CRF:
         #cost=0.01*numpy.ones((2,fy*2,fx*2),dtype=numpy.float32)
         cost=0.01*numpy.ones((8,fy*2,fx*2),dtype=numpy.float32)
@@ -123,7 +124,7 @@ def model2wDef(model,k,deform=False,usemrf=True,usefather=True,lastlev=0,useoccl
                 d=numpy.concatenate((d,model["hist"][l].flatten()))
         return d
 
-def w2model(descr,rho,lev,fsz,fy=[],fx=[],bin=5,siftsize=2,deform=False,usemrf=False,usefather=False,k=1,mindef=0.001,useoccl=False,usebow=False,useCRF=False,small2=False):
+def w2model(descr,N,rho,lev,fsz,fy=[],fx=[],bin=5,siftsize=2,deform=False,usemrf=False,usefather=False,k=1,mindef=0.001,useoccl=False,usebow=False,useCRF=False,small2=False):
         #does not work with occlusions
         """
         build a new model from the weights of the SVM
@@ -149,10 +150,10 @@ def w2model(descr,rho,lev,fsz,fy=[],fx=[],bin=5,siftsize=2,deform=False,usemrf=F
                 hist.append(d[p:p+bin**(siftsize**2)].astype(numpy.float32))
                 #hist.append(numpy.zeros(625,dtype=numpy.float32))
                 p=p+bin**(siftsize**2)
-        m={"ww":ww,"rho":rho,"fy":fy,"fx":fx,"occl":occl,"hist":hist,"voc":hist}
+        m={"ww":ww,"rho":rho,"fy":fy,"fx":fx,"occl":occl,"N":N}
         if useCRF:
-            m["cost"]=((d[p:p+8*(fy/2)*(fx/2)].reshape((8,fy/2,fx/2))/float(k)))#.clip(mindef,10))
-            p=p+8*(fy/2)*(fx/2)
+            m["cost"]=((d[p:p+8*(fy/N)*(fx/N)].reshape((8,fy/N,fx/N))/float(k)))#.clip(mindef,10))
+            p=p+8*(fy/N)*(fx/N)
             #m["cost"]=((d[p:p+4*(2*fy)*(2*fx)].reshape((4,2*fy,2*fx))/float(k)).clip(mindef,10))
             #p=p+4*(2*fy)*(2*fx)
         if small2:

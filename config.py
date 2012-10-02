@@ -16,6 +16,7 @@ cfg.interv=10
 cfg.sbin=8
 cfg.maxpos=2000#120
 cfg.maxtest=2000#100
+cfg.maxtestfull=10000
 cfg.maxneg=200#120
 cfg.maxexamples=10000
 cfg.maxnegfull=2000

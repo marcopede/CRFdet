@@ -930,7 +930,8 @@ def getfeat_fullN(m1,N,res2,mode="Quad",rot=None):
     pady=(res2.shape[1])*N
     padx=(res2.shape[2])*N
     dfeat=numpy.zeros((res2.shape[1]*N,res2.shape[2]*N,m1.shape[2]),dtype=numpy.float32)
-    m1pad=numpy.zeros((m1.shape[0]*N+N*pady,m1.shape[1]*N+N*padx,m1.shape[2]),dtype=numpy.float32)
+    #m1pad=numpy.zeros((m1.shape[0]*N+N*pady,m1.shape[1]*N+N*padx,m1.shape[2]),dtype=numpy.float32)
+    m1pad=numpy.zeros((m1.shape[0]*N+2*pady,m1.shape[1]*N+2*padx,m1.shape[2]),dtype=numpy.float32)
     m1pad[pady:m1.shape[0]+pady,padx:m1.shape[1]+padx]=m1
     #m1pad=m1
     for px in range(res2.shape[2]):
