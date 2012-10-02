@@ -89,19 +89,11 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
 
 
 #use a different number of hypotheses
-def test1hypINC(x):
-    return detectCRF.test(x,show=False,inclusion=True,onlybest=True) #in bicycles is 
+def test(x):
+    return detectCRF.test(x,show=False,inclusion=False,onlybest=False) #in bicycles is 
 
-def test3hypINC(x):
+def testINC(x):
     return detectCRF.test(x,show=False,inclusion=True,onlybest=True) #in bicycles is better and faster with 1 hypotheses
-
-def test50hypINCBB(x):
-    return detectCRF.test(x,show=False,inclusion=True,onlybest=True) #in bicycles is 
-
-#use a different number of hypotheses
-def test1hyp(x):
-    return detectCRF.test(x,show=False,inclusion=False,onlybest=False) #in bicycles is better and faster with 1 hypotheses
-
 
 ########################## load configuration parametes
 if __name__ == '__main__':
@@ -137,7 +129,7 @@ if __name__ == '__main__':
         cfg.dbpath="/users/visics/mpederso/databases/"
         cfg.testpath="./data/"#"./data/CRF/12_09_19/"
         cfg.testspec="right"#"full2"
-        cfg.db="inria"
+        cfg.db="VOC"
         
 
     testname=cfg.testpath+cfg.cls+("%d"%cfg.numcl)+"_"+cfg.testspec
@@ -152,7 +144,7 @@ if __name__ == '__main__':
                             basepath=cfg.dbpath,#"/home/databases/",#"/share/ISE/marcopede/database/",
                             usetr=True,usedf=False),cfg.maxneg)
             #tsImages=numpy.concatenate((tsPosImages,tsNegImages),0)
-            tsImages=numpy.concatenate((tsPosImages,tsNegImages[:0]),0)
+            tsImages=numpy.concatenate((tsPosImages,tsNegImages),0)
             tsImagesFull=getRecord(VOC07Data(select="all",cl="%s_test.txt"%cfg.cls,
                             basepath=cfg.dbpath,
                             usetr=True,usedf=False),5000)
@@ -197,7 +189,7 @@ if __name__ == '__main__':
     #it=6;testname="./data/person3_right"
     #it=12;testname="./data/CRF/12_09_23/bicycle3_fixed"
     #it=4;testname="./data/bicycle3_full"
-    it=0;testname="./data/inria1_inria"
+    it=6;testname="./data/bicycle2_testk1"
     models=util.load("%s%d.model"%(testname,it))
     #just for the new
 #    for idm,m in enumerate(models):
@@ -208,5 +200,5 @@ if __name__ == '__main__':
     ##############test
     #import itertools
     #runtest(models,tsImages,cfg,parallel=False,numcore=4,detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=True)#,save="%s%d"%(testname,it))
-    runtest(models,tsImages,cfg,parallel=True,numcore=4,show=True,detfun=test50hypINCBB)#,save="./bicycleFullBB50Clip")
+    runtest(models,tsImages,cfg,parallel=True,numcore=4,show=True,detfun=testINC)#,save="./bicycleFullBB50Clip")
 

@@ -62,9 +62,9 @@ def refinePos(el):
                 idm=range(len(models)) 
         selmodels=[models[x] for x in idm] 
         if cfg.usebbPOS:
-            [f,det]=rundetbb(img,cfg,selmodels,numdet=cfg.numhypPOS, interv=cfg.intervPOS,aiter=cfg.aiterPOS,restart=cfg.restartPOS)
+            [f,det]=rundetbb(img,cfg.N,selmodels,numdet=cfg.numhypPOS, interv=cfg.intervPOS,aiter=cfg.aiterPOS,restart=cfg.restartPOS)
         else:         
-            [f,det]=rundet(img,cfg,selmodels,numhyp=cfg.numhypPOS,interv=cfg.intervPOS,aiter=cfg.
+            [f,det]=rundet(img,cfg.N,selmodels,numhyp=cfg.numhypPOS,interv=cfg.intervPOS,aiter=cfg.
 aiterPOS,restart=cfg.restartPOS)
     #else: #for negatives
     #    [f,det]=rundet(img,cfg,models)
@@ -114,9 +114,9 @@ def hardNeg(el):
         img=util.myimread(imname,resize=cfg.resize)
     #imageflip=el["flip"]
     if cfg.usebbNEG:
-        [f,det]=rundetbb(img,cfg,models,numdet=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG)
+        [f,det]=rundetbb(img,cfg.N,models,numdet=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG)
     else:
-        [f,det]=rundet(img,cfg,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG)
+        [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG)
     ldet=[]
     lfeat=[]
     ledge=[]
@@ -152,9 +152,9 @@ def hardNegPos(el):
         img=util.myimread(imname,resize=cfg.resize)
     #imageflip=el["flip"]
     if cfg.usebbNEG:
-        [f,det]=rundetbb(img,cfg,models,numdet=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG)
+        [f,det]=rundetbb(img,cfg.N,models,numdet=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG)
     else:
-        [f,det]=rundet(img,cfg,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG)
+        [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG)
     ldet=[]
     lfeat=[]
     ledge=[]
@@ -201,9 +201,9 @@ def test(el,docluster=True,show=False,inclusion=False,onlybest=False):
         img=util.myimread(imname,resize=cfg.resize)
     #imageflip=el["flip"]
     if cfg.usebbTEST:
-        [f,det]=rundetbb(img,cfg,models,numdet=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST)
+        [f,det]=rundetbb(img,cfg.N,models,numdet=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST)
     else:
-        [f,det]=rundet(img,cfg,models,numhyp=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST)
+        [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST)
     boundingbox(det)
     if cfg.useclip:
         clip(det,img.shape)
@@ -419,22 +419,18 @@ def visualize2(det,img,bb=[],text=""):
     pl.show()
 
 
-def rundet(img,cfg,models,numhyp=5,interv=10,aiter=3,restart=0):
-    notsave=False
-    #print "Normal"
-    f=pyrHOG2.pyrHOG(img,interv=interv,savedir=cfg.auxdir+"/hog/",notsave=not(cfg.savefeat),notload=not(cfg.loadfeat),hallucinate=True,cformat=True)#,flip=imageflip,resize=cfg.resize)
+def rundet(img,N,models,numhyp=5,interv=10,aiter=3,restart=0):
+    f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
     det=[]
     for idm,m in enumerate(models):
         mcost=m["cost"].astype(numpy.float32)
         m1=m["ww"][0]
-        numy=m["ww"][0].shape[0]#models[idm]["ww"][0].shape[0]#cfg.fy[idm]
-        numx=m["ww"][0].shape[1]#models[idm]["ww"][0].shape[1]#cfg.fx[idm]
-        for r in range(len(f.hog)):#otherwise crashes should be checked!!!!
-            #if numpy.min(f.hog[r].shape[:-1])<max(numy,numx):
-            #    break
+        numy=m["ww"][0].shape[0]
+        numx=m["ww"][0].shape[1]
+        for r in range(len(f.hog)):
             m2=f.hog[r]
             #print numy,numx
-            lscr,fres=crf3.match_full2(m1,m2,mcost,show=False,feat=False,rot=False,numhyp=numhyp,aiter=aiter,restart=restart)
+            lscr,fres=crf3.match_fullN(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,aiter=aiter,restart=restart)
             #print "Total time",time.time()-t
             #print "Score",lscr
             idraw=False
@@ -450,12 +446,29 @@ def rundet(img,cfg,models,numhyp=5,interv=10,aiter=3,restart=0):
             for idt in range(len(lscr)):
                 det.append({"id":m["id"],"hog":r,"scl":f.scale[r],"def":fres[idt],"scr":lscr[idt]-models[idm]["rho"]})
     det.sort(key=lambda by: -by["scr"])
-    if cfg.show:
-        pylab.draw()
-        pylab.show()
+    #if cfg.show:
+    #    pylab.draw()
+    #    pylab.show()
     return [f,det]
 
-def rundetbb(img,cfg,models,numdet=50,interv=10,aiter=3,restart=0):
+def rundetbb(img,N,models,numdet=50,interv=10,aiter=3,restart=0):
+    #print "Branc and bound"
+    f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
+    ldet2=[]
+    for idm,m in enumerate(models):
+        mcost=m["cost"].astype(numpy.float32)
+        m1=m["ww"][0]
+        numy=m["ww"][0].shape[0]
+        numx=m["ww"][0].shape[1]
+        ldet=crf3.match_bbN(m1,f.hog,N,mcost,show=False,rot=False,numhyp=numdet,aiter=aiter,restart=restart)
+        for l in ldet:
+            r=l["scl"]
+            ldet2.append({"id":m["id"],"hog":r,"scl":f.scale[r],"def":l["def"][0],"scr":l["scr"]-models[idm]["rho"]})            
+    ldet2.sort(key=lambda by: -by["scr"])
+    return [f,ldet2]
+
+
+def rundetbb_old(img,cfg,models,numdet=50,interv=10,aiter=3,restart=0):
     #notsave=False
     #print "Branc and bound"
     f=pyrHOG2.pyrHOG(img,interv=interv,savedir=cfg.auxdir+"/hog/",notsave=not(cfg.savefeat),notload=not(cfg.loadfeat),hallucinate=True,cformat=True)

@@ -75,6 +75,7 @@ cfg.posthr=-2 #if score is smaller than this value detection is discarded
 cfg.maxHOG=50
 cfg.neginpos=False
 cfg.numneg= 10 #number of hard negatives to collect per image
+cfg.N=2 #size of a part
 
 #trade-off speed accuracy
 cfg.usebbPOS=False #note for bb numhyp is the total number of detections while for the normal method is the number of hypotheses per scale
