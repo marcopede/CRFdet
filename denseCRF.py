@@ -18,6 +18,7 @@ import itertools
 import sys
 import crf3
 import logging as lg
+import os
 
 ########################## load configuration parametes
 
@@ -212,31 +213,57 @@ cfg.fy=lfy#[7,10]#lfy
 cfg.fx=lfx#[11,7]#lfx
 # the real detector size would be (cfg.fy,cfg.fx)*2 hog cells
 initial=True
-if cfg.checkpoint:
+loadedchk=False
+if cfg.checkpoint and not cfg.forcescratch:
+    try: #load the final model
+        models=util.load(testname+"_final.model")
+        print "Loaded final model"
+        lg.info("Loaded final model")    
+        last_round=True
+    except: #otherwise load a partial model
+        for l in range(cfg.posit):
+            try:
+                models=util.load(testname+"%d.model"%l)
+            except:
+                if l>0:
+                    print "Loaded model %d"%(l-1)
+                    lg.info("Loaded model %d"%(l-1))    
+                    #break
+                else:
+                    print "No model found"
+                    break
+        lg.info("Loaded model")    
     try:
-        print "Loading old status..."
-        dpos=util.load(localsave)
+        print "Begin loading old status..."
+        os.path.exists(localsave+".pos.valid")
+        dpos=util.load(localsave+".pos.chk")
         lpdet=dpos["lpdet"]
         lpfeat=dpos["lpfeat"]
         lpedge=dpos["lpedge"]
-        dneg=util.load(localsave)
+        initial=False
+        loadedchk=True
+        lg.info("""Loaded old positive checkpoint:
+Number Positive SV:%d                        
+        """%(len(lpdet)))
+        #if at this point is already enough for the checkpoint
+        os.path.exists(localsave+".neg.valid")
+        dneg=util.load(localsave+".neg.chk")
         lndet=dneg["lndet"]
         lnfeat=dneg["lnfeat"]
         lnedge=dneg["lnedge"]
-        initial=False
-        lg.info("""Loading old checkpoint:
-Number Positive SV:%d                        
+        lg.info("""Loaded negative checkpoint:
 Number Negative SV:%d                                
-        """%(len(lpdet),len(lndet)))
+        """%(len(lndet)))
+        print "Loaded old status..."
     except:
         pass
 
+import pylab as pl
 if initial:
     print "Starting from scratch"
     lg.info("Starting from scratch")
     ############################ initialize positive using cropped bounidng boxes
     check = False
-    import pylab as pl
     dratios=numpy.array(cfg.fy)/numpy.array(cfg.fx)
     hogp=[[] for x in range(cfg.numcl)]
     hogpcl=[]
@@ -409,8 +436,8 @@ if initial:
         w2=w
         w=w1
 
-        util.save("%s%d.model"%(testname,0),models)
-        lg.info("Built first model")
+        #util.save("%s%d.model"%(testname,0),models)
+        #lg.info("Built first model")
         
     #show model 
     #mm=w[:1860].reshape((cfg.fy[0]*2,cfg.fx[0]*2,31))
@@ -426,31 +453,23 @@ if initial:
     pl.show()    
     #raw_input()
 
-    ######################### add CRF and rebuild w
+    ######################### add CRF
     for idm,m in enumerate(models):   
         models[idm]["cost"]=cfg.initdef*numpy.ones((8,cfg.fy[idm],cfg.fx[idm]))
+
 
     waux=[]
     rr=[]
     w1=numpy.array([])
     sizereg=numpy.zeros(cfg.numcl,dtype=numpy.int32)
     #from model m to w
-    for idm,m in enumerate(models):
+    for idm,m in enumerate(models[:cfg.numcl]):
         waux.append(model.model2w(models[idm],False,False,False,useCRF=True,k=cfg.k))
         rr.append(models[idm]["rho"])
         w1=numpy.concatenate((w1,waux[-1],-numpy.array([models[idm]["rho"]])/bias))
         sizereg[idm]=models[idm]["cost"].size
     #w2=w #old w
     w=w1
-
-    #add ids clsize and cumsize for each model
-    clsize=[]
-    cumsize=numpy.zeros(numcl+1,dtype=numpy.int)
-    for l in range(cfg.numcl):
-        models[l]["id"]=l
-        clsize.append(len(waux[l])+1)
-        cumsize[l+1]=cumsize[l]+len(waux[l])+1
-    clsize=numpy.array(clsize)
 
     if cfg.useRL:
         #add flipped models
@@ -466,16 +485,42 @@ if initial:
             w2=numpy.concatenate((w2,waux1[-1],-numpy.array([m["rho"]/bias])))
         #check that the model and its flip score the same 
         assert(numpy.sum(w1)==numpy.sum(w2))#still can be wrong
-        
 
-lndet=[] #save negative detections
-lnfeat=[] #
-lnedge=[] #
-lndetnew=[]
+    lndet=[] #save negative detections
+    lnfeat=[] #
+    lnedge=[] #
+    lndetnew=[]
 
-lpdet=[] #save positive detections
-lpfeat=[] #
-lpedge=[] #
+    lpdet=[] #save positive detections
+    lpfeat=[] #
+    lpedge=[] #
+
+
+###################### rebuild w
+waux=[]
+rr=[]
+w1=numpy.array([])
+sizereg=numpy.zeros(cfg.numcl,dtype=numpy.int32)
+#from model m to w
+for idm,m in enumerate(models[:cfg.numcl]):
+    waux.append(model.model2w(models[idm],False,False,False,useCRF=True,k=cfg.k))
+    rr.append(models[idm]["rho"])
+    w1=numpy.concatenate((w1,waux[-1],-numpy.array([models[idm]["rho"]])/bias))
+    sizereg[idm]=models[idm]["cost"].size
+#w2=w #old w
+w=w1
+
+#add ids clsize and cumsize for each model
+clsize=[]
+cumsize=numpy.zeros(cfg.numcl+1,dtype=numpy.int)
+for l in range(cfg.numcl):
+    models[l]["id"]=l
+    clsize.append(len(waux[l])+1)
+    cumsize[l+1]=cumsize[l]+len(waux[l])+1
+clsize=numpy.array(clsize)
+
+util.save("%s%d.model"%(testname,0),models)
+lg.info("Built first model")    
 
 total=[]
 posratio=[]
@@ -486,6 +531,18 @@ cache_full=False
 import detectCRF
 from multiprocessing import Pool
 import itertools
+
+#just to compute totPosEx when using check points
+arg=[]
+for idl,l in enumerate(trPosImages):
+    bb=l["bbox"]
+    for idb,b in enumerate(bb):
+        if cfg.useRL:
+            arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":False})    
+            arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":True})    
+        else:
+            arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":False})    
+totPosEx=len(arg)
 
 lg.info("Starting Main loop!")
 ####################### repeat scan positives
@@ -504,109 +561,112 @@ for it in range(cfg.posit):
         idm=l["id"]
         lpdet[idl]["scr"]=numpy.sum(models[idm]["ww"][0]*lpfeat[idl])+numpy.sum(models[idm]["cost"]*lpedge[idl])-models[idm]["rho"]#-rr[idm]/bias
 
-    arg=[]
-    for idl,l in enumerate(trPosImages):
-        bb=l["bbox"]
-        for idb,b in enumerate(bb):
-            #if b[4]==1:#only for truncated
-            if cfg.useRL:
-                arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":False})    
-                arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":True})    
-            else:
-                arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":False})    
-
-    totPosEx=len(arg)
-    #lpdet=[];lpfeat=[];lpedge=[]
-    if not(parallel):
-        itr=itertools.imap(detectCRF.refinePos,arg)        
-    else:
-        itr=mypool.imap(detectCRF.refinePos,arg)
-
-    lg.info("############## Staritng Scan of %d Positives BBoxs ###############"%totPosEx)
-    for ii,res in enumerate(itr):
-        found=False
-        if res[0]!=[]:
-            #compare new score with old
-            newdet=res[0]
-            newfeat=res[1]
-            newedge=res[2]
-            for idl,l in enumerate(lpdet):
-                #print "Newdet",newdet["idim"],"Olddet",l["idim"]
-                if (newdet["idim"]==l["idim"]): #same image
-                    if (newdet["idbb"]==l["idbb"]): #same bbox
-                        if (newdet["scr"]>l["scr"]):#compare score
-                            print "New detection has better score"
-                            lpdet[idl]=newdet
-                            lpfeat[idl]=newfeat
-                            lpedge[idl]=newedge
-                            found=True
-                            pbetter+=1
-                        else:
-                            print "New detection has worse score"
-                            found=True
-                            pworst+=1
-            if not(found):
-                print "Added a new sample"
-                lpdet.append(res[0])
-                lpfeat.append(res[1])
-                lpedge.append(res[2])
-                padd+=1
-        else: #not found any detection with enough overlap
-            print "Example not found!"
-            for idl,l in enumerate(lpdet):
-                iname=arg[ii]["file"].split("/")[-1]
+    if not cfg.checkpoint or not loadedchk:
+        arg=[]
+        for idl,l in enumerate(trPosImages):
+            bb=l["bbox"]
+            for idb,b in enumerate(bb):
+                #if b[4]==1:#only for truncated
                 if cfg.useRL:
-                    if arg[ii]["flip"]:
-                        iname=iname+".flip"
-                if (iname==l["idim"]): #same image
-                    if (arg[ii]["idbb"]==l["idbb"]): #same bbox
-                        print "Keep old detection"                        
-                        pold+=1
-                        found=True
-        if localshow:
-            im=util.myimread(arg[ii]["file"],arg[ii]["flip"])
-            rescale,y1,x1,y2,x2=res[3]
-            if res[0]!=[]:
-                if found:
-                    text="Already detected example"
+                    arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":False})    
+                    arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":True})    
                 else:
-                    text="Added a new example"
-            else:
-                if found:
-                    text="Keep old detection"
-                else:
-                    text="No detection"
-            cbb=arg[ii]["bbox"]
-            if arg[ii]["flip"]:
-                cbb = (util.flipBBox(im,[cbb])[0])
-            cbb=numpy.array(cbb)[:4].astype(numpy.int)
-            cbb[0]=(cbb[0]-y1)*rescale
-            cbb[1]=(cbb[1]-x1)*rescale
-            cbb[2]=(cbb[2]-y1)*rescale
-            cbb[3]=(cbb[3]-x1)*rescale
-            im=extra.myzoom(im[y1:y2,x1:x2],(rescale,rescale,1),1)
-            if res[0]!=[]:
-                detectCRF.visualize2([res[0]],cfg.N,im,cbb,text)
-            else:
-                detectCRF.visualize2([],cfg.N,im,cbb,text)
-            #if it>0:
-                #raw_input()
-    print "Added examples",padd
-    print "Improved examples",pbetter
-    print "Old examples score",pworst
-    print "Old examples bbox",pold
-    total.append(padd+pbetter+pworst+pold)
-    print "Total",total,"/",len(arg)
-    lg.info("############## End Scan of Positives BBoxs ###############")
-    lg.info("""Added examples %d
-    Improved examples %d
-    Old examples score %d
-    Old examples bbox %d
-    Total %d/%d
-    """%(padd,pbetter,pworst,pold,total[-1],len(arg)))
-    #be sure that total is counted correctly
-    assert(total[-1]==len(lpdet))
+                    arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":False})    
 
+        totPosEx=len(arg)
+        #lpdet=[];lpfeat=[];lpedge=[]
+        if not(parallel):
+            itr=itertools.imap(detectCRF.refinePos,arg)        
+        else:
+            itr=mypool.imap(detectCRF.refinePos,arg)
+
+        lg.info("############## Staritng Scan of %d Positives BBoxs ###############"%totPosEx)
+        for ii,res in enumerate(itr):
+            found=False
+            if res[0]!=[]:
+                #compare new score with old
+                newdet=res[0]
+                newfeat=res[1]
+                newedge=res[2]
+                for idl,l in enumerate(lpdet):
+                    #print "Newdet",newdet["idim"],"Olddet",l["idim"]
+                    if (newdet["idim"]==l["idim"]): #same image
+                        if (newdet["idbb"]==l["idbb"]): #same bbox
+                            if (newdet["scr"]>l["scr"]):#compare score
+                                print "New detection has better score"
+                                lpdet[idl]=newdet
+                                lpfeat[idl]=newfeat
+                                lpedge[idl]=newedge
+                                found=True
+                                pbetter+=1
+                            else:
+                                print "New detection has worse score"
+                                found=True
+                                pworst+=1
+                if not(found):
+                    print "Added a new sample"
+                    lpdet.append(res[0])
+                    lpfeat.append(res[1])
+                    lpedge.append(res[2])
+                    padd+=1
+            else: #not found any detection with enough overlap
+                print "Example not found!"
+                for idl,l in enumerate(lpdet):
+                    iname=arg[ii]["file"].split("/")[-1]
+                    if cfg.useRL:
+                        if arg[ii]["flip"]:
+                            iname=iname+".flip"
+                    if (iname==l["idim"]): #same image
+                        if (arg[ii]["idbb"]==l["idbb"]): #same bbox
+                            print "Keep old detection"                        
+                            pold+=1
+                            found=True
+            if localshow:
+                im=util.myimread(arg[ii]["file"],arg[ii]["flip"])
+                rescale,y1,x1,y2,x2=res[3]
+                if res[0]!=[]:
+                    if found:
+                        text="Already detected example"
+                    else:
+                        text="Added a new example"
+                else:
+                    if found:
+                        text="Keep old detection"
+                    else:
+                        text="No detection"
+                cbb=arg[ii]["bbox"]
+                if arg[ii]["flip"]:
+                    cbb = (util.flipBBox(im,[cbb])[0])
+                cbb=numpy.array(cbb)[:4].astype(numpy.int)
+                cbb[0]=(cbb[0]-y1)*rescale
+                cbb[1]=(cbb[1]-x1)*rescale
+                cbb[2]=(cbb[2]-y1)*rescale
+                cbb[3]=(cbb[3]-x1)*rescale
+                im=extra.myzoom(im[y1:y2,x1:x2],(rescale,rescale,1),1)
+                if res[0]!=[]:
+                    detectCRF.visualize2([res[0]],cfg.N,im,cbb,text)
+                else:
+                    detectCRF.visualize2([],cfg.N,im,cbb,text)
+                #if it>0:
+                    #raw_input()
+        print "Added examples",padd
+        print "Improved examples",pbetter
+        print "Old examples score",pworst
+        print "Old examples bbox",pold
+        total.append(padd+pbetter+pworst+pold)
+        print "Total",total,"/",len(arg)
+        lg.info("############## End Scan of Positives BBoxs ###############")
+        lg.info("""Added examples %d
+        Improved examples %d
+        Old examples score %d
+        Old examples bbox %d
+        Total %d/%d
+        """%(padd,pbetter,pworst,pold,total[-1],len(arg)))
+        #be sure that total is counted correctly
+        assert(total[-1]==len(lpdet))
+    else:
+        loadedchk=False
+        total.append(len(lpdet))
     
     if it>0:
         oldposl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias,sizereg=sizereg,valreg=cfg.valreg)              
@@ -626,8 +686,13 @@ for it in range(cfg.posit):
 
     #save positives
     if cfg.checkpoint:
-        lg.info("Begin Positive check point it:%d"%it)
-        util.save(localsave,"lpdet",lpdet,"lpedge",lpedge,'lpfeat',lpfeat)
+        lg.info("Begin Positive check point it:%d (%d positive examples)"%(it,len(lpdet)))
+        try:
+            os.remove(localsave+".pos.valid")
+        except:
+            pass
+        util.save(localsave+".pos.chk",{"lpdet":lpdet,"lpedge":lpedge,'lpfeat':lpfeat})
+        open(localsave+".pos.valid","w").close()
         lg.info("End Positive check point")
 
     ########### check positive convergence    
@@ -939,12 +1004,17 @@ Negative in cache vectors %d
                 lnedge.append(lnedgenew[newid])
         lg.info("New pool size:%d"%(len(lndet)))
         lg.info("Dobles removed:%d"%(oldpool+len(lndetnew)-len(lndet)))
-    #save negatives
-    if cfg.checkpoint:
-        lg.info("Begin saving negative detections")
-        util.save(localsave,"lndet",lndet,"lnedge",lnedge,'lnfeat',lnfeat)
-        #touch a file to be sure you have finished
-        lg.info("End saving negative detections")
+        #save negatives
+        if cfg.checkpoint:
+            lg.info("Begin checkpoint Negative iteration %d (%d negative examples)"%(nit,len(lndet)))
+            try:
+                os.remove(localsave+".neg.valid")
+            except:
+                pass
+            util.save(localsave+".neg.chk",{"lndet":lndet,"lnedge":lnedge,'lnfeat':lnfeat})
+            open(localsave+".neg.valid","w").close()
+            #touch a file to be sure you have finished
+            lg.info("End saving negative detections")
                 
     #mypool.close()
     #mypool.join()
