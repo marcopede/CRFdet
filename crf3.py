@@ -788,7 +788,8 @@ def match_bbN(m1,pm2,N,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0):
     maxb=numpy.array(maxb)
     minb=numpy.array(minb)
     lres=numpy.zeros(len(maxb),dtype=object)
-    lscr=numpy.zeros(len(maxb))
+    #lscr=numpy.zeros(len(maxb))
+    lscr=-1000*numpy.ones(len(maxb))
     ldet=[]
     for h in range(numhyp):
         stop=False
@@ -814,7 +815,7 @@ def match_bbN(m1,pm2,N,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0):
             #print "Before",scr
             scr=scr-auxmin*numy*numx
             #update bounds and save detection
-            ##print "Lev",l,"Old Maxb",maxb[l],"New Maxb",scr
+            #print "Lev",l,"Old Maxb",maxb[l],"New Maxb",scr
             #assert(scr+0.00001>=minb[l])# not always true because alpha expansion doen not give the global optimum
             maxb[l]=scr
             res2=numpy.zeros((1,2,res.shape[1],res.shape[2]),dtype=c_int)
