@@ -224,10 +224,12 @@ if cfg.checkpoint and not cfg.forcescratch:
         for l in range(cfg.posit):
             try:
                 models=util.load(testname+"%d.model"%l)
+                print "Loaded model %d"%(l)
+                lg.info("Loaded model %d"%(l))    
             except:
                 if l>0:
-                    print "Loaded model %d"%(l-1)
-                    lg.info("Loaded model %d"%(l-1))    
+                    print "Model %d does not exist"%(l)
+                    lg.info("Model %d does not exist"%(l))    
                     #break
                 else:
                     print "No model found"
