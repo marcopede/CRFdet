@@ -70,7 +70,7 @@ import os
 lg.basicConfig(filename=testname+".log",format='%(asctime)s %(message)s',datefmt='%I:%M:%S %p',level=lg.DEBUG)
 lg.info("#################################################################################")
 lg.info("############## Starting the training on %s on %s dataset ################"%(os.uname()[1],cfg.db))
-
+lg.info("Software Version:%s"%cfg.version)
 #################### wrappers
 
 import detectCRF
