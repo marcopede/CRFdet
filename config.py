@@ -5,6 +5,7 @@ class config(object):
 cfg=config()
 
 cfg.dbpath="/home/databases/"
+cfg.localdata="/esat/nereid/mpederso/VOC07/" #used for checkpoints
 cfg.db="VOC"
 cfg.year="2007"
 cfg.cls="bicycle"
