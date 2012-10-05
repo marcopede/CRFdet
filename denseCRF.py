@@ -58,7 +58,7 @@ cfg.posovr= 0.75
 parallel=True
 cfg.show=False
 #cfg.neginpos=False
-localshow=True
+localshow=cfg.localshow
 numcore=cfg.multipr
 if cfg.multipr==False:
     parallel=False
