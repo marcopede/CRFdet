@@ -838,7 +838,8 @@ def match_bbN(m1,pm2,N,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0):
                         rcy=res2[0,0,py,px]+m1.shape[0]
                         rcx=res2[0,1,py,px]+m1.shape[1]
                         #data.reshape((data.shape[0],data.shape[1],movy,movx))[py,px,rcy,rcx]=1
-                        data[lmax].reshape((numy,numx,movy,movx))[py,px,rcy-1:rcy+2,rcx-1:rcx+2]=-1
+                        #data[lmax].reshape((numy,numx,movy,movx))[py,px,rcy-1:rcy+2,rcx-1:rcx+2]=-1
+                        data[lmax].reshape((numy,numx,movy,movx))[py,px,rcy-1:rcy+2,rcx-1:rcx+2]=-10 #increased to 10 to avoid repeating detections
                 #update bounds
                 minb[lmax]=numpy.max(numpy.sum(data[lmax].reshape((data[lmax].shape[0]*data[lmax].shape[1],-1)),0))
                 #maxb[lmax]=numpy.sum(numpy.max(data[l],2))

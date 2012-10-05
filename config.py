@@ -106,5 +106,7 @@ cfg.intervTEST=10
 #        cfg.maxneg=10
 #        cfg.maxtest=10
 #        cfg.maxexamples=1000
- 
+import subprocess
+cfg.version=subprocess.check_output(["git","log","--pretty=oneline","--abbrev-commit","-1"])
+
 

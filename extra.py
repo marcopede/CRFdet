@@ -144,4 +144,45 @@ def showDefNodes(cost):
     pl.xlabel("quad All (%.5f,%.5f)"%((vxn+hxn+vyn+hyn).min(),(vxn+hxn+vyn+hyn).max()))
 
 
+def showDefNodes2(cost):
+    from scipy.ndimage.filters import uniform_filter
+    #vmin=cost.min()
+    #vmax=cost.max()
+    pl=pylab
+    if cost[0].shape[0]>cost[0].shape[1]:
+        ny=3;nx=1
+        pl.figure(figsize=(5,10))
+    else:
+        ny=1;nx=3
+        pl.figure(figsize=(10,5))
+    #pl.figure(figsize=(4,12))
+    vy=(cost[0])
+    vx=(cost[1])
+    hy=(cost[2])
+    hx=(cost[3])
+    vyn=uniform_filter(vy,[2,1],mode="constant")
+    vxn=uniform_filter(vx,[2,1],mode="constant")
+    hyn=uniform_filter(hy,[1,2],mode="constant")
+    hxn=uniform_filter(hx,[1,2],mode="constant")
+    qvy=(cost[4])
+    qvx=(cost[5])
+    qhy=(cost[6])
+    qhx=(cost[7])
+    qvyn=uniform_filter(qvy,[2,1],mode="constant")
+    qvxn=uniform_filter(qvx,[2,1],mode="constant")
+    qhyn=uniform_filter(qhy,[1,2],mode="constant")
+    qhxn=uniform_filter(qhx,[1,2],mode="constant")
+    pl.subplot(ny,nx,1)
+    pl.imshow(vyn+hyn+qvyn+qhyn,interpolation="nearest")#,vmin=vmin,vmax=vmax)
+    pl.xlabel("Y (%.5f,%.5f)"%((vyn+hyn+qvyn+qhyn).min(),(vyn+hyn+qvyn+qhyn).max()))
+    pl.subplot(ny,nx,2)
+    pl.imshow(vxn+hxn+qvxn+qhxn,interpolation="nearest")#,vmin=vmin,vmax=vmax)
+    pl.xlabel("X (%.5f,%.5f)"%((vxn+hxn+qvxn+qhxn).min(),(vxn+hxn+qvxn+qhxn).max()))
+    pl.subplot(ny,nx,3)
+    pl.imshow(vyn+hyn+vxn+hxn+qvyn+qhyn+qvxn+qhxn,interpolation="nearest")#,vmin=vmin*2,vmax=vmax*2)
+    pl.xlabel("All (%.5f,%.5f)"%((vxn+hxn+vyn+hyn+qvyn+qhyn+qvxn+qhxn).min(),(vxn+hxn+vyn+hyn+qvyn+qhyn+qvxn+qhxn).max()))
+
+
+
+
 

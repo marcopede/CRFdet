@@ -98,7 +98,7 @@ def testINC(x):
 ########################## load configuration parametes
 if __name__ == '__main__':
 
-    if 0: #use the configuration file
+    if 1: #use the configuration file
         print "Loading defautl configuration config.py"
         from config import * #default configuration      
 
@@ -123,14 +123,14 @@ if __name__ == '__main__':
     else: #or set here the parameters
         print "Loading defautl configuration config.py"
         from config import * #default configuration      
-        cfg.cls=sys.argv[1]
-        cfg.numcl=3
-        #cfg.dbpath="/home/owner/databases/"
-        cfg.dbpath="/users/visics/mpederso/databases/"
-        cfg.testpath="./data/"#"./data/CRF/12_09_19/"
-        cfg.testspec="right"#"full2"
-        cfg.db="VOC"
-        #cfg.N=
+    cfg.cls=sys.argv[1]
+    cfg.numcl=3
+    #cfg.dbpath="/home/owner/databases/"
+    cfg.dbpath="/users/visics/mpederso/databases/"
+    cfg.testpath="./data/"#"./data/CRF/12_09_19/"
+    cfg.testspec="right"#"full2"
+    cfg.db="VOC"
+    #cfg.N=
         
 
     testname=cfg.testpath+cfg.cls+("%d"%cfg.numcl)+"_"+cfg.testspec
@@ -207,7 +207,7 @@ if __name__ == '__main__':
 
     if 1: #personalized
         cfg.usebbTEST=True
-        cfg.numhypTEST=250
+        cfg.numhypTEST=50
         cfg.aiterTEST=3
         cfg.restartTEST=0
         cfg.intervTEST=10
@@ -216,7 +216,8 @@ if __name__ == '__main__':
     cfg.N=4
     #testname="./data/CRF/12_10_02_parts_full/bicycle2_testN2_final"
     #testname="./data/person1_testN2best0"#inria1_inria3"bicycle2_testN4aiter3_final
-    testname="./data/bicycle2_testN4aiter3_final"
+    #testname="./data/bicycle2_testN4aiter3_final"
+    testname="./data/bicycle2_testN4aiter38"
     models=util.load("%s.model"%(testname))
     #models=util.load("%s%d.model"%(testname,it))
     #just for the new

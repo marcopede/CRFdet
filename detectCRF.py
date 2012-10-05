@@ -453,6 +453,9 @@ def rundet(img,N,models,numhyp=5,interv=10,aiter=3,restart=0):
     return [f,det]
 
 def rundetbb(img,N,models,numdet=50,interv=10,aiter=3,restart=0):
+    #note that branch and bound sometime is generating more than once the same hipothesis
+    # I do not know yet why...
+    #Maybe the punishment to repeat a location is not high enough
     #print "Branc and bound"
     f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
     ldet2=[]
@@ -467,25 +470,6 @@ def rundetbb(img,N,models,numdet=50,interv=10,aiter=3,restart=0):
             ldet2.append({"id":m["id"],"hog":r,"scl":f.scale[r],"def":l["def"][0],"scr":l["scr"]-models[idm]["rho"]})            
     ldet2.sort(key=lambda by: -by["scr"])
     return [f,ldet2]
-
-
-def rundetbb_old(img,cfg,models,numdet=50,interv=10,aiter=3,restart=0):
-    #notsave=False
-    #print "Branc and bound"
-    f=pyrHOG2.pyrHOG(img,interv=interv,savedir=cfg.auxdir+"/hog/",notsave=not(cfg.savefeat),notload=not(cfg.loadfeat),hallucinate=True,cformat=True)
-    ldet2=[]
-    for idm,m in enumerate(models):
-        mcost=m["cost"].astype(numpy.float32)
-        m1=m["ww"][0]
-        numy=m["ww"][0].shape[0]#models[idm]["ww"][0].shape[0]#cfg.fy[idm]
-        numx=m["ww"][0].shape[1]#models[idm]["ww"][0].shape[1]#cfg.fx
-        ldet=crf3.match_bb(m1,f.hog,mcost,show=False,rot=False,numhyp=numdet,aiter=aiter,restart=restart)
-        for l in ldet:
-            r=l["scl"]
-            ldet2.append({"id":m["id"],"hog":r,"scl":f.scale[r],"def":l["def"][0],"scr":l["scr"]-models[idm]["rho"]})            
-    ldet2.sort(key=lambda by: -by["scr"])
-    return [f,ldet2]
-
 
 def detectCrop(a):
     """
