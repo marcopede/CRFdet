@@ -60,6 +60,9 @@ cfg.show=False
 #cfg.neginpos=False
 localshow=True
 numcore=cfg.multipr
+if cfg.multipr==False:
+    parallel=False
+    numcore=1
 notreg=0
 #cfg.numcl=3
 #cfg.valreg=0.01#set in configuration
