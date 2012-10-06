@@ -29,7 +29,7 @@ streams="""
 Output = {path}/{cls}{numcl}_{name}$(Cluster).$(Process).out
 Error = {path}/{cls}{numcl}_{name}$(Cluster).$(Process).err
 Log = {path}/{cls}{numcl}_{name}$(Cluster).$(Process).log
-Notification = Error
+Notification = Never
 Queue
 """
 

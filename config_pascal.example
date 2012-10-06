@@ -78,7 +78,8 @@ cfg.testspec="test"
 
 mydebug=True
 if mydebug:
-    cfg.testspec="testN4moredef"
+    #notice that i you use checkpoints, use unique testspec otherwise they will be overwritten!!!!!
+    cfg.testspec="testN4moredef" 
     cfg.checkpoint=True
     cfg.forcescratch=False
     cfg.multipr=4
