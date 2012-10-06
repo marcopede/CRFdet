@@ -33,6 +33,15 @@ Notification = Never
 Queue
 """
 
+streams="""
+Output = /dev/null
+Error = {path}/{cls}{numcl}_{name}$(Cluster).$(Process).err
+Log = {path}/{cls}{numcl}_{name}$(Cluster).$(Process).log
+Notification = Never
+Queue
+"""
+
+
 f=open("start.job","w")
 f.write(header.format(cpus=cfg.multipr))
 for l in cls:
