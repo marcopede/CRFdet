@@ -250,6 +250,7 @@ if cfg.checkpoint and not cfg.forcescratch:
         lg.info("""Loaded old positive checkpoint:
 Number Positive SV:%d                        
         """%(len(lpdet)))
+        lndet=[]
         #if at this point is already enough for the checkpoint
         os.path.exists(localsave+".neg.valid")
         dneg=util.load(localsave+".neg.chk")
