@@ -245,18 +245,21 @@ if cfg.checkpoint and not cfg.forcescratch:
         lpdet=dpos["lpdet"]
         lpfeat=dpos["lpfeat"]
         lpedge=dpos["lpedge"]
+        cpit=dpos["cpit"]
         initial=False
         loadedchk=True
         lg.info("""Loaded old positive checkpoint:
 Number Positive SV:%d                        
         """%(len(lpdet)))
         lndet=[]
+        cnit=0
         #if at this point is already enough for the checkpoint
         os.path.exists(localsave+".neg.valid")
         dneg=util.load(localsave+".neg.chk")
         lndet=dneg["lndet"]
         lnfeat=dneg["lnfeat"]
         lnedge=dneg["lnedge"]
+        cnit=dneg["cnit"]
         lg.info("""Loaded negative checkpoint:
 Number Negative SV:%d                                
         """%(len(lndet)))
@@ -266,6 +269,8 @@ Number Negative SV:%d
 
 import pylab as pl
 if initial:
+    cpit=0
+    cnit=0
     print "Starting from scratch"
     lg.info("Starting from scratch")
     ############################ initialize positive using cropped bounidng boxes
@@ -552,7 +557,7 @@ totPosEx=len(arg)
 
 lg.info("Starting Main loop!")
 ####################### repeat scan positives
-for it in range(cfg.posit):
+for it in range(cpit,cfg.posit):
     lg.info("############# Positive iteration %d ################"%it)
     #mypool = Pool(numcore)
     #counters
@@ -697,7 +702,7 @@ for it in range(cfg.posit):
             os.remove(localsave+".pos.valid")
         except:
             pass
-        util.save(localsave+".pos.chk",{"lpdet":lpdet,"lpedge":lpedge,'lpfeat':lpfeat})
+        util.save(localsave+".pos.chk",{"lpdet":lpdet,"lpedge":lpedge,'lpfeat':lpfeat,"cpit":it})
         open(localsave+".pos.valid","w").close()
         lg.info("End Positive check point")
 
@@ -1017,7 +1022,7 @@ Negative in cache vectors %d
                 os.remove(localsave+".neg.valid")
             except:
                 pass
-            util.save(localsave+".neg.chk",{"lndet":lndet,"lnedge":lnedge,'lnfeat':lnfeat})
+            util.save(localsave+".neg.chk",{"lndet":lndet,"lnedge":lnedge,'lnfeat':lnfeat,"cnit":nit})
             open(localsave+".neg.valid","w").close()
             #touch a file to be sure you have finished
             lg.info("End saving negative detections")
