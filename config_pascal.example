@@ -73,7 +73,7 @@ cfg.small2=False
 cfg.hallucinate=1 #important to set to 2 otherwise small2 would not work
 
 cfg.comment    =""
-cfg.testpath="./data/CRF/12_10_05_condor/"
+cfg.testpath="./data/CRF/12_10_06/"
 cfg.testspec="test"
 
 mydebug=True
@@ -81,7 +81,7 @@ if mydebug:
     cfg.testspec="testN4moredef"
     cfg.checkpoint=True
     cfg.forcescratch=False
-    cfg.multipr=8
+    cfg.multipr=4
     cfg.useclip=True
     cfg.rescale=True
     #cfg.maxpos=50#20 #maximum number of positive images
