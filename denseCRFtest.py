@@ -212,12 +212,14 @@ if __name__ == '__main__':
         cfg.restartTEST=0
         cfg.intervTEST=10
 
-    cfg.numcl=2
+    cfg.numcl=3
     cfg.N=4
+    cfg.useclip=True
     #testname="./data/CRF/12_10_02_parts_full/bicycle2_testN2_final"
     #testname="./data/person1_testN2best0"#inria1_inria3"bicycle2_testN4aiter3_final
     #testname="./data/bicycle2_testN4aiter3_final"
-    testname="./data/bicycle2_testN4aiter38"
+    #testname="./data/bicycle2_testN4aiter38"
+    testname="./data/bicycle3_N4C3_final"
     models=util.load("%s.model"%(testname))
     #models=util.load("%s%d.model"%(testname,it))
     #just for the new
