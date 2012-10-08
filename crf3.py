@@ -515,7 +515,7 @@ def match_full2(m1,m2,cost,movy=None,movx=None,padvalue=0,remove=[],pad=0,feat=T
         return scr,res2,frot
     return lscr,res2
 
-def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    numhyp=10,output=False,aiter=3,restart=0):
+def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    numhyp=10,output=False,aiter=3,restart=0,trunc=0):
     #m1 is expected to be divisible by N
     t=time.time()
     assert(m1.shape[0]%N==0)
@@ -539,7 +539,7 @@ def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    n
     tmp=scn.copy()
     for px in range(numx):
         for py in range(numy):
-            ff.scaneigh(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[N*py:N*(py+1),N*px:N*(px+1)]),N,N,m1.shape[2],scn[0]+N*py,scn[1]+N*px,auxdata[1,py,px],tmp[0],tmp[1],0,0,scn[0].size,0)
+            ff.scaneigh(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[N*py:N*(py+1),N*px:N*(px+1)]),N,N,m1.shape[2],scn[0]+N*py,scn[1]+N*px,auxdata[1,py,px],tmp[0],tmp[1],0,0,scn[0].size,trunc)
             #print "Done ",py,px 
     if output:
         print "time Match",time.time()-t
@@ -607,7 +607,7 @@ def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    n
     return lscr,res2
 
 
-def match_bb(m1,pm2,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0):
+def match_bb(m1,pm2,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0,trunc=0):
     t=time.time()
     numy=m1.shape[0]/2#p1.shape[0]
     numx=m1.shape[1]/2#p1.shape[1]
@@ -630,7 +630,7 @@ def match_bb(m1,pm2,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0):
         tmp=scn.copy()
         for px in range(numx):
             for py in range(numy):
-                ff.scaneigh(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[2*py:2*(py+1),2*px:2*(px+1)]), 2,2,m1.shape[2],scn[0]+2*py,scn[1]+2*px,auxdata[1,py,px],tmp[0],tmp[1],0,0,scn[0].size,0)
+                ff.scaneigh(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[2*py:2*(py+1),2*px:2*(px+1)]), 2,2,m1.shape[2],scn[0]+2*py,scn[1]+2*px,auxdata[1,py,px],tmp[0],tmp[1],0,0,scn[0].size,trunc)
                 #print "Done ",py,px 
         #if output:
         #    print "time Match",time.time()-t
@@ -725,7 +725,7 @@ def match_bb(m1,pm2,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0):
    
     return ldet
 
-def match_bbN(m1,pm2,N,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0):
+def match_bbN(m1,pm2,N,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0,trunc=0):
     t=time.time()
     assert(m1.shape[0]%N==0)
     assert(m1.shape[1]%N==0)
@@ -750,7 +750,7 @@ def match_bbN(m1,pm2,N,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0):
         tmp=scn.copy()
         for px in range(numx):
             for py in range(numy):
-                ff.scaneigh(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[N*py:N*(py+1),N*px:N*(px+1)]),N,N,m1.shape[2],scn[0]+N*py,scn[1]+N*px,auxdata[1,py,px],tmp[0],tmp[1],0,0,scn[0].size,0)
+                ff.scaneigh(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[N*py:N*(py+1),N*px:N*(px+1)]),N,N,m1.shape[2],scn[0]+N*py,scn[1]+N*px,auxdata[1,py,px],tmp[0],tmp[1],0,0,scn[0].size,trunc)
                 #print "Done ",py,px 
         #if output:
         #    print "time Match",time.time()-t
@@ -847,50 +847,23 @@ def match_bbN(m1,pm2,N,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0):
    
     return ldet
 
-
-def getfeat(m1,pad,res2,movy=None,movx=None,mode="Best",rot=None):
-    if movy==None:
-        movy=((m1.shape[0]-2*pad)-1)/2
-    if movx==None:
-        movx=((m1.shape[1]-2*pad)-1)/2
-    dfeat=numpy.zeros((m1.shape[0]-2*pad,m1.shape[1]-2*pad,m1.shape[2]),dtype=numpy.float32)
-    m1pad=numpy.zeros((m1.shape[0]+2*movy-2*pad,m1.shape[1]+2*movx-2*pad,m1.shape[2]),dtype=numpy.float32)
-    m1pad[movy-pad:-movy+pad,movx-pad:-movx+pad]=m1
-    for px in range(res2.shape[2]):
-        for py in range(res2.shape[1]):
-            #dfeat[py*2:py*2+2,px*2:px*2+2]=blk2pad[py*2+res[py,px]/(movx*2+1),px*2+res[py,px]%(movx*2+1)].reshape(2,2,31)
-            cpy=py*2+res2[0,py,px]+movy
-            cpx=px*2+res2[1,py,px]+movx    
-            if rot==None:
-                dfeat[py*2:py*2+2,px*2:px*2+2]=m1pad[cpy:cpy+2,cpx:cpx+2]
-            else:
-                dfeat[py*2:py*2+2,px*2:px*2+2]=rotate(m1pad[cpy:cpy+2,cpx:cpx+2],rot[py,px])
-    edge=numpy.zeros((res2.shape[0]*2,res2.shape[1],res2.shape[2]),dtype=numpy.float32)
-    #edge[0,:-1,:]=(res2[0,:-1]-res2[0,1:])
-    #edge[1,:,:-1]=(res2[1,:,:-1]-res2[1,:,1:])
-    if mode=="Old":
-        edge[0,:-1,:]=abs(res2[0,:-1,:]-res2[0,1:,:])+abs(res2[1,:-1,:]-res2[1,1:,:])
-        edge[1,:,:-1]=abs(res2[0,:,:-1]-res2[0,:,1:])+abs(res2[1,:,:-1]-res2[1,:,1:])
-    elif mode=="New":
-        edge[0,:-1,:]=abs(res2[0,:-1,:]-res2[0,1:,:])
-        edge[1,:,:-1]=abs(res2[1,:,:-1]-res2[1,:,1:])
-    elif mode=="Best":
-        edge[0,:-1,:]=abs(res2[0,:-1,:]-res2[0,1:,:])#V edge Y
-        edge[1,:-1,:]=abs(res2[1,:-1,:]-res2[1,1:,:])#V edge X
-        edge[2,:,:-1]=abs(res2[0,:,:-1]-res2[0,:,1:])#H edge Y
-        edge[3,:,:-1]=abs(res2[1,:,:-1]-res2[1,:,1:])#H edge X
-    return dfeat,-edge    
-
-def getfeat_full(m1,pad,res2,movy=None,movx=None,mode="Quad",rot=None):
+def getfeat_full(m1,pad,res2,movy=None,movx=None,mode="Quad",rot=None,trunc=0):
     if movy==None:
         movy=m1.shape[0]
     if movx==None:
         movx=m1.shape[1]
     pady=(res2.shape[1])*2
     padx=(res2.shape[2])*2
-    dfeat=numpy.zeros((res2.shape[1]*2,res2.shape[2]*2,m1.shape[2]),dtype=numpy.float32)
-    m1pad=numpy.zeros((m1.shape[0]+2*pady,m1.shape[1]*2+2*padx,m1.shape[2]),dtype=numpy.float32)
-    m1pad[pady:m1.shape[0]+pady,padx:m1.shape[1]+padx]=m1
+    if trunc==1:
+        dfeat=numpy.zeros((res2.shape[1]*2,res2.shape[2]*2,m1.shape[2]+1),dtype=numpy.float32)
+        m1pad=numpy.zeros((m1.shape[0]+2*pady,m1.shape[1]*2+2*padx,m1.shape[2]+1),dtype=numpy.float32)
+        m1pad[:,:,-1]=1
+        m1pad[pady:m1.shape[0]+pady,padx:m1.shape[1]+padx,:-1]=m1
+        m1pad[pady:m1.shape[0]+pady,padx:m1.shape[1]+padx,-1]=0
+    else:
+        dfeat=numpy.zeros((res2.shape[1]*2,res2.shape[2]*2,m1.shape[2]),dtype=numpy.float32)
+        m1pad=numpy.zeros((m1.shape[0]+2*pady,m1.shape[1]*2+2*padx,m1.shape[2]),dtype=numpy.float32)
+        m1pad[pady:m1.shape[0]+pady,padx:m1.shape[1]+padx]=m1
     #m1pad=m1
     for px in range(res2.shape[2]):
         for py in range(res2.shape[1]):
@@ -926,16 +899,21 @@ def getfeat_full(m1,pad,res2,movy=None,movx=None,mode="Quad",rot=None):
         edge[7,:,:-1]=(res2[1,:,:-1]-res2[1,:,1:])**2  
     return dfeat,-edge    
 
-def getfeat_fullN(m1,N,res2,mode="Quad",rot=None):
+def getfeat_fullN(m1,N,res2,mode="Quad",rot=None,trunc=0):
     movy=m1.shape[0]
     movx=m1.shape[1]
     pady=(res2.shape[1])*N
     padx=(res2.shape[2])*N
-    dfeat=numpy.zeros((res2.shape[1]*N,res2.shape[2]*N,m1.shape[2]),dtype=numpy.float32)
-    #m1pad=numpy.zeros((m1.shape[0]*N+N*pady,m1.shape[1]*N+N*padx,m1.shape[2]),dtype=numpy.float32)
-    m1pad=numpy.zeros((m1.shape[0]*N+2*pady,m1.shape[1]*N+2*padx,m1.shape[2]),dtype=numpy.float32)
-    m1pad[pady:m1.shape[0]+pady,padx:m1.shape[1]+padx]=m1
-    #m1pad=m1
+    if trunc==1:
+        dfeat=numpy.zeros((res2.shape[1]*N,res2.shape[2]*N,m1.shape[2]+1),dtype=numpy.float32)
+        m1pad=numpy.zeros((m1.shape[0]+2*pady,m1.shape[1]*2+2*padx,m1.shape[2]+1),dtype=numpy.float32)
+        m1pad[:,:,-1]=1
+        m1pad[pady:m1.shape[0]+pady,padx:m1.shape[1]+padx,:-1]=m1
+        m1pad[pady:m1.shape[0]+pady,padx:m1.shape[1]+padx,-1]=0
+    else:
+        dfeat=numpy.zeros((res2.shape[1]*N,res2.shape[2]*N,m1.shape[2]),dtype=numpy.float32)
+        m1pad=numpy.zeros((m1.shape[0]+2*pady,m1.shape[1]*2+2*padx,m1.shape[2]),dtype=numpy.float32)
+        m1pad[pady:m1.shape[0]+pady,padx:m1.shape[1]+padx]=m1
     for px in range(res2.shape[2]):
         for py in range(res2.shape[1]):
             #dfeat[py*2:py*2+2,px*2:px*2+2]=blk2pad[py*2+res[py,px]/(movx*2+1),px*2+res[py,px]%(movx*2+1)].reshape(2,2,31)

@@ -62,10 +62,10 @@ def refinePos(el):
                 idm=range(len(models)) 
         selmodels=[models[x] for x in idm] 
         if cfg.usebbPOS:
-            [f,det]=rundetbb(img,cfg.N,selmodels,numdet=cfg.numhypPOS, interv=cfg.intervPOS,aiter=cfg.aiterPOS,restart=cfg.restartPOS)
+            [f,det]=rundetbb(img,cfg.N,selmodels,numdet=cfg.numhypPOS, interv=cfg.intervPOS,aiter=cfg.aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc)
         else:         
             [f,det]=rundet(img,cfg.N,selmodels,numhyp=cfg.numhypPOS,interv=cfg.intervPOS,aiter=cfg.
-aiterPOS,restart=cfg.restartPOS)
+aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc)
     #else: #for negatives
     #    [f,det]=rundet(img,cfg,models)
     print "Detection time:",time.time()-t
@@ -86,7 +86,7 @@ aiterPOS,restart=cfg.restartPOS)
     if len(det)>0 and best!=-1:
         if cfg.show:
             visualize([det[best]],cfg.N,f,img)
-        feat,edge=getfeature([det[best]],cfg.N,f,models,cfg.bias)
+        feat,edge=getfeature([det[best]],cfg.N,f,models,cfg.trunc)
         #add image name and bbx so that each annotation is unique
         if imageflip:
             det[best]["idim"]=el["file"].split("/")[-1]+".flip"
@@ -115,9 +115,9 @@ def hardNeg(el):
         img=util.myimread(imname,resize=cfg.resize)
     #imageflip=el["flip"]
     if cfg.usebbNEG:
-        [f,det]=rundetbb(img,cfg.N,models,numdet=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG)
+        [f,det]=rundetbb(img,cfg.N,models,numdet=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc)
     else:
-        [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG)
+        [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc)
     ldet=[]
     lfeat=[]
     ledge=[]
@@ -127,7 +127,7 @@ def hardNeg(el):
         if det[idl]["scr"]>-1:
             det[idl]["idim"]=el["file"].split("/")[-1]
             ldet.append(det[idl])
-            feat,edge=getfeature([det[idl]],cfg.N,f,models,cfg.bias)
+            feat,edge=getfeature([det[idl]],cfg.N,f,models,cfg.trunc)
             lfeat+=feat
             ledge+=edge
     if cfg.show:
@@ -153,9 +153,9 @@ def hardNegPos(el):
         img=util.myimread(imname,resize=cfg.resize)
     #imageflip=el["flip"]
     if cfg.usebbNEG:
-        [f,det]=rundetbb(img,cfg.N,models,numdet=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG)
+        [f,det]=rundetbb(img,cfg.N,models,numdet=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc)
     else:
-        [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG)
+        [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc)
     ldet=[]
     lfeat=[]
     ledge=[]
@@ -175,7 +175,7 @@ def hardNegPos(el):
             if not(skip):
                 det[idl]["idim"]=el["file"].split("/")[-1]
                 ldet.append(det[idl])
-                feat,edge=getfeature([det[idl]],cfg.N,f,models,cfg.bias)
+                feat,edge=getfeature([det[idl]],cfg.N,f,models,cfg.trunc)
                 lfeat+=feat
                 ledge+=edge
         if len(ldet)==cfg.numneg:
@@ -202,9 +202,9 @@ def test(el,docluster=True,show=False,inclusion=False,onlybest=False):
         img=util.myimread(imname,resize=cfg.resize)
     #imageflip=el["flip"]
     if cfg.usebbTEST:
-        [f,det]=rundetbb(img,cfg.N,models,numdet=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST)
+        [f,det]=rundetbb(img,cfg.N,models,numdet=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc)
     else:
-        [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST)
+        [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc)
     boundingbox(det,cfg.N)
     if cfg.useclip:
         clip(det,img.shape)
@@ -261,7 +261,7 @@ def check(det,f,models,bias):
             printf("Error %f too big, there is something wrong!!!"%(numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-scr-models[idm]["rho"]))
             raw_input()
 
-def getfeature(det,N,f,models,bias):
+def getfeature(det,N,f,models,trunc=0):
     """ check if score of detections and score from features are correct"""
     lfeat=[];ledge=[]
     for l in range(len(det)):#lsort[:100]:
@@ -272,7 +272,7 @@ def getfeature(det,N,f,models,bias):
         m2=f.hog[r]
         res=det[l]["def"]
         mcost=models[idm]["cost"].astype(numpy.float32)
-        dfeat,edge=crf3.getfeat_fullN(m2,N,res)
+        dfeat,edge=crf3.getfeat_fullN(m2,N,res,trunc=trunc)
         lfeat.append(dfeat)
         ledge.append(edge)
         #print "Scr",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-models[idm]["rho"],"Error",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-scr-models[idm]["rho"]
@@ -420,7 +420,7 @@ def visualize2(det,N,img,bb=[],text=""):
     pl.show()
 
 
-def rundet(img,N,models,numhyp=5,interv=10,aiter=3,restart=0):
+def rundet(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0):
     f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
     det=[]
     for idm,m in enumerate(models):
@@ -431,7 +431,7 @@ def rundet(img,N,models,numhyp=5,interv=10,aiter=3,restart=0):
         for r in range(len(f.hog)):
             m2=f.hog[r]
             #print numy,numx
-            lscr,fres=crf3.match_fullN(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,aiter=aiter,restart=restart)
+            lscr,fres=crf3.match_fullN(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,aiter=aiter,restart=restart,trunc=trunc)
             #print "Total time",time.time()-t
             #print "Score",lscr
             idraw=False
@@ -452,7 +452,7 @@ def rundet(img,N,models,numhyp=5,interv=10,aiter=3,restart=0):
     #    pylab.show()
     return [f,det]
 
-def rundetbb(img,N,models,numdet=50,interv=10,aiter=3,restart=0):
+def rundetbb(img,N,models,numdet=50,interv=10,aiter=3,restart=0,trunc=0):
     #note that branch and bound sometime is generating more than once the same hipothesis
     # I do not know yet why...
     #Maybe the punishment to repeat a location is not high enough
@@ -464,7 +464,7 @@ def rundetbb(img,N,models,numdet=50,interv=10,aiter=3,restart=0):
         m1=m["ww"][0]
         numy=m["ww"][0].shape[0]
         numx=m["ww"][0].shape[1]
-        ldet=crf3.match_bbN(m1,f.hog,N,mcost,show=False,rot=False,numhyp=numdet,aiter=aiter,restart=restart)
+        ldet=crf3.match_bbN(m1,f.hog,N,mcost,show=False,rot=False,numhyp=numdet,aiter=aiter,restart=restart,trunc=trunc)
         for l in ldet:
             r=l["scl"]
             ldet2.append({"id":m["id"],"hog":r,"scl":f.scale[r],"def":l["def"][0],"scr":l["scr"]-models[idm]["rho"]})            

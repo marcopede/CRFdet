@@ -65,6 +65,10 @@ if cfg.multipr==False:
     parallel=False
     numcore=1
 notreg=0
+if cfg.trunc:
+    lenf=32
+else:
+    lenf=31
 #cfg.numcl=3
 #cfg.valreg=0.01#set in configuration
 #cfg.useRL=True
@@ -298,6 +302,8 @@ if initial:
             imx=crop.shape[1]
             zcim=zoom(crop,(((cfg.fy[idm]*cfg.N+2)*8/float(imy)),((cfg.fx[idm]*cfg.N+2)*8/float(imx)),1),order=1)
             hogp[idm].append(numpy.ascontiguousarray(pyrHOG2.hog(zcim)))
+            if cfg.trunc:
+                hogp[idm][-1]=numpy.concatenate((hogp[idm][-1],numpy.zeros((hogp[idm][-1].shape[0],hogp[idm][-1].shape[1],1))),2)
             #hogpcl.append(idm)
             annp[idm].append({"file":im["name"],"bbox":bb})
             if check:
@@ -337,8 +343,11 @@ if initial:
                     rndx=numpy.random.randint(0,aim.shape[1]-szx*8-1)
                 #zcim=zoom(crop,(((cfg.fy[idm]*2+2)*8/float(imy)),((cfg.fx[idm]*2+2)*8/float(imx)),1),order=1)
                     zcim=aim[rndy:rndy+szy*8,rndx:rndx+szx*8]
-                    hogn[idm].append(numpy.ascontiguousarray(pyrHOG2.hog(zcim)).flatten())
+                    hogn[idm].append(numpy.ascontiguousarray(pyrHOG2.hog(zcim)))
                 #hogncl.append(idm)
+                    if cfg.trunc:
+                        hogn[idm][-1]=numpy.concatenate((hogn[idm][-1],numpy.zeros((hogn[idm][-1].shape[0],hogn[idm][-1].shape[1],1))),2)
+                    hogn[idm][-1]=hogn[idm][-1].flatten()
                     if check:
                         print "Aspcet",idm,"HOG",hogn[-1].shape
     for l in range(cfg.numcl):  
@@ -412,12 +421,12 @@ if initial:
     #empty rigid model
     models=[]
     for c in range(cfg.numcl):      
-        models.append(model.initmodel(cfg.fy[c]*cfg.N,cfg.fx[c]*cfg.N,cfg.N,cfg.useRL,deform=False))
+        models.append(model.initmodel(cfg.fy[c]*cfg.N,cfg.fx[c]*cfg.N,cfg.N,cfg.useRL,lenf))
 
     #array with dimensions of w
     cumsize=numpy.zeros(numcl+1,dtype=numpy.int)
     for idl in range(numcl):
-        cumsize[idl+1]=cumsize[idl]+(cfg.fy[idl]*cfg.N*cfg.fx[idl]*cfg.N)*31+1
+        cumsize[idl+1]=cumsize[idl]+(cfg.fy[idl]*cfg.N*cfg.fx[idl]*cfg.N)*lenf+1
 
     try:
         fsf
@@ -439,7 +448,7 @@ if initial:
         w1=numpy.array([])
         #from w to model m1
         for idm,m in enumerate(models):
-            models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],cfg.N,-w[cumsize[idm+1]-1]*bias,len(m["ww"]),31,m["ww"][0].shape[0],m["ww"][0].shape[1])
+            models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],cfg.N,-w[cumsize[idm+1]-1]*bias,len(m["ww"]),lenf,m["ww"][0].shape[0],m["ww"][0].shape[1])
             #models[idm]["ra"]=w[cumsize[idm+1]-1]
             #from model to w #changing the clip...
             waux.append(model.model2w(models[idm],False,False,False))
@@ -452,7 +461,6 @@ if initial:
         #lg.info("Built first model")
         
     #show model 
-    #mm=w[:1860].reshape((cfg.fy[0]*2,cfg.fx[0]*2,31))
     it = 0
     for idm,m in enumerate(models):   
         import drawHOG
@@ -558,7 +566,7 @@ totPosEx=len(arg)
 
 lg.info("Starting Main loop!")
 ####################### repeat scan positives
-for it in range(cfg.posit):
+for it in range(cpit,cfg.posit):
     lg.info("############# Positive iteration %d ################"%it)
     #mypool = Pool(numcore)
     #counters
@@ -680,7 +688,7 @@ for it in range(cfg.posit):
         loadedchk=False
         total.append(len(lpdet))
     
-    if it>0:
+    if it>cpit:
         oldposl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias,sizereg=sizereg,valreg=cfg.valreg)              
 
     #build training data for positives
@@ -708,7 +716,7 @@ for it in range(cfg.posit):
         lg.info("End Positive check point")
 
     ########### check positive convergence    
-    if it>0:
+    if it>cpit:
         lg.info("################# Checking Positive Convergence ##############")
         newposl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias,sizereg=sizereg,valreg=cfg.valreg)
         #lposl.append(newposl)
@@ -805,7 +813,7 @@ for it in range(cfg.posit):
         w1=numpy.array([])
         #from w to model m1
         for idm,m in enumerate(models[:cfg.numcl]):
-            models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],cfg.N,-w[cumsize[idm+1]-1]*bias,len(m["ww"]),31,m["ww"][0].shape[0],m["ww"][0].shape[1],useCRF=True,k=cfg.k)
+            models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],cfg.N,-w[cumsize[idm+1]-1]*bias,len(m["ww"]),lenf,m["ww"][0].shape[0],m["ww"][0].shape[1],useCRF=True,k=cfg.k)
             models[idm]["id"]=idm
             #models[idm]["ra"]=w[cumsize[idm+1]-1]
             #from model to w #changing the clip...
