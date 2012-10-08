@@ -19,6 +19,7 @@ import sys
 import crf3
 import logging as lg
 import os
+import pegasos
 
 ########################## load configuration parametes
 
@@ -424,7 +425,7 @@ if initial:
         print "Loading Pretrained Initial detector"
     except:
         # train detector
-        import pegasos
+        #import pegasos
         #trpos=[]
         trneg=[]
         for l in range(cfg.numcl):
@@ -557,7 +558,7 @@ totPosEx=len(arg)
 
 lg.info("Starting Main loop!")
 ####################### repeat scan positives
-for it in range(cpit,cfg.posit):
+for it in range(cfg.posit):
     lg.info("############# Positive iteration %d ################"%it)
     #mypool = Pool(numcore)
     #counters
@@ -787,7 +788,7 @@ for it in range(cpit,cfg.posit):
             lg.info("Positive Examples:%d"%(numpy.sum(numpy.array(trposcl)==l)))
             lg.info("Negative Examples:%d"%(numpy.sum(numpy.array(trnegcl)==l)))    
 
-        import pegasos   
+        #import pegasos   
         w,r,prloss=pegasos.trainComp(trpos,trneg,"",trposcl,trnegcl,oldw=w,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.01,bias=cfg.bias,sizereg=sizereg,valreg=cfg.valreg)#,notreg=notreg)
 
         pylab.figure(300,figsize=(4,4))
