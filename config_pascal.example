@@ -20,7 +20,7 @@ cfg.maxtest=200 #0 #maximum number of test images
 cfg.maxtestfull=20000 #0 #maximum number of test images
 cfg.maxneg=200 #maximum number of negative images
 cfg.maxnegfull=2000
-cfg.maxexamples=30000 #maximum number of examples
+cfg.maxexamples=25000 #maximum number of examples (from 30000 to 25000 to fit in memory)
 
 cfg.db="VOC"#"inria"#"buffy"#"VOC"#"adondemand"#"VOC"#"inria"#"ivan"#"VOC"
 #additional for pascal
@@ -59,7 +59,6 @@ cfg.bias=100 #try if it works better...
 cfg.thr=-10
 cfg.useclip=False
 cfg.localdata="/esat/nereid/mpederso/VOC07/"
-cfg.posthr=-1 #to discard noise
 #cfg.maxHOG=30#70
 cfg.N=3
 cfg.maxHOG=120/(cfg.N**2)   
@@ -80,6 +79,7 @@ mydebug=True
 if mydebug:
     #notice that i you use checkpoints, use unique testspec otherwise they will be overwritten!!!!!
     cfg.testspec="testN4moredef" 
+    cfg.posthr=-1 #to discard noise
     cfg.checkpoint=True
     cfg.forcescratch=False
     cfg.multipr=4
