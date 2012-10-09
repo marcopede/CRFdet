@@ -899,7 +899,7 @@ def getfeat_full(m1,pad,res2,movy=None,movx=None,mode="Quad",rot=None,trunc=0):
         edge[7,:,:-1]=(res2[1,:,:-1]-res2[1,:,1:])**2  
     return dfeat,-edge    
 
-def getfeat_fullN(m1,N,res2,mode="Quad",rot=None,trunc=0):
+def getfeat_fullN(m1,N,res2,mode="NRoot",rot=None,trunc=0):
     movy=m1.shape[0]
     movx=m1.shape[1]
     pady=(res2.shape[1])*N
@@ -946,16 +946,36 @@ def getfeat_fullN(m1,N,res2,mode="Quad",rot=None,trunc=0):
         edge[5,:-1,:]=(res2[1,:-1,:]-res2[1,1:,:])**2
         edge[6,:,:-1]=(res2[0,:,:-1]-res2[0,:,1:])**2
         edge[7,:,:-1]=(res2[1,:,:-1]-res2[1,:,1:])**2  
+    elif mode=="Root":
+        edge[0,:-1,:]=numpy.sqrt(abs(res2[0,:-1,:]-res2[0,1:,:]))
+        edge[1,:-1,:]=numpy.sqrt(abs(res2[1,:-1,:]-res2[1,1:,:]))
+        edge[2,:,:-1]=numpy.sqrt(abs(res2[0,:,:-1]-res2[0,:,1:]))
+        edge[3,:,:-1]=numpy.sqrt(abs(res2[1,:,:-1]-res2[1,:,1:]))
+        edge[4,:-1,:]=(res2[0,:-1,:]-res2[0,1:,:])**2
+        edge[5,:-1,:]=(res2[1,:-1,:]-res2[1,1:,:])**2
+        edge[6,:,:-1]=(res2[0,:,:-1]-res2[0,:,1:])**2
+        edge[7,:,:-1]=(res2[1,:,:-1]-res2[1,:,1:])**2  
+    elif mode=="NRoot":
+        edge[0,:-1,:]=numpy.sqrt(abs(res2[0,:-1,:]-res2[0,1:,:])/float(N))
+        edge[1,:-1,:]=numpy.sqrt(abs(res2[1,:-1,:]-res2[1,1:,:])/float(N))
+        edge[2,:,:-1]=numpy.sqrt(abs(res2[0,:,:-1]-res2[0,:,1:])/float(N))
+        edge[3,:,:-1]=numpy.sqrt(abs(res2[1,:,:-1]-res2[1,:,1:])/float(N))
+        edge[4,:-1,:]=((res2[0,:-1,:]-res2[0,1:,:])/float(N))**2
+        edge[5,:-1,:]=((res2[1,:-1,:]-res2[1,1:,:])/float(N))**2
+        edge[6,:,:-1]=((res2[0,:,:-1]-res2[0,:,1:])/float(N))**2
+        edge[7,:,:-1]=((res2[1,:,:-1]-res2[1,:,1:])/float(N))**2  
     return dfeat,-edge    
 
 
 if __name__ == "__main__":
 
     if 1:
+        import matplotlib
+        matplotlib.use("Agg") #if run outside ipython do not show any figure
         from pylab import *
         import util
-        im=util.myimread("000535.jpg")[:,::-1,:]#flip
-        #im=util.myimread("000379.jpg")[:,::-1,:]#flip
+        #im=util.myimread("000535.jpg")[:,::-1,:]#flip
+        im=util.myimread("000379.jpg")[:,::-1,:]#flip
         #im=util.myimread("005467.jpg")[:,::-1,:]#flip
         #img=numpy.zeros((100,100,3))
         #subplot(1,2,1)
@@ -991,8 +1011,8 @@ if __name__ == "__main__":
         from pylab import *
         import util
         #im=util.myimread("000125.jpg")#flip
-        im=util.myimread("000535.jpg")[:,::-1,:]#
-        #im=util.myimread("000379.jpg")[:,::-1,:]#flip
+        #im=util.myimread("000535.jpg")[:,::-1,:]#
+        im=util.myimread("000379.jpg")[:,::-1,:]#flip
         #im=util.myimread("005467.jpg")[:,::-1,:]#flip
         #img=numpy.zeros((100,100,3))
         #subplot(1,2,1)

@@ -11,10 +11,12 @@
 #include "TRW-S.h"
 #include "BP-S.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <new>
+
 
 #define dtype float
 
@@ -34,6 +36,7 @@ int truncCnt, totalCnt;
 #endif
 
 dtype *st_cost;
+int st_N;
 int st_parts_y;
 int st_parts_x;
 dtype * st_cost_y;//old just to keep the old code
@@ -282,12 +285,12 @@ MRF::CostVal smoothApp6(int p1, int p2, int l1, int l2)
     if (p2==p1+1)
         {
         //printf("Horizontal Edge! part:%d score:%f\n",p1,st_cost_x[p1]*abs(x1-x2));
-        return st_cost_h_y[p1]*abs(y1-y2)+st_cost_h_x[p1]*abs(x1-x2)+st_qcost_h_y[p1]*(y1-y2)*(y1-y2)+st_qcost_h_x[p1]*(x1-x2)*(x1-x2); //horizontal edge
+        return st_cost_h_y[p1]*sqrt(abs(y1-y2)/(float)st_N)+st_cost_h_x[p1]*sqrt(abs(x1-x2)/(float)st_N)+st_qcost_h_y[p1]*((y1-y2)/(float)st_N)*((y1-y2)/(float)st_N)+st_qcost_h_x[p1]*((x1-x2)/(float)st_N)*((x1-x2)/(float)st_N); //horizontal edge
         }
     else
         {
         //printf("Vertical Edge! part:%d score:%f\n",p1,st_cost_y[p1]*abs(y1-y2));
-        return st_cost_v_y[p1]*abs(y1-y2)+st_cost_v_x[p1]*abs(x1-x2)+st_qcost_v_y[p1]*(y1-y2)*(y1-y2)+st_qcost_v_x[p1]*(x1-x2)*(x1-x2); //vertical edge
+        return st_cost_v_y[p1]*sqrt(abs(y1-y2)/(float)st_N)+st_cost_v_x[p1]*sqrt(abs(x1-x2)/(float)st_N)+st_qcost_v_y[p1]*((y1-y2)/(float)st_N)*((y1-y2)/(float)st_N)+st_qcost_v_x[p1]*((x1-x2)/(float)st_N)*((x1-x2)/(float)st_N); //vertical edge
         }
 }
 
@@ -388,7 +391,7 @@ extern "C" {
 }*/
 
 
-dtype compute_graph(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,int num_lab_x,dtype *data,int *laborder,int *reslab)
+dtype compute_graph(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,int num_lab_x,dtype *data,int *laborder,int *reslab, int N)
 {
     MRF* mrf;
     //Expansion* mrf; 
@@ -404,6 +407,7 @@ dtype compute_graph(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,i
     dtype scr;
     //copy costs in local memory
     //dtype V[maxlab*maxlab];
+    st_N = N;
     st_cost_v_y=costs;
     st_cost_v_x=costs+num_parts_x*num_parts_y;
     st_cost_h_y=costs+2*num_parts_x*num_parts_y;
