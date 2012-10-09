@@ -547,7 +547,7 @@ dtype compute_graph(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,i
 
 }
 
-dtype compute_graph2(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,int num_lab_x,dtype *data,int numhyp,dtype* lscr,int *reslab,int aiter,int restart)
+dtype compute_graph2(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,int num_lab_x,dtype *data,int numhyp,dtype* lscr,int *reslab,int aiter,int restart,int N)
 {
     MRF* mrf;
     //Expansion* mrf; 

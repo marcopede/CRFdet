@@ -20,7 +20,8 @@ lib.compute_graph2.argtypes=[
     numpy.ctypeslib.ndpointer(dtype=c_float,ndim=1,flags="C_CONTIGUOUS"),
     numpy.ctypeslib.ndpointer(dtype=c_int,ndim=3,flags="C_CONTIGUOUS"),#labels
     c_int,#aiter
-    c_int#restart
+    c_int,#restart
+    c_int #N
     ]
 lib.compute_graph2.restype=ctypes.c_float
 
@@ -498,7 +499,7 @@ def match_full2(m1,m2,cost,movy=None,movx=None,padvalue=0,remove=[],pad=0,feat=T
     #t=time.time()
     t=time.time()
     lscr=numpy.zeros(numhyp,dtype=numpy.float32)
-    scr=crfgr2(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart)  
+    scr=crfgr2(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart,2)  
     #print "after",rdata.sum()
     scr=scr-rmin*numy*numx
     lscr=lscr-rmin*numy*numx
@@ -589,7 +590,7 @@ def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    n
     #t=time.time()
     t=time.time()
     lscr=numpy.zeros(numhyp,dtype=numpy.float32)
-    scr=crfgr2(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart)  
+    scr=crfgr2(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart,N)  
     #print "after",rdata.sum()
     scr=scr-rmin*numy*numx
     lscr=lscr-rmin*numy*numx
@@ -689,7 +690,7 @@ def match_bb(m1,pm2,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0,trunc=0
                 pylab.imshow(-rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)).sum(0).reshape(movy,movx)-auxmin*numy*numx,vmin=0,vmax=3.0,interpolation="nearest")
                 pylab.draw()
                 pylab.show()
-            scr=crfgr2(numy,numx,cost,movy,movx,rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)),1,auxscr,res,aiter,restart)  
+            scr=crfgr2(numy,numx,cost,movy,movx,rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)),1,auxscr,res,aiter,restart,N)  
             assert(scr==auxscr[0])
             #print "Before",scr
             scr=scr-auxmin*numy*numx
@@ -810,7 +811,7 @@ def match_bbN(m1,pm2,N,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0,trun
                 pylab.imshow(-rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)).sum(0).reshape(movy,movx)-auxmin*numy*numx,vmin=0,vmax=3.0,interpolation="nearest")
                 pylab.draw()
                 pylab.show()
-            scr=crfgr2(numy,numx,cost,movy,movx,rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)),1,auxscr,res,aiter,restart)  
+            scr=crfgr2(numy,numx,cost,movy,movx,rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)),1,auxscr,res,aiter,restart,N)  
             assert(scr==auxscr[0])
             #print "Before",scr
             scr=scr-auxmin*numy*numx
@@ -889,14 +890,14 @@ def getfeat_full(m1,pad,res2,movy=None,movx=None,mode="Quad",rot=None,trunc=0):
         edge[2,:,:-1]=abs(res2[0,:,:-1]-res2[0,:,1:])
         edge[3,:,:-1]=abs(res2[1,:,:-1]-res2[1,:,1:])
     elif mode=="Quad":
-        edge[0,:-1,:]=abs(res2[0,:-1,:]-res2[0,1:,:])
-        edge[1,:-1,:]=abs(res2[1,:-1,:]-res2[1,1:,:])
-        edge[2,:,:-1]=abs(res2[0,:,:-1]-res2[0,:,1:])
-        edge[3,:,:-1]=abs(res2[1,:,:-1]-res2[1,:,1:])
-        edge[4,:-1,:]=(res2[0,:-1,:]-res2[0,1:,:])**2
-        edge[5,:-1,:]=(res2[1,:-1,:]-res2[1,1:,:])**2
-        edge[6,:,:-1]=(res2[0,:,:-1]-res2[0,:,1:])**2
-        edge[7,:,:-1]=(res2[1,:,:-1]-res2[1,:,1:])**2  
+        edge[0,:-1,:]=abs(res2[0,:-1,:]-res2[0,1:,:])/2.0
+        edge[1,:-1,:]=abs(res2[1,:-1,:]-res2[1,1:,:])/2.0
+        edge[2,:,:-1]=abs(res2[0,:,:-1]-res2[0,:,1:])/2.0
+        edge[3,:,:-1]=abs(res2[1,:,:-1]-res2[1,:,1:])/2.0
+        edge[4,:-1,:]=((res2[0,:-1,:]-res2[0,1:,:])/2.0)**2
+        edge[5,:-1,:]=((res2[1,:-1,:]-res2[1,1:,:])/2.0)**2
+        edge[6,:,:-1]=((res2[0,:,:-1]-res2[0,:,1:])/2.0)**2
+        edge[7,:,:-1]=((res2[1,:,:-1]-res2[1,:,1:])/2.0)**2  
     return dfeat,-edge    
 
 def getfeat_fullN(m1,N,res2,mode="NRoot",rot=None,trunc=0):
