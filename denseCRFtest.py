@@ -231,5 +231,5 @@ if __name__ == '__main__':
     ##############test
     #import itertools
     #runtest(models,tsImages,cfg,parallel=False,numcore=4,detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=True)#,save="%s%d"%(testname,it))
-    runtest(models,tsImages,cfg,parallel=True,numcore=4,show=True,detfun=testINC)#,save="./bicycleFullBB50Clip")
+    runtest(models,tsImagesFull,cfg,parallel=True,numcore=8,show=False,detfun=testINC,save="./bestbike3C4N")
 

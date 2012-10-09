@@ -741,6 +741,10 @@ for it in range(cpit,cfg.posit):
             last_round=True 
             trNegImages=trNegImagesFull
             #tsImages=tsImagesFull
+
+    if it==cfg.posit-1:#even not converging compute the full dataset
+        last_round=True        
+        trNegImages=trNegImagesFull
  
     ########### repeat scan negatives
     lastcount=0
