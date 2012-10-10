@@ -134,7 +134,8 @@ def objective(trpos,trneg,trposcl,trnegcl,clsize,w,C,bias,sizereg=numpy.zeros(10
         pstart=clsum[idc]
         pend=pstart+clsize[idc]
         #scr.append(numpy.sum(w[pstart:pend-1-sizereg[idc]]**2)+numpy.sum((w[pend-1-sizereg[idc]:pend-1]-valreg)**2))    
-        scr.append(numpy.sum(w[pstart:pend-2-sizereg[idc]]**2)+numpy.sum((w[pend-1-sizereg[idc]:pend-2]-valreg)**2))    
+        #scr.append(numpy.sum(w[pstart:pend-2-sizereg[idc]]**2)+numpy.sum((w[pend-1-sizereg[idc]:pend-2]-valreg)**2))    
+        scr.append(numpy.sum(w[pstart:pend-2-sizereg[idc]]**2)+numpy.sum((w[pend-1-sizereg[idc]:pend-2])**2))    
     #reg=lamda*max(scr)*0.5
     #print "C in OBJECTIVE",C
     reg=(max(scr))*0.5/total
