@@ -23,7 +23,7 @@ import pegasos
 
 ########################## load configuration parametes
 
-print "Loading defautl configuration config.py"
+print "Loading default configuration config.py"
 from config import * #default configuration      
 
 import_name=""
@@ -222,35 +222,41 @@ cfg.fx=lfx#[11,7]#lfx
 # the real detector size would be (cfg.fy,cfg.fx)*2 hog cells
 initial=True
 loadedchk=False
+last_round=False
 if cfg.checkpoint and not cfg.forcescratch:
-    try: #load the final model
-        models=util.load(testname+"_final.model")
-        print "Loaded final model"
-        lg.info("Loaded final model")    
-        last_round=True
-    except: #otherwise load a partial model
-        for l in range(cfg.posit):
-            try:
-                models=util.load(testname+"%d.model"%l)
-                print "Loaded model %d"%(l)
-                lg.info("Loaded model %d"%(l))    
-            except:
-                if l>0:
-                    print "Model %d does not exist"%(l)
-                    lg.info("Model %d does not exist"%(l))    
-                    #break
-                else:
-                    print "No model found"
-                    break
+
+    #check if the last AP is already there stop because everything has been done
+    if os.path.exists("%s_final.png"%(testname)):
+        print "Model already completed, nothing to do!!!"
+        lg.info("Model already completed and evaluated, nothing to do!")    
+        sys.exit()
+
+    #load last model
+    for l in range(cfg.posit):
+        try:
+            models=util.load(testname+"%d.model"%l)
+            print "Loaded model %d"%(l)
+            lg.info("Loaded model %d"%(l))    
+        except:
+            if l>0:
+                print "Model %d does not exist"%(l)
+                lg.info("Model %d does not exist"%(l))    
+                #break
+            else:
+                print "No model found"
+                break
         lg.info("Loaded model")    
     try:
         print "Begin loading old status..."
-        os.path.exists(localsave+".pos.valid")
+        #os.path.exists(localsave+".pos.valid")
+        fd=open(localsave+".pos.valid","r")
+        fd.close()
         dpos=util.load(localsave+".pos.chk")
         lpdet=dpos["lpdet"]
         lpfeat=dpos["lpfeat"]
         lpedge=dpos["lpedge"]
         cpit=dpos["cpit"]
+        last_round=dpos["last_round"]
         initial=False
         loadedchk=True
         lg.info("""Loaded old positive checkpoint:
@@ -259,7 +265,9 @@ Number Positive SV:%d
         lndet=[]
         cnit=0
         #if at this point is already enough for the checkpoint
-        os.path.exists(localsave+".neg.valid")
+        #os.path.exists(localsave+".neg.valid")
+        fd=open(localsave+".neg.valid","r")
+        fd.close()
         dneg=util.load(localsave+".neg.chk")
         lndet=dneg["lndet"]
         lnfeat=dneg["lnfeat"]
@@ -271,6 +279,16 @@ Number Negative SV:%d
         print "Loaded old status..."
     except:
         pass
+
+    try: #load the final model and test 
+        models=util.load(testname+"_final.model")
+        print "Loaded final model"
+        lg.info("Loaded final model")    
+        #last_round=True
+        cpit=cfg.cfg.posit
+    except:
+        pass
+    
 
 import pylab as pl
 if initial:
@@ -544,7 +562,6 @@ lg.info("Built first model")
 
 total=[]
 posratio=[]
-last_round=False
 cache_full=False
 
 #from scipy.ndimage import zoom
@@ -704,17 +721,6 @@ for it in range(cpit,cfg.posit):
         trpos.append(numpy.concatenate((efeat.flatten(),eedge.flatten())))
         trposcl.append(l["id"]%cfg.numcl)
 
-    #save positives
-    if cfg.checkpoint:
-        lg.info("Begin Positive check point it:%d (%d positive examples)"%(it,len(lpdet)))
-        try:
-            os.remove(localsave+".pos.valid")
-        except:
-            pass
-        util.save(localsave+".pos.chk",{"lpdet":lpdet,"lpedge":lpedge,'lpfeat':lpfeat,"cpit":it})
-        open(localsave+".pos.valid","w").close()
-        lg.info("End Positive check point")
-
     ########### check positive convergence    
     if it>cpit:
         lg.info("################# Checking Positive Convergence ##############")
@@ -739,12 +745,24 @@ for it in range(cpit,cfg.posit):
             lg.info("Very small positive improvement: convergence at iteration %d!"%it)
             print "Very small positive improvement: convergence at iteration %d!"%it
             last_round=True 
-            trNegImages=trNegImagesFull
+            #trNegImages=trNegImagesFull
             #tsImages=tsImagesFull
 
-    if it==cfg.posit-1:#even not converging compute the full dataset
+    if it==cfg.posit-1 or last_round:#even not converging compute the full dataset
         last_round=True        
         trNegImages=trNegImagesFull
+
+    #save positives
+    if cfg.checkpoint:
+        lg.info("Begin Positive check point it:%d (%d positive examples)"%(it,len(lpdet)))
+        try:
+            os.remove(localsave+".pos.valid")
+        except:
+            pass
+        util.save(localsave+".pos.chk",{"lpdet":lpdet,"lpedge":lpedge,'lpfeat':lpfeat,"cpit":it,"last_round":last_round})
+        open(localsave+".pos.valid","w").close()
+        lg.info("End Positive check point")
+
  
     ########### repeat scan negatives
     lastcount=0
@@ -786,8 +804,8 @@ for it in range(cpit,cfg.posit):
             lg.info("Ratio without reg %f"%(negratio2[-1]))
             #if (negratio[-1]<1.05):
             if (negratio[-1]<cfg.convNeg) and not(cache_full):
-                lg.info("Very small invrement of loss: negative convergence at iteration %d!"%nit)
-                print "Very small invrement of loss: negative convergence at iteration %d!"%nit
+                lg.info("Very small loss increment: negative convergence at iteration %d!"%nit)
+                print "Very small loss increment: negative convergence at iteration %d!"%nit
                 break
 
         ############train a new detector with new positive and all negatives
@@ -1051,12 +1069,14 @@ Negative in cache vectors %d
     ap=denseCRFtest.runtest(models,tsImages,cfg,parallel=parallel,numcore=numcore,save="%s%d"%(testname,it),show=localshow,pool=mypool,detfun=denseCRFtest.testINC)
     lg.info("Ap is:%f"%ap)
     if last_round:
-        lg.info("############# Run test on all (%d) examples #################"%len(tsImagesFull))
-        util.save("%s_final.model"%(testname),models)
-        ap=denseCRFtest.runtest(models,tsImagesFull,cfg,parallel=parallel,numcore=numcore,save="%s_final"%(testname),show=localshow,pool=mypool,detfun=denseCRFtest.testINC)
-        lg.info("Ap is:%f"%ap)
-        print "Training Finished!!!"
         break
+
+lg.info("############# Run test on all (%d) examples #################"%len(tsImagesFull))
+util.save("%s_final.model"%(testname),models)
+ap=denseCRFtest.runtest(models,tsImagesFull,cfg,parallel=parallel,numcore=numcore,save="%s_final"%(testname),show=localshow,pool=mypool,detfun=denseCRFtest.testINC)
+lg.info("Ap is:%f"%ap)
+print "Training Finished!!!"
+break
 
 lg.info("End of the training!!!!")
 # unitl positve convergercy
