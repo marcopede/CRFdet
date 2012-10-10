@@ -206,9 +206,9 @@ void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype *
         bwscr=-1.0;
         for (cp=0;cp<numcomp;cp++)
         {   
-            //wscr=score(w+sumszx[cp],w+sumszx[cp],compx[cp]);
+            wscr=score(w+sumszx[cp],w+sumszx[cp],compx[cp]);
             //just a test
-            wscr=score(w+sumszx[cp],w+sumszx[cp],compx[cp]-sizereg[cp]);
+            //wscr=score(w+sumszx[cp],w+sumszx[cp],compx[cp]-sizereg[cp]);
             //printf("Wscore(%d)=%f\n",cp,wscr);
             if (wscr>bwscr)
             {
