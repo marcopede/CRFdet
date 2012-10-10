@@ -1076,8 +1076,6 @@ util.save("%s_final.model"%(testname),models)
 ap=denseCRFtest.runtest(models,tsImagesFull,cfg,parallel=parallel,numcore=numcore,save="%s_final"%(testname),show=localshow,pool=mypool,detfun=denseCRFtest.testINC)
 lg.info("Ap is:%f"%ap)
 print "Training Finished!!!"
-break
-
 lg.info("End of the training!!!!")
 # unitl positve convergercy
 
