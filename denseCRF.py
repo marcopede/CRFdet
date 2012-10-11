@@ -720,8 +720,11 @@ for it in range(cpit,cfg.posit):
         if lpdet[idl]["id"]>=cfg.numcl:#flipped version
             efeat=pyrHOG2.hogflip(efeat)
             eedge=pyrHOG2.crfflip(eedge)
-        trpos.append(numpy.concatenate((efeat.flatten(),eedge.flatten(),[bias])))
+        trpos.append(numpy.concatenate((efeat.flatten(),cfg.k*eedge.flatten(),[bias])))
         trposcl.append(l["id"]%cfg.numcl)
+        dscr=numpy.sum(trpos[-1]*w[cumsize[trposcl[-1]]:cumsize[trposcl[-1]+1]])
+        #print "Error:",abs(dscr-l["scr"])
+        assert(abs(dscr-l["scr"])<0.00005)
 
     ########### check positive convergence    
     if it>cpit:
@@ -783,8 +786,11 @@ for it in range(cpit,cfg.posit):
             if lndet[idl]["id"]>=cfg.numcl:#flipped version
                 efeat=pyrHOG2.hogflip(efeat)
                 eedge=pyrHOG2.crfflip(eedge)
-            trneg.append(numpy.concatenate((efeat.flatten(),eedge.flatten(),[bias])))
+            trneg.append(numpy.concatenate((efeat.flatten(),cfg.k*eedge.flatten(),[bias])))
             trnegcl.append(lndet[idl]["id"]%cfg.numcl)
+            dscr=numpy.sum(trneg[-1]*w[cumsize[trnegcl[-1]]:cumsize[trnegcl[-1]+1]])
+            #print "Error:",abs(dscr-l["scr"])
+            assert(abs(dscr-l["scr"])<0.00005)
 
         #if no negative sample add empty negatives
         for l in range(cfg.numcl):
@@ -845,6 +851,7 @@ for it in range(cpit,cfg.posit):
             waux.append(model.model2w(models[idm],False,False,False,useCRF=True,k=cfg.k))
             #rr.append(models[idm]["rho"])
             w1=numpy.concatenate((w1,waux[-1],-numpy.array([models[idm]["rho"]])/bias))
+        assert(numpy.sum(numpy.abs(w1-w))<0.00005)
         w2=w
         w=w1
 
