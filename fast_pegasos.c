@@ -31,11 +31,11 @@ static inline ftype mul(ftype *a,ftype b,int len)
 static void reg(ftype *a,ftype b,ftype d,int len,int sizereg)
 {
     int c;
-    for (c=0;c<len-1-sizereg;c++)//normal part
+    for (c=0;c<len-sizereg;c++)//normal part
     {
         a[c]=a[c]-a[c]*b;
     }
-    for (c=len-1-sizereg;c<len-1;c++)//regularize at d instead of 0
+    for (c=len-sizereg;c<len;c++)//regularize at d instead of 0
     {
         a[c]=a[c]-(a[c]-d)*b;
         //a[c]= (a[c]<0.1*d) ? 0.1*d : a[c];//limit the minimum pairwise cost
@@ -54,12 +54,12 @@ static void reg(ftype *a,ftype b,ftype d,int len,int sizereg)
 static void limit(ftype *a,ftype d,int len,int sizereg)
 {
     int c;
-    for (c=len-1-sizereg;c<len-1;c++)//regularize at d instead of 0
+    for (c=len-sizereg;c<len;c++)//regularize at d instead of 0
     {
         //a[c]=a[c]-(a[c]-d)*b;
         //if (a[c]<0.1*d)
         //    a[c]=0.1*d;
-        a[c]= (a[c]<0.1*d) ? 0.1*d : a[c];//limit the minimum pairwise cost
+        a[c]= (a[c]<d) ? d : a[c];//limit the minimum pairwise cost
     }
     //printf("Val:%f ",a[len-2]);
 /*    for (c=0;c<len-1;c++)//not regularize bias
@@ -175,8 +175,9 @@ void fast_pegasos_comp(ftype *w,int numcomp,int *compx,int *compy,ftype **ptrsam
     printf("N:%g t:%d\n",n,t);
 }
 
-void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype **ptrsamplescomp,int totsamples,int *label,int *comp,ftype C,int iter,int part,int k,int numthr,int *sizereg,ftype valreg)
+void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype **ptrsamplescomp,int totsamples,int *label,int *comp,ftype C,int iter,int part,int k,int numthr,int *sizereg,ftype valreg,ftype lb)
 {
+    //assume the last is bias and it is not regularized
     int wx=0,wxtot=0,wcx;
     #ifdef _OPENMP
     omp_set_num_threads(numthr);
@@ -206,7 +207,7 @@ void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype *
         bwscr=-1.0;
         for (cp=0;cp<numcomp;cp++)
         {   
-            wscr=score(w+sumszx[cp],w+sumszx[cp],compx[cp]);
+            wscr=score(w+sumszx[cp],w+sumszx[cp],compx[cp]-1);//skip bias
             //just a test
             //wscr=score(w+sumszx[cp],w+sumszx[cp],compx[cp]-sizereg[cp]);
             //printf("Wscore(%d)=%f\n",cp,wscr);
@@ -222,7 +223,7 @@ void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype *
         //|w-w_0|
         //reg(w+sumszx[bcp],n,valreg,compx[bcp],sizereg[bcp]);//0.01    
         //|w|
-        reg(w+sumszx[bcp],n,valreg,compx[bcp],0);//0.01    
+        reg(w+sumszx[bcp],n,valreg,compx[bcp]-1,0);
         //mul22(w+sumszx[bcp],1-n,valreg,compx[bcp],sizereg[bcp]);//0.01    
         //all the vector
         //mul(w,1-n*lambda,wxtot);
@@ -265,7 +266,7 @@ void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype *
             }
         }
         for (cp=0;cp<numcomp;cp++)
-            limit(w+sumszx[cp],valreg,compx[cp],sizereg[cp]);//0.01    
+            limit(w+sumszx[cp],lb,compx[cp]-1,sizereg[cp]);//0.01    
         /*if (scr*y<1.0)
         {
             addmul(w+sumszx[comp[pex]],x,C*y*n*totsamples,wx);            

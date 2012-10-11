@@ -19,7 +19,7 @@ import sys
 import crf3
 import logging as lg
 import os
-import pegasos
+import pegasos2 as pegasos
 
 ########################## load configuration parametes
 
@@ -365,7 +365,7 @@ if initial:
                 #hogncl.append(idm)
                     if cfg.trunc:
                         hogn[idm][-1]=numpy.concatenate((hogn[idm][-1],numpy.zeros((hogn[idm][-1].shape[0],hogn[idm][-1].shape[1],1))),2)
-                    hogn[idm][-1]=hogn[idm][-1].flatten()
+                    hogn[idm][-1]=numpy.concatenate((hogn[idm][-1].flatten(),[bias]))
                     if check:
                         print "Aspcet",idm,"HOG",hogn[-1].shape
     for l in range(cfg.numcl):  
@@ -423,7 +423,7 @@ if initial:
                     print "Variance",newvar
             print "Elements Cluster ",l,": ",len(cl1)
             for cc in cl1:
-                trpos.append(mytrpos[cc].flatten())
+                trpos.append(numpy.concatenate((mytrpos[cc].flatten(),[bias])))
             #trpos+=(mytrpos[cl1]).tolist()
             #trposcl+=([l]*len(cl1))
         #flatten
@@ -459,7 +459,7 @@ if initial:
             #trpos+=hogp[l]
             trneg+=hogn[l]
 
-        w,r,prloss=pegasos.trainComp(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=1,numthr=1,eps=0.01,bias=bias)#,notreg=notreg)
+        w,r,prloss=pegasos.trainComp(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=1,numthr=1,eps=0.001)#,notreg=notreg)
 
         waux=[]
         rr=[]
@@ -475,6 +475,8 @@ if initial:
         w2=w
         w=w1
 
+        #pylab.figure();pylab.plot(w);pylab.show()
+       
         #util.save("%s%d.model"%(testname,0),models)
         #lg.info("Built first model")
         
@@ -706,7 +708,7 @@ for it in range(cpit,cfg.posit):
         total.append(len(lpdet))
     
     if it>cpit:
-        oldposl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias,sizereg=sizereg,valreg=cfg.valreg)              
+        oldposl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,sizereg=sizereg,valreg=cfg.valreg)              
 
     #build training data for positives
     trpos=[]
@@ -718,13 +720,13 @@ for it in range(cpit,cfg.posit):
         if lpdet[idl]["id"]>=cfg.numcl:#flipped version
             efeat=pyrHOG2.hogflip(efeat)
             eedge=pyrHOG2.crfflip(eedge)
-        trpos.append(numpy.concatenate((efeat.flatten(),eedge.flatten())))
+        trpos.append(numpy.concatenate((efeat.flatten(),eedge.flatten(),[bias])))
         trposcl.append(l["id"]%cfg.numcl)
 
     ########### check positive convergence    
     if it>cpit:
         lg.info("################# Checking Positive Convergence ##############")
-        newposl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias,sizereg=sizereg,valreg=cfg.valreg)
+        newposl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,sizereg=sizereg,valreg=cfg.valreg)
         #lposl.append(newposl)
         #add a bound on not found examples
         boldposl=oldposl+(totPosEx-total[-2])*(1-cfg.posthr)
@@ -781,20 +783,20 @@ for it in range(cpit,cfg.posit):
             if lndet[idl]["id"]>=cfg.numcl:#flipped version
                 efeat=pyrHOG2.hogflip(efeat)
                 eedge=pyrHOG2.crfflip(eedge)
-            trneg.append(numpy.concatenate((efeat.flatten(),eedge.flatten())))
+            trneg.append(numpy.concatenate((efeat.flatten(),eedge.flatten(),[bias])))
             trnegcl.append(lndet[idl]["id"]%cfg.numcl)
 
         #if no negative sample add empty negatives
         for l in range(cfg.numcl):
             if numpy.sum(numpy.array(trnegcl)==l)==0:
-                trneg.append(numpy.concatenate((numpy.zeros(models[l]["ww"][0].shape).flatten(),numpy.zeros(models[l]["cost"].shape).flatten())))
+                trneg.append(numpy.concatenate((numpy.zeros(models[l]["ww"][0].shape).flatten(),numpy.zeros(models[l]["cost"].shape).flatten(),[bias])))
                 trnegcl.append(l)
                 lg.info("No negative samples; add empty negatives")
 
         ############ check negative convergency
         if nit>0: # and not(limit):
             lg.info("################ Checking Negative Convergence ##############")
-            posl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias,sizereg=sizereg,valreg=cfg.valreg)#,notreg)
+            posl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,sizereg=sizereg,valreg=cfg.valreg)#,notreg)
             print "NIT:",nit,"OLDLOSS",old_nobj,"NEWLOSS:",nobj
             negratio.append(nobj/(old_nobj+0.000001))
             negratio2.append((posl+negl)/(old_posl+old_negl+0.000001))
@@ -820,7 +822,7 @@ for it in range(cpit,cfg.posit):
             lg.info("Negative Examples:%d"%(numpy.sum(numpy.array(trnegcl)==l)))    
 
         #import pegasos   
-        w,r,prloss=pegasos.trainComp(trpos,trneg,"",trposcl,trnegcl,oldw=w,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.01,bias=cfg.bias,sizereg=sizereg,valreg=cfg.valreg)#,notreg=notreg)
+        w,r,prloss=pegasos.trainComp(trpos,trneg,"",trposcl,trnegcl,oldw=w,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.01,sizereg=sizereg,valreg=cfg.valreg,lb=cfg.lb)#,notreg=notreg)
 
         pylab.figure(300,figsize=(4,4))
         pylab.clf()
@@ -830,7 +832,7 @@ for it in range(cpit,cfg.posit):
         pylab.show()
         #raw_input()
 
-        old_posl,old_negl,old_reg,old_nobj,old_hpos,old_hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,cfg.bias,sizereg=sizereg,valreg=cfg.valreg)#,notreg) 
+        old_posl,old_negl,old_reg,old_nobj,old_hpos,old_hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,sizereg=sizereg,valreg=cfg.valreg)#,notreg) 
         waux=[]
         rr=[]
         w1=numpy.array([])
