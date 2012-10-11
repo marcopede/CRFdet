@@ -78,13 +78,14 @@ cfg.testspec="test"
 mydebug=True
 if mydebug:
     #notice that i you use checkpoints, use unique testspec otherwise they will be overwritten!!!!!
-    cfg.testspec="testN4moredef" 
-    cfg.posthr=-1 #to discard noise
+    cfg.testspec="test" 
+    cfg.posthr=-2 #to discard noise
     cfg.checkpoint=True
     cfg.forcescratch=False
     cfg.multipr=4
     cfg.useclip=True
     cfg.rescale=True
+    cfg.trunc=1
     #cfg.maxpos=50#20 #maximum number of positive images
     #cfg.maxtest=50#20 #0 #maximum number of test images
     #cfg.maxtestfull=100
@@ -93,13 +94,14 @@ if mydebug:
     #cfg.maxexamples=10000 #maximum number of examples
     cfg.svmc=0.001
     cfg.N=4
-    cfg.numcl=1
+    cfg.numcl=2
     cfg.maxHOG=120/(cfg.N**2)
     cfg.k=1.0#3:CRF#0.3:CF
     #cfg.valreg=0.01*cfg.k*cfg.N**2 #good for N=2
     #cfg.valreg=0.001*cfg.k*cfg.N**2 #good for N=4
-    cfg.valreg=0.001*cfg.k*cfg.N**2 
+    cfg.valreg=0
     cfg.initdef=0.01*cfg.k*cfg.N**2
+    cfg.lb=0.001
 
 
 cfg.usebbTEST=True
