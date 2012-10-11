@@ -86,7 +86,7 @@ aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc)
     if len(det)>0 and best!=-1:
         if cfg.show:
             visualize([det[best]],cfg.N,f,img)
-        feat,edge=getfeature([det[best]],cfg.N,f,models,cfg.trunc)
+        feat,edge=getfeature([det[best]],cfg.N,f,models,cfg.k,cfg.trunc)
         #add image name and bbx so that each annotation is unique
         if imageflip:
             det[best]["idim"]=el["file"].split("/")[-1]+".flip"
@@ -127,7 +127,7 @@ def hardNeg(el):
         if det[idl]["scr"]>-1:
             det[idl]["idim"]=el["file"].split("/")[-1]
             ldet.append(det[idl])
-            feat,edge=getfeature([det[idl]],cfg.N,f,models,cfg.trunc)
+            feat,edge=getfeature([det[idl]],cfg.N,f,models,cfg.k,cfg.trunc)
             lfeat+=feat
             ledge+=edge
     if cfg.show:
@@ -175,7 +175,7 @@ def hardNegPos(el):
             if not(skip):
                 det[idl]["idim"]=el["file"].split("/")[-1]
                 ldet.append(det[idl])
-                feat,edge=getfeature([det[idl]],cfg.N,f,models,cfg.trunc)
+                feat,edge=getfeature([det[idl]],cfg.N,f,models,cfg.k,cfg.trunc)
                 lfeat+=feat
                 ledge+=edge
         if len(ldet)==cfg.numneg:
@@ -261,7 +261,7 @@ def check(det,f,models,bias):
             printf("Error %f too big, there is something wrong!!!"%(numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-scr-models[idm]["rho"]))
             raw_input()
 
-def getfeature(det,N,f,models,trunc=0):
+def getfeature(det,N,f,models,k,trunc=0):
     """ check if score of detections and score from features are correct"""
     lfeat=[];ledge=[]
     for l in range(len(det)):#lsort[:100]:
@@ -274,7 +274,7 @@ def getfeature(det,N,f,models,trunc=0):
         mcost=models[idm]["cost"].astype(numpy.float32)
         dfeat,edge=crf3.getfeat_fullN(m2,N,res,trunc=trunc)
         lfeat.append(dfeat)
-        ledge.append(edge)
+        ledge.append(edge*k)
         #print "Scr",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-models[idm]["rho"],"Error",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-scr-models[idm]["rho"]
         if numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-scr-models[idm]["rho"]>0.0001:
             print("Error %f too big, there is something wrong!!!"%(numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-scr-models[idm]["rho"]))

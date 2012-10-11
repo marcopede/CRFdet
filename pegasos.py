@@ -103,6 +103,8 @@ lpeg.fast_pegasos_comp_parall.argtypes=[
 
 
 def objective(trpos,trneg,trposcl,trnegcl,clsize,w,C,bias,sizereg=numpy.zeros(10,dtype=numpy.int32),valreg=0.01):
+    print "Objective Size Reg",sizereg
+    print "Objective Val Reg",valreg
     posloss=0.0
     total=float(len(trpos))
     clsum=numpy.concatenate(([0],numpy.cumsum(clsize)))
@@ -233,7 +235,7 @@ def trainComp(trpos,trneg,fname="",trposcl=None,trnegcl=None,oldw=None,dir="./sa
         #lpeg.fast_pegasos_comp(w,ncomp,arrint(*compx),arrint(*compy),arrfloat(*newtrcomp),ntimes,alabel,trcompcl,lamd,ntimes*10*numcomp/k,tt,k,numthr)
         #nobj=lpeg.objective(w,fdim,bigm,ntimes,labels,lamd)
         #nobj=1
-        posl,negl,reg,nobj,hpos,hneg=objective(trpos,trneg,trposcl,trnegcl,compx,w,pc,bias)
+        posl,negl,reg,nobj,hpos,hneg=objective(trpos,trneg,trposcl,trnegcl,compx,w,pc,bias,sizereg,valreg)
         loss.append([posl,negl,reg,nobj,hpos,hneg])
         print "Objective Function:",nobj
         print "PosLoss:%.6f NegLoss:%.6f Reg:%.6f"%(posl,negl,reg)

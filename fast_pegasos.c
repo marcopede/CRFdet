@@ -50,6 +50,23 @@ static void reg(ftype *a,ftype b,ftype d,int len,int sizereg)
     }*/
 }
 
+static inline ftype score2(ftype *x,ftype *w,ftype w0,int len,int sizereg)
+{
+    int c;
+    ftype scr=0;
+    for (c=0;c<len-1-sizereg;c++)//normal part
+    {
+        scr+=x[c]*w[c];
+    }
+    for (c=len-1-sizereg;c<len-1;c++)//regularize at d instead of 0
+    {
+        scr+=(x[c]-w0)*(w[c]-w0);
+        //a[c]= (a[c]<0.1*d) ? 0.1*d : a[c];//limit the minimum pairwise cost
+    }
+    return scr;
+}
+
+
 
 static void limit(ftype *a,ftype d,int len,int sizereg)
 {
@@ -208,8 +225,9 @@ void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype *
         {   
             //wscr=score(w+sumszx[cp],w+sumszx[cp],compx[cp]);
             //just a test
-            wscr=score(w+sumszx[cp],w+sumszx[cp],compx[cp]-sizereg[cp]);
+            //wscr=score(w+sumszx[cp],w+sumszx[cp],compx[cp]-sizereg[cp]);
             //printf("Wscore(%d)=%f\n",cp,wscr);
+            wscr=score2(w+sumszx[cp],w+sumszx[cp],valreg,compx[cp],sizereg[cp]);
             if (wscr>bwscr)
             {
                 bwscr=wscr;
@@ -220,9 +238,9 @@ void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype *
         //not regularize pairwise
         //reg(w+sumszx[bcp],n,valreg,compx[bcp]-sizereg[bcp],0);//0.01    
         //|w-w_0|
-        //reg(w+sumszx[bcp],n,valreg,compx[bcp],sizereg[bcp]);//0.01    
+        reg(w+sumszx[bcp],n,valreg,compx[bcp],sizereg[bcp]);//0.01    
         //|w|
-        reg(w+sumszx[bcp],n,valreg,compx[bcp],0);//0.01    
+        //reg(w+sumszx[bcp],n,valreg,compx[bcp],0);//0.01    
         //mul22(w+sumszx[bcp],1-n,valreg,compx[bcp],sizereg[bcp]);//0.01    
         //all the vector
         //mul(w,1-n*lambda,wxtot);

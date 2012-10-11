@@ -245,7 +245,8 @@ if cfg.checkpoint and not cfg.forcescratch:
         lg.info("Loaded model")    
     try:
         print "Begin loading old status..."
-        os.path.exists(localsave+".pos.valid")
+        fd=open(localsave+".pos.valid","r")
+        fd.close()
         dpos=util.load(localsave+".pos.chk")
         lpdet=dpos["lpdet"]
         lpfeat=dpos["lpfeat"]
@@ -259,7 +260,8 @@ Number Positive SV:%d
         lndet=[]
         cnit=0
         #if at this point is already enough for the checkpoint
-        os.path.exists(localsave+".neg.valid")
+        fd=open(localsave+".neg.valid","r")
+        fd.close()
         dneg=util.load(localsave+".neg.chk")
         lndet=dneg["lndet"]
         lnfeat=dneg["lnfeat"]
@@ -529,6 +531,9 @@ for idm,m in enumerate(models[:cfg.numcl]):
     sizereg[idm]=models[idm]["cost"].size
 #w2=w #old w
 w=w1
+print "Size of deformation features:",sizereg
+#lg.info()
+
 
 #add ids clsize and cumsize for each model
 clsize=[]
@@ -579,7 +584,7 @@ for it in range(cpit,cfg.posit):
     lg.info("Rescoring %d Positive detections"%len(lpdet))
     for idl,l in enumerate(lpdet):
         idm=l["id"]
-        lpdet[idl]["scr"]=numpy.sum(models[idm]["ww"][0]*lpfeat[idl])+numpy.sum(models[idm]["cost"]*lpedge[idl])-models[idm]["rho"]#-rr[idm]/bias
+        lpdet[idl]["scr"]=numpy.sum(models[idm]["ww"][0]*lpfeat[idl])+numpy.sum(models[idm]["cost"]/float(cfg.k)*lpedge[idl])-models[idm]["rho"]#-rr[idm]/bias
 
     if not cfg.checkpoint or not loadedchk:
         arg=[]
@@ -684,6 +689,7 @@ for it in range(cpit,cfg.posit):
         """%(padd,pbetter,pworst,pold,total[-1],len(arg)))
         #be sure that total is counted correctly
         assert(total[-1]==len(lpdet))
+
     else:
         loadedchk=False
         total.append(len(lpdet))
@@ -703,6 +709,9 @@ for it in range(cpit,cfg.posit):
             eedge=pyrHOG2.crfflip(eedge)
         trpos.append(numpy.concatenate((efeat.flatten(),eedge.flatten())))
         trposcl.append(l["id"]%cfg.numcl)
+        #check score
+        dscr=numpy.sum(trpos[-1]*w[cumsize[trposcl[-1]]:cumsize[trposcl[-1]+1]-1])+w[cumsize[trposcl[-1]+1]-1]*cfg.bias
+        assert(abs(dscr-l["scr"])<0.00001)
 
     #save positives
     if cfg.checkpoint:
@@ -765,6 +774,9 @@ for it in range(cpit,cfg.posit):
                 eedge=pyrHOG2.crfflip(eedge)
             trneg.append(numpy.concatenate((efeat.flatten(),eedge.flatten())))
             trnegcl.append(lndet[idl]["id"]%cfg.numcl)
+            #check score
+            dscr=numpy.sum(trneg[-1]*w[cumsize[trnegcl[-1]]:cumsize[trnegcl[-1]+1]-1])+w[cumsize[trnegcl[-1]+1]-1]*cfg.bias
+            assert(abs(dscr-l["scr"])<0.0001)
 
         #if no negative sample add empty negatives
         for l in range(cfg.numcl):
@@ -825,8 +837,10 @@ for it in range(cpit,cfg.posit):
             waux.append(model.model2w(models[idm],False,False,False,useCRF=True,k=cfg.k))
             #rr.append(models[idm]["rho"])
             w1=numpy.concatenate((w1,waux[-1],-numpy.array([models[idm]["rho"]])/bias))
+        assert(numpy.sum(numpy.abs(w1-w))<0.0001)
         w2=w
         w=w1
+
 
         if cfg.useRL:
             #add flipped models
@@ -842,27 +856,28 @@ for it in range(cpit,cfg.posit):
         atrposcl=numpy.array(trposcl)
         for idm,m in enumerate(models[:cfg.numcl]):   
             import drawHOG
+            auxcost=m["cost"]/float(cfg.k)
             imm=drawHOG.drawHOG(m["ww"][0])
             pl.figure(100+idm,figsize=(3,3))
             pl.clf()
             pl.imshow(imm)
-            pl.title("b:%.3f h:%.4f d:%.4f"%(m["rho"],numpy.sum(m["ww"][0]**2),numpy.sum(m["cost"]**2)))
+            pl.title("b:%.3f h:%.4f d:%.4f"%(m["rho"],numpy.sum(m["ww"][0]**2),numpy.sum((m["cost"]/cfg.k-cfg.valreg)**2)))
             pl.xlabel("#%d"%(numpy.sum(atrposcl==idm)))
-            lg.info("Model %d Samples:%d bias:%f |hog|:%f |def|:%f"%(idm,numpy.sum(atrposcl==idm),m["rho"],numpy.sum(m["ww"][0]**2),numpy.sum(m["cost"]**2)))
+            lg.info("Model %d Samples:%d bias:%f |hog|:%f |def|:%f"%(idm,numpy.sum(atrposcl==idm),m["rho"],numpy.sum(m["ww"][0]**2),numpy.sum((auxcost-cfg.valreg)**2)))
             pl.draw()
             pl.show()
             pylab.savefig("%s_hog%d_cl%d.png"%(testname,it,idm))
             #CRF
             pl.figure(110+idm,figsize=(5,5))
             pl.clf()
-            extra.showDef(m["cost"][:4])
+            extra.showDef(auxcost[:4])
             pl.draw()
             pl.show()
             pylab.savefig("%s_def%dl_cl%d.png"%(testname,it,idm))
-            lg.info("Deformation Min:%f Max:%f"%(m["cost"].min(),m["cost"].max()))
+            lg.info("Deformation Min:%f Max:%f"%(auxcost.min()/float(cfg.k),auxcost.max()/float(cfg.k)))
             pl.figure(120+idm,figsize=(5,5))
             pl.clf()
-            extra.showDef(m["cost"][4:])
+            extra.showDef(auxcost[4:]/float(cfg.k))
             pl.draw()
             pl.show()
             pylab.savefig("%s_def%dq_cl%d.png"%(testname,it,idm))
@@ -871,7 +886,7 @@ for it in range(cpit,cfg.posit):
         lg.info("Rescoring %d Negative detections"%len(lndet))
         for idl,l in enumerate(lndet):
             idm=l["id"]
-            lndet[idl]["scr"]=numpy.sum(models[idm]["ww"][0]*lnfeat[idl])+numpy.sum(models[idm]["cost"]*lnedge[idl])-models[idm]["rho"]#-rr[idm]/bias
+            lndet[idl]["scr"]=numpy.sum(models[idm]["ww"][0]*lnfeat[idl])+numpy.sum(models[idm]["cost"]/float(cfg.k)*lnedge[idl])-models[idm]["rho"]#-rr[idm]/bias
 
         ######### filter negatives
         lg.info("############### Filtering Negative Detections ###########")

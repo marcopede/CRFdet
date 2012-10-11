@@ -999,13 +999,13 @@ if __name__ == "__main__":
         #mcostm=factor*model1[0]["cost"]
         mcost=factor*numpy.ones((8,numy,numx),dtype=c_float)
         t=time.time()
-        ldet=crf3.match_bbN(m1,f.hog,N,mcost,show=False,rot=False,numhyp=120)
+        ldet=crf3.match_bbN(m1,f.hog,N,mcost,show=False,rot=False,numhyp=500)
         print "Time:",time.time()-t
         rr=[x["scr"] for x in ldet]
         figure(22)
         plot(rr)
         show()
-        #fdsfd
+        fdsfd
 
     if 1:
         ldet2=[]

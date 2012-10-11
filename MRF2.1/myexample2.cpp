@@ -391,7 +391,7 @@ extern "C" {
 }*/
 
 
-dtype compute_graph(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,int num_lab_x,dtype *data,int *laborder,int *reslab, int N)
+/*dtype compute_graph(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,int num_lab_x,dtype *data,int *laborder,int *reslab, int N)
 {
     MRF* mrf;
     //Expansion* mrf; 
@@ -408,6 +408,7 @@ dtype compute_graph(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,i
     //copy costs in local memory
     //dtype V[maxlab*maxlab];
     st_N = N;
+    printf("N=%d ",st_N);
     st_cost_v_y=costs;
     st_cost_v_x=costs+num_parts_x*num_parts_y;
     st_cost_h_y=costs+2*num_parts_x*num_parts_y;
@@ -424,17 +425,6 @@ dtype compute_graph(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,i
 
     //printf("At least here!!!\n");
 
-    /*for (l1=0;l1<st_numlab;l1++)
-    {
-        for (l2=0;l2<st_numlab;l2++)
-        {    
-            int x1=l1%num_lab_x;
-            int y1=l1/num_lab_x;
-            int x2=l2%num_lab_x;    
-            int y2=l2/num_lab_x;            
-            V[l1*st_numlab+l2]=abs(x1-x2)+abs(y1-y2); 
-        }
-    }*/
     t1 = clock ();
     //printf("t0=%d t1=%d Diff %f",t0,t1,float(t1-t0)/CLOCKS_PER_SEC);
 	//try{
@@ -545,7 +535,7 @@ dtype compute_graph(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,i
     //free(V);
     return -E;
 
-}
+}*/
 
 dtype compute_graph2(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,int num_lab_x,dtype *data,int numhyp,dtype* lscr,int *reslab,int aiter,int restart,int N)
 {
@@ -561,6 +551,7 @@ dtype compute_graph2(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,
     srand(seed);
 
     dtype scr;
+    st_N = N;
     //copy costs in local memory
     //dtype V[maxlab*maxlab];
     st_cost_v_y=costs;

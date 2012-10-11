@@ -52,7 +52,7 @@ def model2w(model,deform,usemrf,usefather,k=1,lastlev=0,usebow=False,useCRF=Fals
         for l in range(len(model["hist"])-lastlev):
             w=numpy.concatenate((w,model["hist"][l].flatten()))
     if useCRF:
-        w=numpy.concatenate((w,(model["cost"]*k).flatten()))
+        w=numpy.concatenate((w,(model["cost"]/float(k)).flatten()))
     if small2:
         w=numpy.concatenate((w,model["small2"].flatten()))
     return w
@@ -81,7 +81,7 @@ def w2model(descr,N,rho,lev,fsz,fy=[],fx=[],bin=5,siftsize=2,deform=False,usemrf
                 p=p+bin**(siftsize**2)
         m={"ww":ww,"rho":rho,"fy":fy,"fx":fx,"occl":occl,"N":N}
         if useCRF:
-            m["cost"]=((d[p:p+8*(fy/N)*(fx/N)].reshape((8,fy/N,fx/N))/float(k)))#.clip(mindef,10))
+            m["cost"]=((d[p:p+8*(fy/N)*(fx/N)].reshape((8,fy/N,fx/N))*float(k)))#.clip(mindef,10))
             p=p+8*(fy/N)*(fx/N)
             #m["cost"]=((d[p:p+4*(2*fy)*(2*fx)].reshape((4,2*fy,2*fx))/float(k)).clip(mindef,10))
             #p=p+4*(2*fy)*(2*fx)
