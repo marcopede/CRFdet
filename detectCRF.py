@@ -25,8 +25,8 @@ def refinePos(el):
     fy=[]
     fx=[]
     for m in models:
-        fy.append(m["ww"][0].shape[0])
-        fx.append(m["ww"][0].shape[1])
+        fy.append(m["ww"][0].shape[0]/cfg.N)
+        fx.append(m["ww"][0].shape[1]/cfg.N)
         dratios.append(fy[-1]/float(fx[-1]))
     fy=numpy.array(fy)
     fx=numpy.array(fx)
