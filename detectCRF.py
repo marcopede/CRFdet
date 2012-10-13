@@ -24,9 +24,10 @@ def refinePos(el):
     dratios=[]
     fy=[]
     fx=[]
+    det=[]
     for m in models:
-        fy.append(m["ww"][0].shape[0])
-        fx.append(m["ww"][0].shape[1])
+        fy.append(m["ww"][0].shape[0]/cfg.N)
+        fx.append(m["ww"][0].shape[1]/cfg.N)
         dratios.append(fy[-1]/float(fx[-1]))
     fy=numpy.array(fy)
     fx=numpy.array(fx)
@@ -49,25 +50,33 @@ def refinePos(el):
         cropratio= marginy/float(marginx)
         dist=abs(numpy.log(dratios)-numpy.log(cropratio))
         idm=numpy.where(dist<0.4)[0] #
-        if cfg.rescale and len(idm)>0:
-            tiley=((bbox[2]-bbox[0]))/numpy.max(fy[idm])
-            tilex=((bbox[3]-bbox[1]))/numpy.max(fx[idm])
-            if tiley>8*cfg.N and tilex>8*cfg.N:
-                rescale=(8*cfg.N)/float(min(tiley,tilex))
-                img=zoom(img,(rescale,rescale,1),order=1)
-                newbbox=numpy.array(newbbox)*rescale
-        if cfg.useclip:
-            if bbox[4]==1:# use all models for truncated
-                #print "TRUNCATED!!!"
-                idm=range(len(models)) 
-        selmodels=[models[x] for x in idm] 
-        if cfg.usebbPOS:
-            [f,det]=rundetbb(img,cfg.N,selmodels,numdet=cfg.numhypPOS, interv=cfg.intervPOS,aiter=cfg.aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc)
-        else:         
-            [f,det]=rundet(img,cfg.N,selmodels,numhyp=cfg.numhypPOS,interv=cfg.intervPOS,aiter=cfg.
-aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc)
+        #print "                 Selected ratios",idm
+        if len(idm)>0:
+            if cfg.rescale:# and len(idm)>0:
+                tiley=((bbox[2]-bbox[0]))/float(numpy.max(fy[idm]))
+                tilex=((bbox[3]-bbox[1]))/float(numpy.max(fx[idm]))
+                #print "Tile y",tiley,(bbox[2]-bbox[0])/8,"Tile x",tilex,(bbox[3]-bbox[1])/8
+                if tiley>8*cfg.N and tilex>8*cfg.N:
+                    rescale=(8*cfg.N)/float(min(tiley,tilex))
+                    img=zoom(img,(rescale,rescale,1),order=1)
+                    newbbox=numpy.array(newbbox)*rescale
+                else:
+                    print "Not Rescaling!!!!"
+            if cfg.useclip:
+                if bbox[4]==1:# use all models for truncated
+                    #print "TRUNCATED!!!"
+                    idm=range(len(models)) 
+            selmodels=[models[x] for x in idm] 
+            #t1=time.time()
+            if cfg.usebbPOS:
+                [f,det]=rundetbb(img,cfg.N,selmodels,numdet=cfg.numhypPOS, interv=cfg.intervPOS,aiter=cfg.aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc)
+            else:         
+                #[f,det]=rundet(img,cfg.N,selmodels,numhyp=cfg.numhypPOS,interv=cfg.intervPOS,aiter=cfg.aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc)
+                [f,det]=rundetc(img,cfg.N,selmodels,numhyp=cfg.numhypPOS,interv=cfg.intervPOS,aiter=cfg.
+aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc,bbox=newbbox)
     #else: #for negatives
     #    [f,det]=rundet(img,cfg,models)
+    #print "Rundet time:",time.time()-t1
     print "Detection time:",time.time()-t
     #detectCRF.check(det[:10],f,models)
     boundingbox(det,cfg.N)
@@ -97,6 +106,8 @@ aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc)
         #det[best]["scr"]-=models[det[best]["id"]]["rho"]/float(cfg.bias)
         return det[best],feat[0],edge[0],[rescale,y1,x1,y2,x2]#last just for drawing
     return [],[],[],[rescale,y1,x1,y2,x2]
+
+
 
 def hardNeg(el):
     t=time.time()
@@ -452,6 +463,42 @@ def rundet(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0):
     #    pylab.show()
     return [f,det]
 
+def rundetc(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,bbox=None):
+    f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
+    det=[]
+    nbbox=None
+    for idm,m in enumerate(models):
+        mcost=m["cost"].astype(numpy.float32)
+        m1=m["ww"][0]
+        numy=m["ww"][0].shape[0]
+        numx=m["ww"][0].shape[1]
+        for r in range(len(f.hog)):
+            m2=f.hog[r]
+            #print numy,numx
+            if bbox!=None:
+                nbbox=numpy.array(bbox)*f.scale[r]
+            lscr,fres=crf3.match_fullN(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,aiter=aiter,restart=restart,trunc=trunc,bbox=nbbox)
+            #print "Total time",time.time()-t
+            #print "Score",lscr
+            idraw=False
+            if idraw:
+                import drawHOG
+                #rec=drawHOG.drawHOG(dfeat)
+                pylab.figure(figsize=(15,5))
+                #subplot(1,2,1)
+                #imshow(rec)
+                pylab.title("Reconstructed HOG Image (Learned Costs)")
+                pylab.subplot(1,2,2)
+                img=drawHOG.drawHOG(m2)
+            for idt in range(len(lscr)):
+                det.append({"id":m["id"],"hog":r,"scl":f.scale[r],"def":fres[idt],"scr":lscr[idt]-models[idm]["rho"]})
+    det.sort(key=lambda by: -by["scr"])
+    #if cfg.show:
+    #    pylab.draw()
+    #    pylab.show()
+    return [f,det]
+
+
 def rundetbb(img,N,models,numdet=50,interv=10,aiter=3,restart=0,trunc=0):
     #note that branch and bound sometime is generating more than once the same hipothesis
     # I do not know yet why...
@@ -500,6 +547,19 @@ def detectCrop(a):
         img=img[y1:y2,x1:x2]
     res=rundet(img,cfg,models)
     return res
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
