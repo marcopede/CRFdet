@@ -515,7 +515,63 @@ def match_full2(m1,m2,cost,movy=None,movx=None,padvalue=0,remove=[],pad=0,feat=T
         return scr,res2,frot
     return lscr,res2
 
-def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    numhyp=10,output=False,aiter=3,restart=0,trunc=0):
+import util
+def mask_data(m1,m2,N,bb,data=None,val=1):
+    "mask the part positions that are outside the given bbox"
+    ###the overlapp criteria of each part is right considering that you use a border of at least 50% the size of the bbox
+    assert(m1.shape[0]%N==0)
+    assert(m1.shape[1]%N==0)
+    numy=m1.shape[0]/N#p1.shape[0]
+    numx=m1.shape[1]/N#p1.shape[1]
+    #print numy,numx
+    movy=(m2.shape[0]+m1.shape[0])
+    movx=(m2.shape[1]+m1.shape[1])
+    numlab=movy*movx
+    if data==None:
+        data=numpy.zeros((numy,numx,movy,movx),dtype=c_float)
+    #scan over positions for one part
+    py=0
+    px=0
+    sf=8*N#/f.scale[r])
+    mody=m1.shape[0]
+    modx=m1.shape[1]    
+    for mx in range(movx):
+        for my in range(movy):
+            impy=(py)*sf+(my-mody+1)*sf/N
+            impx=(px)*sf+(mx-modx+1)*sf/N
+            impy1=impy+sf
+            impx1=impx+sf
+            ovr=util.inclusion((impy,impx,impy1,impx1),bb)
+            #print ovr
+            if ovr<0.5:# part is in a invalid position
+                data[0,0,my,mx]=val
+    # fill for the other parts
+    for px in range(numx):
+        for py in range(numy):
+            data[py,px,:movy-py*N,:movx-px*N]=data[0,0,py*N:,px*N:]
+            data[py,px,movy-py*N:]=val
+            data[py,px,:,movx-px*N:]=val
+    return data
+
+
+    # fill for the other parts
+    for px in range(numx):
+        for py in range(numy):
+           # ff.scaneigh(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[N*py:N*(py+1),N*px:N*(px+1)]),N,N,m1.shape[2],scn[0]+N*py,scn[1]+N*px,auxdata[1,py,px],tmp[0],tmp[1],0,0,scn[0].size,trunc)
+           #util.box(py*N*hogpix+res[0,py,px]*hogpix,px*N*hogpix+res[1,py,px]*hogpix,py*N*hogpix+res[0,py,px]*hogpix+N*hogpix,px*N*hogpix+res[1,py,px]*hogpix+N*hogpix, col=col[fres.shape[0]-hy-1], lw=2)  
+            impy=(py)*sf+(res[0,py,px]+1)*sf/N
+            impx=(px)*sf+(res[1,py,px]+1)*sf/N
+            impy1=impy+sf
+            impx1=impx+sf
+            ovr=util.overlap(bb,(impy,impx,impy1,impx1))
+            if ovr>0.5:# part is in a valid position
+                data[0,0,py,px]=-1
+
+
+            #rcim[sf*py:sf*(py+1),sf*px:sf*(px+1)]=im2[sf*numy+impy:sf*numy+impy+sf,sf*numx+impx:sf*numx+impx+sf] 
+    
+
+def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    numhyp=10,output=False,aiter=3,restart=0,trunc=0,bbox=None):
     #m1 is expected to be divisible by N
     t=time.time()
     assert(m1.shape[0]%N==0)
@@ -568,9 +624,14 @@ def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    n
     else:
         data=-auxdata[1]
         rdata=data.reshape((data.shape[0]*data.shape[1],-1))
+
+    if bbox!=None:
+        mask=mask_data(m1,m2,N,bbox,data=rdata.reshape((numy,numx,movy,movx)),val=10)
+        #data=mask.reshape((numy*numx,-1))
+
     rmin=rdata.min()
     rdata=rdata-rmin
-
+        
     res=numpy.zeros((numhyp,numy,numx),dtype=c_int)
     #print "time matching",time.time()-t
     #print "before",rdata.sum()
@@ -718,7 +779,7 @@ def match_bb(m1,pm2,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0,trunc=0
                         rcy=res2[0,0,py,px]+m1.shape[0]
                         rcx=res2[0,1,py,px]+m1.shape[1]
                         #data.reshape((data.shape[0],data.shape[1],movy,movx))[py,px,rcy,rcx]=1
-                        data[lmax].reshape((numy,numx,movy,movx))[py,px,rcy-1:rcy+2,rcx-1:rcx+2]=-1
+                        data[lmax].reshape((numy,numx,movy,movx))[py,px,rcy-1:rcy+2,rcx-1:rcx+2]=-10
                 #update bounds
                 minb[lmax]=numpy.max(numpy.sum(data[lmax].reshape((data[lmax].shape[0]*data[lmax].shape[1],-1)),0))
                 #maxb[lmax]=numpy.sum(numpy.max(data[l],2))
@@ -992,11 +1053,15 @@ if __name__ == "__main__":
         import util
         #im=util.myimread("000125.jpg")#flip
         im=util.myimread("000535.jpg")[:,::-1,:]#
+        bbox=(100,250,200,450)
         #im=util.myimread("000379.jpg")[:,::-1,:]#flip
         #im=util.myimread("005467.jpg")[:,::-1,:]#flip
         #img=numpy.zeros((100,100,3))
         #subplot(1,2,1)
         imshow(im)
+        show()
+        import util
+        util.box(bbox[0],bbox[1],bbox[2],bbox[3],col="b--")
         import pyrHOG2
         f=pyrHOG2.pyrHOG(im,interv=10,savedir="",notload=True,notsave=True,hallucinate=False,cformat=True)
 
@@ -1043,10 +1108,10 @@ if __name__ == "__main__":
         col=['w','r','g','b','y','c','k','y','c','k']
         for r in range(len(f.hog)):
             m2=f.hog[r]
-            lscr,fres=crf3.match_fullN(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp)
+            lscr,fres=crf3.match_fullN(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,bbox=numpy.array(bbox)*f.scale[r])
             print "Total time",time.time()-t
             #print "Score",scr
-            idraw=False
+            idraw=True#False
             if idraw:
                 import drawHOG
                 #rec=drawHOG.drawHOG(dfeat)
