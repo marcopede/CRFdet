@@ -686,8 +686,7 @@ for it in range(cpit,cfg.posit):
                     detectCRF.visualize2([res[0]],cfg.N,im,cbb,text)
                 else:
                     detectCRF.visualize2([],cfg.N,im,cbb,text)
-                #if it>0:
-                    #raw_input()
+                #raw_input()
         print "Added examples",padd
         print "Improved examples",pbetter
         print "Old examples score",pworst
