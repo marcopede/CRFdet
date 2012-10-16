@@ -245,7 +245,7 @@ if cfg.checkpoint and not cfg.forcescratch:
             else:
                 print "No model found"
                 break
-        lg.info("Loaded model")    
+        #lg.info("Loaded model")    
     try:
         print "Begin loading old status..."
         #os.path.exists(localsave+".pos.valid")
@@ -459,7 +459,11 @@ if initial:
             #trpos+=hogp[l]
             trneg+=hogn[l]
 
-        w,r,prloss=pegasos.trainComp(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=1,numthr=1,eps=0.001)#,notreg=notreg)
+        if cfg.useSGD:
+            w,r,prloss=pegasos.trainCompSGD(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=1,numthr=1,eps=0.001)#,notreg=notreg)
+        else:
+            w,r,prloss=pegasos.trainCompBFG(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=1,numthr=1,eps=0.001)#,notreg=notreg)
+            #pylab.figure();pylab.plot(w)
 
         waux=[]
         rr=[]
@@ -827,7 +831,10 @@ for it in range(cpit,cfg.posit):
             lg.info("Negative Examples:%d"%(numpy.sum(numpy.array(trnegcl)==l)))    
 
         #import pegasos   
-        w,r,prloss=pegasos.trainComp(trpos,trneg,"",trposcl,trnegcl,oldw=w,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.01,sizereg=sizereg,valreg=cfg.valreg,lb=cfg.lb)#,notreg=notreg)
+        if cfg.useSGD:
+            w,r,prloss=pegasos.trainCompSGD(trpos,trneg,"",trposcl,trnegcl,oldw=w,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.01,sizereg=sizereg,valreg=cfg.valreg,lb=cfg.lb)#,notreg=notreg)
+        else:
+            w,r,prloss=pegasos.trainCompBFG(trpos,trneg,"",trposcl,trnegcl,oldw=w,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.01,sizereg=sizereg,valreg=cfg.valreg,lb=cfg.lb)#,notreg=notreg)
 
         pylab.figure(300,figsize=(4,4))
         pylab.clf()

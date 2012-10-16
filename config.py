@@ -81,6 +81,8 @@ cfg.numneg= 10 #number of hard negatives to collect per image
 cfg.N=2 #size of a part
 cfg.localshow=False
 cfg.trunc=0
+cfg.lb=0.001
+cfg.useSGD=True
 
 #trade-off speed accuracy
 cfg.usebbPOS=False #note for bb numhyp is the total number of detections while for the normal method is the number of hypotheses per scale
