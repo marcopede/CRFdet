@@ -128,48 +128,6 @@ def objective1(w,trpos,trneg,trposcl,trnegcl,clsize,C,sizereg=numpy.zeros(10,dty
     print "Energy:",(posloss+negloss)+reg
     return (posloss+negloss)+reg
 
-def objectiveSM(w,trpos,trneg,trposcl,trnegcl,clsize,C,sizereg=numpy.zeros(10,dtype=numpy.int32),valreg=0.01):
-    posloss=0.0
-    total=float(len(trpos))
-    clsum=numpy.concatenate(([0],numpy.cumsum(clsize)))
-    hardpos=0.0
-    for idl,l in enumerate(trpos):
-        c=int(trposcl[idl])
-        pstart=clsum[c]
-        pend=pstart+clsize[c]
-        scr=numpy.sum(w[pstart:pend]*l)#+bias*w[pend-1]
-        posloss+=max(0,1-scr)
-        if scr<0:
-            hardpos+=1
-        #print "hinge",max(0,1-scr),"scr",scr
-        #raw_input()
-    negloss=0
-    hardneg=0
-    for idl,l in enumerate(trneg):
-        c=int(trnegcl[idl])
-        pstart=clsum[c]
-        pend=pstart+clsize[c]
-        scr=numpy.sum(w[pstart:pend]*l)#+bias*w[pend-1])
-        negloss+=max(0,1+scr)
-        if scr>0:
-            hardneg+=1
-        #print "hinge",max(0,1+scr),"scr",scr
-        #raw_input()
-    scr=[]
-    for idc in range(len(clsize)):
-        pstart=clsum[idc]
-        pend=pstart+clsize[idc]
-        scr.append(numpy.sum(w[pstart:pend-1]**2))#skip bias
-    #reg=lamda*max(scr)*0.5
-    #print "C in OBJECTIVE",C
-    reg=(max(scr))*0.5/total
-    posloss=C*posloss/total
-    negloss=C*negloss/total
-    hardpos=C*float(hardpos)/total
-    hardneg=C*float(hardneg)/total
-    return (posloss+negloss)+reg
-
-
 def gradient(w,trpos,trneg,trposcl,trnegcl,clsize,C,sizereg=numpy.zeros(10,dtype=numpy.int32),valreg=0.01):
     #loss
     grad=numpy.zeros(w.shape,dtype=w.dtype)
