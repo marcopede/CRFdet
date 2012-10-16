@@ -92,6 +92,23 @@ static inline ftype score(ftype *x,ftype *w,int len)
     return scr;
 }
 
+static inline ftype score2(ftype *x,ftype *w,ftype w0,int len,int sizereg)
+{
+    int c;
+    ftype scr=0;
+    for (c=0;c<len-sizereg;c++)//normal part
+    {
+        scr+=x[c]*w[c];
+    }
+    for (c=len-sizereg;c<len;c++)//regularize at d instead of 0
+    {
+        scr+=(x[c]-w0)*(w[c]-w0);
+        //a[c]= (a[c]<0.1*d) ? 0.1*d : a[c];//limit the minimum pairwise cost
+    }
+    return scr;
+}
+
+
 void fast_pegasos(ftype *w,int wx,ftype *ex,int exy,ftype *label,ftype lambda,int iter,int part)
 {
     srand48(3);
@@ -207,7 +224,8 @@ void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype *
         bwscr=-1.0;
         for (cp=0;cp<numcomp;cp++)
         {   
-            wscr=score(w+sumszx[cp],w+sumszx[cp],compx[cp]-1);//skip bias
+            //wscr=score(w+sumszx[cp],w+sumszx[cp],compx[cp]-1);//skip bias
+            wscr=score2(w+sumszx[cp],w+sumszx[cp],valreg,compx[cp]-1,sizereg[cp]);
             //just a test
             //wscr=score(w+sumszx[cp],w+sumszx[cp],compx[cp]-sizereg[cp]);
             //printf("Wscore(%d)=%f\n",cp,wscr);
@@ -223,7 +241,7 @@ void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype *
         //|w-w_0|
         //reg(w+sumszx[bcp],n,valreg,compx[bcp],sizereg[bcp]);//0.01    
         //|w|
-        reg(w+sumszx[bcp],n,valreg,compx[bcp]-1,0);
+        reg(w+sumszx[bcp],n,valreg,compx[bcp]-1,sizereg[cp]);
         //mul22(w+sumszx[bcp],1-n,valreg,compx[bcp],sizereg[bcp]);//0.01    
         //all the vector
         //mul(w,1-n*lambda,wxtot);
