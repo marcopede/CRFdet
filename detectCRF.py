@@ -347,14 +347,15 @@ def clip(det,imsize):#imsize(y,x)
         det[idl]["bbox"]=(y1,x1,y2,x2)
         #print det[idl]["bbox"]
 
-def visualize(det,N,f,img):
+def visualize(det,N,f,img,fig=300,text=""):
     """visualize a detection and the corresponding featues"""
     pl=pylab
     col=['w','r','g','b','y','c','k','y','c','k']
-    pl.figure(300,figsize=(15,5))
+    pl.figure(fig,figsize=(15,5))
     pl.clf()
     pl.subplot(1,3,1)
     pl.imshow(img)
+    pl.title(text)
     im=img
     pad=0
     cc=0
@@ -375,7 +376,7 @@ def visualize(det,N,f,img):
            im2=numpy.zeros((im.shape[0]+sf*numy*2,im.shape[1]+sf*numx*2,im.shape[2]),dtype=im.dtype)
            im2[sf*numy:sf*numy+im.shape[0],sf*numx:sf*numx+im.shape[1]]=im
            rcim=numpy.zeros((sf*numy,sf*numx,3),dtype=im.dtype)
-        dfeat,edge=crf3.getfeat_full(m2,pad,res)
+        dfeat,edge=crf3.getfeat_fullN(m2,N,res)
         #print "Scr",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost),"Error",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-scr
         pl.subplot(1,3,1)
         for px in range(res.shape[2]):
@@ -457,6 +458,7 @@ def visualize2(det,N,img,bb=[],text=""):
 
 
 def rundet(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0):
+    "run the CRF optimization at each level of the HOG pyramid"
     f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
     det=[]
     for idm,m in enumerate(models):
@@ -488,7 +490,57 @@ def rundet(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0):
     #    pylab.show()
     return [f,det]
 
+import math as mt
+
+def rundetw(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1):
+    "run the CRF optimization at each level of the HOG pyramid but in a sliding window way"
+    f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
+    #add maximum padding to each hog    
+    maxfy=max([x["ww"][0].shape[0] for x in models])
+    maxfx=max([x["ww"][0].shape[1] for x in models])
+    padf=[]
+    #add 1 more maxf pad at the end to account for remaining parts of the grid
+    for idl,l in enumerate(f.hog):
+        #padf.append(numpy.zeros((f.hog[idl].shape[0]+2*maxfy,f.hog[idl].shape[1]+2*maxfx,f.hog[idl].shape[2]),dtype=f.hog[idl].dtype))
+        padf.append(numpy.zeros((f.hog[idl].shape[0]+2*maxfy+maxfy,f.hog[idl].shape[1]+2*maxfx+maxfx,f.hog[idl].shape[2]),dtype=f.hog[idl].dtype))
+        padf[-1][maxfy:maxfy+f.hog[idl].shape[0],maxfx:maxfx+f.hog[idl].shape[1]]=f.hog[idl]
+    det=[]
+    for idm,m in enumerate(models):
+        #for each model the minimum window size is 2 times the model size
+        #minwy=m["ww"].shape[0]
+        mcost=m["cost"].astype(numpy.float32)
+        m1=m["ww"][0]
+        numy=m["ww"][0].shape[0]
+        numx=m["ww"][0].shape[1]
+        minstepy=max(wstepy,2*numy)
+        minstepx=max(wstepx,2*numx)
+        if wstepy==-1:
+            wstepy=numy+1
+        if wstepx==-1:
+            wstepx=numx+1
+        for r in range(len(padf)):
+            #m2=padf[r]
+            #print "###############scale %d (%d,%d)#############"%(r,padf[r].shape[0],padf[r].shape[1])
+            #scan the image with step wstepx-y
+            for wy in range(((padf[r].shape[0]-minstepy)/wstepy)):
+                for wx in range(((padf[r].shape[1]-minstepx)/wstepx)):
+                    #print "WY:",wy,"WX",wx
+                    m2=padf[r][wy*wstepy:wy*wstepy+minstepy,wx*wstepx:wx*wstepx+minstepx]
+                    #print m2.shape
+                    lscr,fres=crf3.match_fullN_nopad(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,aiter=aiter,restart=restart,trunc=trunc)
+                    for idt in range(len(lscr)):
+                        det.append({"id":m["id"],"hog":r,"scl":f.scale[r],"def":(fres[idt].T+numpy.array([wstepy*wy-maxfy,wstepx*wx-maxfx]).T).T,"scr":lscr[idt]-models[idm]["rho"]})
+    det.sort(key=lambda by: -by["scr"])
+    #if cfg.show:
+    #    pylab.draw()
+    #    pylab.show()
+    return [f,det]
+
+
+
+
 def rundetc(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,bbox=None):
+    "run the CRF optimization at each level of the HOG pyramid adding constraints to force the  detection to be in the bounding box"
     f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
     det=[]
     nbbox=None
@@ -526,6 +578,7 @@ def rundetc(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,bbox=None)
 
 
 def rundetbb(img,N,models,numdet=50,interv=10,aiter=3,restart=0,trunc=0):
+    "run the CRF optimization at each level of the HOG pyramid but using branch and bound algorithm"
     #note that branch and bound sometime is generating more than once the same hipothesis
     # I do not know yet why...
     #Maybe the punishment to repeat a location is not high enough
