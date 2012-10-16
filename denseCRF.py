@@ -49,7 +49,7 @@ cfg.numhyp=5
 #cfg.numneg= 10
 bias=cfg.bias
 #cfg.bias=bias
-cfg.posovr= 0.75
+#cfg.posovr= 0.75
 #cfg.perc=0.25
 #just for a fast test
 #cfg.maxpos = 50
@@ -737,8 +737,8 @@ for it in range(cpit,cfg.posit):
         #add a bound on not found examples
         boldposl=oldposl+(totPosEx-total[-2])*(1-cfg.posthr)
         bnewposl=newposl+(totPosEx-total[-1])*(1-cfg.posthr)
-        posratio.append((boldposl-bnewposl)/boldposl)
-        #posratio.append((boldposl-bnewposl)/newposl)#divide without bound to be more strict!
+        #posratio.append((boldposl-bnewposl)/boldposl)
+        posratio.append((boldposl-bnewposl)/newposl)#divide without bound to be more strict!
         print "Old pos loss:",oldposl,boldposl
         print "New pos loss:",newposl,bnewposl
         print "Ratio Pos loss",posratio

@@ -34,10 +34,28 @@ def refinePos(el):
     dratios=numpy.array(dratios)
     #dratios=numpy.array(cfg.fy)/numpy.array(cfg.fx)
     img=util.myimread(imname,resize=cfg.resize)
+    #make a mirror out of the image --> max out 50%
+    print "Old bbox:",bbox
+    extbbox=numpy.array(bbox[:6])
+    if bbox[0]<=1 and cfg.useclip:
+        extbbox[0]=-bbox[2]
+        extbbox[4]=1
+    if bbox[1]<=1 and cfg.useclip:
+        extbbox[1]=-bbox[3]
+        extbbox[4]=1
+    if bbox[2]>=img.shape[0]-1 and cfg.useclip:
+        extbbox[2]=img.shape[0]+(img.shape[0]-bbox[0])
+        extbbox[4]=1
+    if bbox[3]>=img.shape[1]-1 and cfg.useclip:
+        extbbox[3]=img.shape[1]+(img.shape[1]-bbox[1])
+        extbbox[4]=1
+    print "New bbox:",extbbox
+    #raw_input()
     if imageflip:
         img=util.myimread(imname,True,resize=cfg.resize)
         if bbox!=None:
-             bbox = util.flipBBox(img,[bbox])[0]
+            bbox = util.flipBBox(img,[bbox])[0]
+            extbbox = util.flipBBox(img,[extbbox])[0]    
     maxy=numpy.max([x["ww"][0].shape[0] for x in models])    
     maxx=numpy.max([x["ww"][0].shape[1] for x in models])    
     if (bbox!=[]):
@@ -47,25 +65,30 @@ def refinePos(el):
         y2=min(bbox[2]+marginy,img.shape[0]);x2=min(bbox[3]+marginx,img.shape[1])
         img=img[y1:y2,x1:x2]
         newbbox=(bbox[0]-y1,bbox[1]-x1,bbox[2]-y1,bbox[3]-x1)
+        extnewbbox=(extbbox[0]-y1,extbbox[1]-x1,extbbox[2]-y1,extbbox[3]-x1)
         cropratio= marginy/float(marginx)
         dist=abs(numpy.log(dratios)-numpy.log(cropratio))
-        idm=numpy.where(dist<0.4)[0] #
+        #idm=numpy.where(dist<0.4)[0] #
+        idm=numpy.where(dist<0.5)[0] #
         #print "                 Selected ratios",idm
+        if cfg.useclip:
+            if bbox[4]==1 or extbbox[4]==1:# use all models for truncated
+                #print "TRUNCATED!!!"
+                idm=range(len(models)) 
         if len(idm)>0:
             if cfg.rescale:# and len(idm)>0:
-                tiley=((bbox[2]-bbox[0]))/float(numpy.max(fy[idm]))
-                tilex=((bbox[3]-bbox[1]))/float(numpy.max(fx[idm]))
+                #tiley=((bbox[2]-bbox[0]))/float(numpy.max(fy[idm]))
+                #tilex=((bbox[3]-bbox[1]))/float(numpy.max(fx[idm]))
+                tiley=((extbbox[2]-extbbox[0]))/float(numpy.max(fy[idm]))
+                tilex=((extbbox[3]-extbbox[1]))/float(numpy.max(fx[idm]))
                 #print "Tile y",tiley,(bbox[2]-bbox[0])/8,"Tile x",tilex,(bbox[3]-bbox[1])/8
                 if tiley>8*cfg.N and tilex>8*cfg.N:
                     rescale=(8*cfg.N)/float(min(tiley,tilex))
                     img=zoom(img,(rescale,rescale,1),order=1)
                     newbbox=numpy.array(newbbox)*rescale
+                    extnewbbox=numpy.array(extnewbbox)*rescale
                 else:
                     print "Not Rescaling!!!!"
-            if cfg.useclip:
-                if bbox[4]==1:# use all models for truncated
-                    #print "TRUNCATED!!!"
-                    idm=range(len(models)) 
             selmodels=[models[x] for x in idm] 
             #t1=time.time()
             if cfg.usebbPOS:
@@ -73,7 +96,7 @@ def refinePos(el):
             else:         
                 #[f,det]=rundet(img,cfg.N,selmodels,numhyp=cfg.numhypPOS,interv=cfg.intervPOS,aiter=cfg.aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc)
                 [f,det]=rundetc(img,cfg.N,selmodels,numhyp=cfg.numhypPOS,interv=cfg.intervPOS,aiter=cfg.
-aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc,bbox=newbbox)
+aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc,bbox=extnewbbox)
     #else: #for negatives
     #    [f,det]=rundet(img,cfg,models)
     #print "Rundet time:",time.time()-t1
@@ -87,12 +110,14 @@ aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc,bbox=newbbox)
     best=-1
     for idl,l in enumerate(det):
         ovr=util.overlap(newbbox,l["bbox"])
-        #print ovr
+        print ovr,l["scr"]
         if ovr>cfg.posovr and l["scr"]>cfg.posthr:#valid detection
             if l["scr"]>bestscr:
                 best=idl
                 bestscr=l["scr"]
+    #raw_input()
     if len(det)>0 and best!=-1:
+        print "Pos det:",[x["scr"] for x in det[:5]]
         if cfg.show:
             visualize([det[best]],cfg.N,f,img)
         feat,edge=getfeature([det[best]],cfg.N,f,models,cfg.trunc)
@@ -496,6 +521,7 @@ def rundetc(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,bbox=None)
     #if cfg.show:
     #    pylab.draw()
     #    pylab.show()
+    print "Number of detections:",len(det)
     return [f,det]
 
 

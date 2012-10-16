@@ -543,7 +543,7 @@ def mask_data(m1,m2,N,bb,data=None,val=1):
             impx1=impx+sf
             ovr=util.inclusion((impy,impx,impy1,impx1),bb)
             #print ovr
-            if ovr<0.5:# part is in a invalid position
+            if ovr<0.7:# part is in a invalid position
                 data[0,0,my,mx]=val
     # fill for the other parts
     for px in range(numx):
@@ -552,23 +552,6 @@ def mask_data(m1,m2,N,bb,data=None,val=1):
             data[py,px,movy-py*N:]=val
             data[py,px,:,movx-px*N:]=val
     return data
-
-
-    # fill for the other parts
-    for px in range(numx):
-        for py in range(numy):
-           # ff.scaneigh(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[N*py:N*(py+1),N*px:N*(px+1)]),N,N,m1.shape[2],scn[0]+N*py,scn[1]+N*px,auxdata[1,py,px],tmp[0],tmp[1],0,0,scn[0].size,trunc)
-           #util.box(py*N*hogpix+res[0,py,px]*hogpix,px*N*hogpix+res[1,py,px]*hogpix,py*N*hogpix+res[0,py,px]*hogpix+N*hogpix,px*N*hogpix+res[1,py,px]*hogpix+N*hogpix, col=col[fres.shape[0]-hy-1], lw=2)  
-            impy=(py)*sf+(res[0,py,px]+1)*sf/N
-            impx=(px)*sf+(res[1,py,px]+1)*sf/N
-            impy1=impy+sf
-            impx1=impx+sf
-            ovr=util.overlap(bb,(impy,impx,impy1,impx1))
-            if ovr>0.5:# part is in a valid position
-                data[0,0,py,px]=-1
-
-
-            #rcim[sf*py:sf*(py+1),sf*px:sf*(px+1)]=im2[sf*numy+impy:sf*numy+impy+sf,sf*numx+impx:sf*numx+impx+sf] 
     
 
 def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    numhyp=10,output=False,aiter=3,restart=0,trunc=0,bbox=None):
@@ -625,12 +608,13 @@ def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    n
         data=-auxdata[1]
         rdata=data.reshape((data.shape[0]*data.shape[1],-1))
 
-    if bbox!=None:
-        mask=mask_data(m1,m2,N,bbox,data=rdata.reshape((numy,numx,movy,movx)),val=10)
-        #data=mask.reshape((numy*numx,-1))
-
     rmin=rdata.min()
     rdata=rdata-rmin
+
+    if bbox!=None:
+        #mask=mask_data(m1,m2,N,bbox,data=rdata.reshape((numy,numx,movy,movx)),val=1)
+        mask=mask_data(m1,m2,N,bbox,val=-1)
+        rdata[mask.reshape((numy*numx,-1))==-1]=10
         
     res=numpy.zeros((numhyp,numy,numx),dtype=c_int)
     #print "time matching",time.time()-t
