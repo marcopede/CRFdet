@@ -110,7 +110,7 @@ aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc,bbox=extnewbbox)
     best=-1
     for idl,l in enumerate(det):
         ovr=util.overlap(newbbox,l["bbox"])
-        print ovr,l["scr"]
+        #print ovr,l["scr"]
         if ovr>cfg.posovr and l["scr"]>cfg.posthr:#valid detection
             if l["scr"]>bestscr:
                 best=idl

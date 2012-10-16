@@ -460,9 +460,9 @@ if initial:
             trneg+=hogn[l]
 
         if cfg.useSGD:
-            w,r,prloss=pegasos.trainCompSGD(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=1,numthr=1,eps=0.001)#,notreg=notreg)
+            w,r,prloss=pegasos.trainCompSGD(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=numcore*2,numthr=numcore,numthr=1,eps=0.005)#,notreg=notreg)
         else:
-            w,r,prloss=pegasos.trainCompBFG(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=1,numthr=1,eps=0.001)#,notreg=notreg)
+            w,r,prloss=pegasos.trainCompBFG(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=numcore*2,numthr=numcore,numthr=1,eps=0.005)#,notreg=notreg)
             #pylab.figure();pylab.plot(w)
 
         waux=[]
@@ -832,9 +832,9 @@ for it in range(cpit,cfg.posit):
 
         #import pegasos   
         if cfg.useSGD:
-            w,r,prloss=pegasos.trainCompSGD(trpos,trneg,"",trposcl,trnegcl,oldw=w,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.01,sizereg=sizereg,valreg=cfg.valreg,lb=cfg.lb)#,notreg=notreg)
+            w,r,prloss=pegasos.trainCompSGD(trpos,trneg,"",trposcl,trnegcl,oldw=w,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.005,sizereg=sizereg,valreg=cfg.valreg,lb=cfg.lb)#,notreg=notreg)
         else:
-            w,r,prloss=pegasos.trainCompBFG(trpos,trneg,"",trposcl,trnegcl,oldw=w,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.01,sizereg=sizereg,valreg=cfg.valreg,lb=cfg.lb)#,notreg=notreg)
+            w,r,prloss=pegasos.trainCompBFG(trpos,trneg,"",trposcl,trnegcl,oldw=w,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.005,sizereg=sizereg,valreg=cfg.valreg,lb=cfg.lb)#,notreg=notreg)
 
         pylab.figure(300,figsize=(4,4))
         pylab.clf()

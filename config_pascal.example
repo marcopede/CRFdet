@@ -86,6 +86,7 @@ if mydebug:
     cfg.useclip=True
     cfg.rescale=True
     cfg.trunc=1
+    cfg.bias=50
     #cfg.maxpos=50#20 #maximum number of positive images
     #cfg.maxtest=50#20 #0 #maximum number of test images
     #cfg.maxtestfull=100

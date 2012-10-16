@@ -44,6 +44,7 @@ lpeg.fast_pegasos_comp_parall.argtypes=[
 #bias should be added externaly, it is the last dimonsion and it is not regularized
 
 def objective(trpos,trneg,trposcl,trnegcl,clsize,w,C,sizereg=numpy.zeros(10,dtype=numpy.int32),valreg=0.01):
+    print "Sizereg",sizereg
     posloss=0.0
     total=float(len(trpos))
     clsum=numpy.concatenate(([0],numpy.cumsum(clsize)))
@@ -74,7 +75,8 @@ def objective(trpos,trneg,trposcl,trnegcl,clsize,w,C,sizereg=numpy.zeros(10,dtyp
     for idc in range(len(clsize)):
         pstart=clsum[idc]
         pend=pstart+clsize[idc]
-        scr.append(numpy.sum(w[pstart:pend-1]**2))#skip bias
+        #scr.append(numpy.sum(w[pstart:pend-1]**2))#skip bias
+        scr.append(numpy.sum(w[pstart:pend-1-sizereg[idc]]**2)+numpy.sum((w[pend-sizereg[idc]-1:pend-1]-valreg)**2))    
     #reg=lamda*max(scr)*0.5
     #print "C in OBJECTIVE",C
     reg=(max(scr))*0.5/total
