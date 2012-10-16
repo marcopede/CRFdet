@@ -597,6 +597,7 @@ for it in range(cpit,cfg.posit):
     pbetter=0
     pworst=0
     pold=0
+    skipos=False
 
     ########## rescore old positive detections
     lg.info("Rescoring %d Positive detections"%len(lpdet))
@@ -709,6 +710,7 @@ for it in range(cpit,cfg.posit):
     else:
         loadedchk=False
         total.append(len(lpdet))
+        skipos=True
     
     if it>cpit:
         oldposl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,sizereg=sizereg,valreg=cfg.valreg)              
@@ -793,7 +795,8 @@ for it in range(cpit,cfg.posit):
             trnegcl.append(lndet[idl]["id"]%cfg.numcl)
             dscr=numpy.sum(trneg[-1]*w[cumsize[trnegcl[-1]]:cumsize[trnegcl[-1]+1]])
             #print "Error:",abs(dscr-l["scr"])
-            assert(abs(dscr-l["scr"])<0.00005)
+            if not(skipos):#do not check if loaded trneg from checkpoint
+                assert(abs(dscr-l["scr"])<0.00005)
 
         #if no negative sample add empty negatives
         for l in range(cfg.numcl):
