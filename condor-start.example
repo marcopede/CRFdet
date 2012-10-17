@@ -10,7 +10,7 @@ header="""
 Universe = vanilla
 
 #Requirements = ( Cpus >= {cpus} && Memory >= 10000 && konick and donovan have python2.6! 
-Requirements =  ( (Arch == "X86_64") && (machine != "unuk.esat.kuleuven.be") && (machine != "kochab.esat.kuleuven.be") && (machine != "bellegems.esat.kuleuven.be") &&(machine != "ophelia.esat.kuleuven.be") && (machine != "ymir.esat.kuleuven.be") && (machine != "idesbald.esat.kuleuven.be") && (machine != "bokkereyer.esat.kuleuven.be") && (machine != "livinus.esat.kuleuven.be") && (machine != "bornem.esat.kuleuven.be") && (machine != "vicarus.esat.kuleuven.be") && (machine != "vicarus.esat.kuleuven.be") && (machine != "achel.esat.kuleuven.be") && (machine != "donovan.esat.kuleuven.be") && (machine != "koninck.esat.kuleuven.be") )
+Requirements =  ( (Arch == "X86_64") && (machine != "ox.esat.kuleuven.be") && (machine != "unuk.esat.kuleuven.be") && (machine != "kochab.esat.kuleuven.be") && (machine != "bellegems.esat.kuleuven.be") &&(machine != "ophelia.esat.kuleuven.be") && (machine != "ymir.esat.kuleuven.be") && (machine != "idesbald.esat.kuleuven.be") && (machine != "bokkereyer.esat.kuleuven.be") && (machine != "livinus.esat.kuleuven.be") && (machine != "bornem.esat.kuleuven.be") && (machine != "vicarus.esat.kuleuven.be") && (machine != "vicarus.esat.kuleuven.be") && (machine != "achel.esat.kuleuven.be") && (machine != "donovan.esat.kuleuven.be") && (machine != "koninck.esat.kuleuven.be") )
 RequestCpus = {cpus}
 RequestMemory = 3800
 NiceUser = True

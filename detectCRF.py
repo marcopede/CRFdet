@@ -513,7 +513,9 @@ def rundetw(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,
         numy=m["ww"][0].shape[0]
         numx=m["ww"][0].shape[1]
         minstepy=max(wstepy,2*numy)
+        #minstepy=max(wstepy,int(1.5*numy))
         minstepx=max(wstepx,2*numx)
+        #minstepx=max(wstepx,int(1.5*numx))
         if wstepy==-1:
             wstepy=numy+1
         if wstepx==-1:

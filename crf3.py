@@ -930,6 +930,7 @@ def match_bbN(m1,pm2,N,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0,trun
     #lscr=numpy.zeros(len(maxb))
     lscr=-1000*numpy.ones(len(maxb))
     ldet=[]
+    infer=0
     for h in range(numhyp):
         stop=False
         while not(stop):
@@ -950,6 +951,7 @@ def match_bbN(m1,pm2,N,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0,trun
                 pylab.draw()
                 pylab.show()
             scr=crfgr2(numy,numx,cost,movy,movx,rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)),1,auxscr,res,aiter,restart)  
+            infer+=1
             assert(scr==auxscr[0])
             #print "Before",scr
             scr=scr-auxmin*numy*numx
@@ -966,7 +968,8 @@ def match_bbN(m1,pm2,N,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0,trun
             if lscr.max()+0.00001>=maxb.max():
                 stop=True
                 lmax=lscr.argmax()
-                ##print "Found maxima Lev",lmax,"Scr",lscr[lmax]
+                print "Found maxima Lev",lmax,"Scr",lscr[lmax],"#",len(ldet),"Infer",infer
+                infer=0
                 #raw_input()
                 ldet.append({"scl":lmax,"scr":lscr[lmax],"def":lres[lmax].copy()})
                 #update data
@@ -1095,14 +1098,19 @@ if __name__ == "__main__":
         import util
         im=util.myimread("000535.jpg")[:,::-1,:]#flip
         #im=util.myimread("000379.jpg")[:,::-1,:]#flip
+        #im=util.myimread("/users/visics/mpederso/code/git/condor-run/N4C2force_parts/CRFdet/data/CRF/12_10_18/aeroplane2_N4C2fpthr1051.png")
         m=util.load("./data/bicycle2_testN36.model")
+        for l in range(len(m)): 
+            m[l]["cost"]=m[l]["cost"]*0.1
         import detectCRF
         t=time.time()
-        [f,det1]=detectCRF.rundetw(im,3,m,numhyp=5,interv=5,aiter=3,restart=0,trunc=0,wstepy=5,wstepx=5)
+        [f,det1]=detectCRF.rundetw(im,3,m,numhyp=5,interv=5,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1)
         print "Elapsed time for SW",time.time()-t
         t=time.time()
         [f,det2]=detectCRF.rundet(im,3,m,numhyp=5,interv=5,aiter=3,restart=0,trunc=0)
-        #[f,det2]=detectCRF.rundetbb(im,3,m,numdet=100,interv=5,aiter=3,restart=0,trunc=0)
+        print "Elapsed time for Normal",time.time()-t
+        t=time.time()
+        [f,det3]=detectCRF.rundetbb(im,3,m,numdet=125,interv=5,aiter=3,restart=0,trunc=0)
         print "Elapsed time for BB",time.time()-t
         if 0:
             for l in range(100):
@@ -1111,9 +1119,18 @@ if __name__ == "__main__":
                 show()
                 raw_input()
         scrw=[x["scr"] for x in det1]
-        scrbb=[x["scr"] for x in det2]
-        plot(scrw)
-        plot(scrbb,"r")
+        scrw1=[]
+        #scrw1=scrw        
+        for idl,l in enumerate(scrw[:-1]):
+            if l-scrw[idl+1]<0.00001:
+                pass
+            else:
+                scrw1.append(l)
+        scrn=[x["scr"] for x in det2]
+        scrbb=[x["scr"] for x in det3]
+        plot(scrw1,lw=3)
+        plot(scrn,"g",lw=3)
+        plot(scrbb,"r",lw=3)
         show()
         dsfsd
     if 1:
