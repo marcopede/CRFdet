@@ -460,9 +460,9 @@ if initial:
             trneg+=hogn[l]
 
         if cfg.useSGD:
-            w,r,prloss=pegasos.trainCompSGD(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=numcore*2,numthr=numcore,numthr=1,eps=0.005)#,notreg=notreg)
+            w,r,prloss=pegasos.trainCompSGD(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.005)#,notreg=notreg)
         else:
-            w,r,prloss=pegasos.trainCompBFG(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=numcore*2,numthr=numcore,numthr=1,eps=0.005)#,notreg=notreg)
+            w,r,prloss=pegasos.trainCompBFG(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.005)#,notreg=notreg)
             #pylab.figure();pylab.plot(w)
 
         waux=[]
