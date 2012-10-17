@@ -729,7 +729,7 @@ for it in range(cpit,cfg.posit):
         trposcl.append(l["id"]%cfg.numcl)
         dscr=numpy.sum(trpos[-1]*w[cumsize[trposcl[-1]]:cumsize[trposcl[-1]+1]])
         #print "Error:",abs(dscr-l["scr"])
-        if (abs(dscr-l["scr"])>0.00005)
+        if (abs(dscr-l["scr"])>0.00005):
             print "Error in checking the score function"
             print "Feature score",dscr,"CRF score",l["scr"]
             raw_input()
@@ -799,7 +799,7 @@ for it in range(cpit,cfg.posit):
             dscr=numpy.sum(trneg[-1]*w[cumsize[trnegcl[-1]]:cumsize[trnegcl[-1]+1]])
             #print "Error:",abs(dscr-l["scr"])
             if not(skipos):#do not check if loaded trneg from checkpoint
-                if (abs(dscr-l["scr"])>0.00005)
+                if (abs(dscr-l["scr"])>0.00005):
                     print "Error in checking the score function"
                     print "Feature score",dscr,"CRF score",l["scr"]
                     raw_input()
