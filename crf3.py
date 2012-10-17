@@ -1098,12 +1098,13 @@ if __name__ == "__main__":
         m=util.load("./data/bicycle2_testN36.model")
         import detectCRF
         t=time.time()
-        [f,det1]=detectCRF.rundetw(im,3,m,numhyp=1,interv=5,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1)
+        [f,det1]=detectCRF.rundetw(im,3,m,numhyp=5,interv=5,aiter=3,restart=0,trunc=0,wstepy=5,wstepx=5)
         print "Elapsed time for SW",time.time()-t
         t=time.time()
-        [f,det2]=detectCRF.rundetbb(im,3,m,numdet=100,interv=5,aiter=3,restart=0,trunc=0)
+        [f,det2]=detectCRF.rundet(im,3,m,numhyp=5,interv=5,aiter=3,restart=0,trunc=0)
+        #[f,det2]=detectCRF.rundetbb(im,3,m,numdet=100,interv=5,aiter=3,restart=0,trunc=0)
         print "Elapsed time for BB",time.time()-t
-        if 1:
+        if 0:
             for l in range(100):
                 detectCRF.visualize([det1[l]],3,f,im,fig=200,text="SW")
                 detectCRF.visualize([det2[l]],3,f,im,fig=300,text="BB")
