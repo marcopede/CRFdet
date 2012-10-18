@@ -31,11 +31,11 @@ static inline ftype mul(ftype *a,ftype b,int len)
 static void reg(ftype *a,ftype b,ftype d,int len,int sizereg)
 {
     int c;
-    for (c=0;c<len-1-sizereg;c++)//normal part
+    for (c=0;c<len-sizereg;c++)//normal part
     {
         a[c]=a[c]-a[c]*b;
     }
-    for (c=len-1-sizereg;c<len-1;c++)//regularize at d instead of 0
+    for (c=len-sizereg;c<len;c++)//regularize at d instead of 0
     {
         a[c]=a[c]-(a[c]-d)*b;
         //a[c]= (a[c]<0.1*d) ? 0.1*d : a[c];//limit the minimum pairwise cost
@@ -54,12 +54,12 @@ static void reg(ftype *a,ftype b,ftype d,int len,int sizereg)
 static void limit(ftype *a,ftype d,int len,int sizereg)
 {
     int c;
-    for (c=len-1-sizereg;c<len-1;c++)//regularize at d instead of 0
+    for (c=len-sizereg;c<len;c++)//regularize at d instead of 0
     {
         //a[c]=a[c]-(a[c]-d)*b;
         //if (a[c]<0.1*d)
         //    a[c]=0.1*d;
-        a[c]= (a[c]<0.1*d) ? 0.1*d : a[c];//limit the minimum pairwise cost
+        a[c]= (a[c]<d) ? d : a[c];//limit the minimum pairwise cost
     }
     //printf("Val:%f ",a[len-2]);
 /*    for (c=0;c<len-1;c++)//not regularize bias
@@ -91,6 +91,23 @@ static inline ftype score(ftype *x,ftype *w,int len)
     }
     return scr;
 }
+
+static inline ftype score2(ftype *x,ftype *w,ftype w0,int len,int sizereg)
+{
+    int c;
+    ftype scr=0;
+    for (c=0;c<len-sizereg;c++)//normal part
+    {
+        scr+=x[c]*w[c];
+    }
+    for (c=len-sizereg;c<len;c++)//regularize at d instead of 0
+    {
+        scr+=(x[c]-w0)*(w[c]-w0);
+        //a[c]= (a[c]<0.1*d) ? 0.1*d : a[c];//limit the minimum pairwise cost
+    }
+    return scr;
+}
+
 
 void fast_pegasos(ftype *w,int wx,ftype *ex,int exy,ftype *label,ftype lambda,int iter,int part)
 {
@@ -208,8 +225,9 @@ void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype *
         {   
             //wscr=score(w+sumszx[cp],w+sumszx[cp],compx[cp]);
             //just a test
-            wscr=score(w+sumszx[cp],w+sumszx[cp],compx[cp]-sizereg[cp]);
+            //wscr=score(w+sumszx[cp],w+sumszx[cp],compx[cp]-sizereg[cp]);
             //printf("Wscore(%d)=%f\n",cp,wscr);
+            wscr=score2(w+sumszx[cp],w+sumszx[cp],valreg,compx[cp]-1,sizereg[cp]);
             if (wscr>bwscr)
             {
                 bwscr=wscr;
@@ -220,9 +238,9 @@ void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype *
         //not regularize pairwise
         //reg(w+sumszx[bcp],n,valreg,compx[bcp]-sizereg[bcp],0);//0.01    
         //|w-w_0|
-        //reg(w+sumszx[bcp],n,valreg,compx[bcp],sizereg[bcp]);//0.01    
+        reg(w+sumszx[bcp],n,valreg,compx[bcp]-1,sizereg[bcp]);//0.01    
         //|w|
-        reg(w+sumszx[bcp],n,valreg,compx[bcp],0);//0.01    
+        //reg(w+sumszx[bcp],n,valreg,compx[bcp],0);//0.01    
         //mul22(w+sumszx[bcp],1-n,valreg,compx[bcp],sizereg[bcp]);//0.01    
         //all the vector
         //mul(w,1-n*lambda,wxtot);
@@ -265,7 +283,113 @@ void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype *
             }
         }
         for (cp=0;cp<numcomp;cp++)
-            limit(w+sumszx[cp],valreg,compx[cp],sizereg[cp]);//0.01    
+            limit(w+sumszx[cp],valreg,compx[cp]-1,sizereg[cp]);//0.01    
+        /*if (scr*y<1.0)
+        {
+            addmul(w+sumszx[comp[pex]],x,C*y*n*totsamples,wx);            
+        }*/
+    }
+    printf("N:%g t:%d\n",n,t);
+    free(pares);
+    free(pexarray);
+}
+
+void fast_pegasos_comp_parall2(ftype *w,int numcomp,int *compx,int *compy,ftype **ptrsamplescomp,int totsamples,int *label,int *comp,ftype C,int iter,int part,int k,int numthr,int *sizereg,ftype valreg,ftype lb)
+{
+    //assume the last is bias and it is not regularized
+    int wx=0,wxtot=0,wcx;
+    #ifdef _OPENMP
+    omp_set_num_threads(numthr);
+    #endif
+    printf("k=%d\n",k);
+    srand48(3+part);
+    int c,cp,bcp,d,y,t,pex,pexcomp,totsz,sumszx[10],sumszy[10];//max 10 components
+    ftype *x,n,scr,norm,val,ptrc,wscr,bwscr=-1.0;
+    totsz=0;
+    sumszx[0]=0;
+    sumszy[0]=0;
+    int *pares,*pexarray,kk;
+    pares   =malloc(sizeof(int)*k);
+    pexarray=malloc(sizeof(int)*k);
+    for (c=0;c<numcomp;c++)
+    {
+        wxtot+=compx[c];
+        totsz+=compy[c];
+        sumszx[c+1]=wxtot;
+        sumszy[c+1]=totsz;
+    }
+    for (c=0;c<iter;c++)
+    {
+        t=c+part*iter+1;
+        n=1.0/(t);
+        //only the component l2_max*/
+        bwscr=-1.0;
+        //printf("I am Here!!!!\n");
+        for (cp=0;cp<numcomp;cp++)
+        {   
+            //wscr=score(w+sumszx[cp],w+sumszx[cp],compx[cp]-1);//skip bias
+            wscr=score2(w+sumszx[cp],w+sumszx[cp],valreg,compx[cp]-1,sizereg[cp]);
+            //just a test
+            //wscr=score(w+sumszx[cp],w+sumszx[cp],compx[cp]-sizereg[cp]);
+            //printf("Wscore(%d)=%f\n",cp,wscr);
+            if (wscr>bwscr)
+            {
+                bwscr=wscr;
+                bcp=cp;
+            }
+        }
+        //printf("Regularize Component %d Valreg:%f Sizereg:%d \n",bcp,valreg,sizereg[bcp]);
+        //not regularize pairwise
+        //reg(w+sumszx[bcp],n,valreg,compx[bcp]-sizereg[bcp],0);//0.01    
+        //|w-w_0|
+        //reg(w+sumszx[bcp],n,valreg,compx[bcp],sizereg[bcp]);//0.01    
+        //|w|
+        //printf("Now, I am Here!!!!\n");    
+        reg(w+sumszx[bcp],n,valreg,compx[bcp]-1,sizereg[cp]);
+        //mul22(w+sumszx[bcp],1-n,valreg,compx[bcp],sizereg[bcp]);//0.01    
+        //all the vector
+        //mul(w,1-n*lambda,wxtot);
+        for (kk=0;kk<k;kk++)
+        {
+            pexarray[kk]=(int)(drand48()*(totsamples-0.5));
+        }
+        //printf("here2!!!\n");
+        #pragma omp parallel for private(scr,pex,x,y,wx)
+        for (kk=0;kk<k;kk++)
+        {          
+            pex=pexarray[kk];
+            wx=compx[comp[pex]];
+            x=ptrsamplescomp[comp[pex]]+(pex-sumszy[comp[pex]])*wx;
+            //printf("here2.3!!!\n");
+            y=label[pex];
+            //printf("Y %d ",y);
+            //printf("C %d ",comp[pex]);
+            scr=score(x,w+sumszx[comp[pex]],wx);
+            //printf("here2.5!!!\n");
+            if (scr*y<1.0)
+            {
+                pares[kk]=pex;
+            }
+            else
+            {
+                pares[kk]=-1;
+            }
+        }
+        //printf("here3!!!\n");
+        for (kk=0;kk<k;kk++)
+        {
+            if (pares[kk]!=-1)
+            {
+                //addmul(w,ex+pares[kk]*wx,(float)(label[pares[kk]])*n/(float)k,wx);            
+                pex=pares[kk];
+                wx=compx[comp[pex]];
+                x=ptrsamplescomp[comp[pex]]+(pex-sumszy[comp[pex]])*wx;
+                addmul(w+sumszx[comp[pex]],x,(float)(label[pex])*n*C*totsamples/(float)k,wx);            
+            }
+        }
+        for (cp=0;cp<numcomp;cp++)
+            limit(w+sumszx[cp],lb,compx[cp]-1,sizereg[cp]);//0.01    
+        //printf("After limit!!!!\n");
         /*if (scr*y<1.0)
         {
             addmul(w+sumszx[comp[pex]],x,C*y*n*totsamples,wx);            

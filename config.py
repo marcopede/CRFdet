@@ -5,6 +5,7 @@ class config(object):
 cfg=config()
 
 cfg.dbpath="/home/databases/"
+cfg.localdata="/esat/nereid/mpederso/VOC07/" #used for checkpoints
 cfg.db="VOC"
 cfg.year="2007"
 cfg.cls="bicycle"
@@ -65,7 +66,8 @@ cfg.resize=None
 #cfg.saveVOC=False
 cfg.auxdir=""
 #cfg.denseinit=False
-cfg.checkpoint=False
+cfg.checkpoint=False #use checkpoints to recover partial trainings
+cfg.forcescratch=False #force to start from scratch even though there are checkpoints
 #cfg.variablecache=False
 cfg.rotate=False
 cfg.valreg=0.01
@@ -77,6 +79,10 @@ cfg.maxHOG=50
 cfg.neginpos=False
 cfg.numneg= 10 #number of hard negatives to collect per image
 cfg.N=2 #size of a part
+cfg.localshow=False
+cfg.trunc=0
+cfg.lb=0.001
+cfg.useSGD=True
 
 #trade-off speed accuracy
 cfg.usebbPOS=False #note for bb numhyp is the total number of detections while for the normal method is the number of hypotheses per scale
@@ -105,5 +111,7 @@ cfg.intervTEST=10
 #        cfg.maxneg=10
 #        cfg.maxtest=10
 #        cfg.maxexamples=1000
- 
+import subprocess
+cfg.version=subprocess.check_output(["git","log","--pretty=oneline","--abbrev-commit","-1"])
+
 

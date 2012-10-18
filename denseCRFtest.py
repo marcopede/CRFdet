@@ -98,7 +98,7 @@ def testINC(x):
 ########################## load configuration parametes
 if __name__ == '__main__':
 
-    if 0: #use the configuration file
+    if 1: #use the configuration file
         print "Loading defautl configuration config.py"
         from config import * #default configuration      
 
@@ -117,20 +117,20 @@ if __name__ == '__main__':
         bias=100
         cfg.bias=bias
         #just for a fast test
-        cfg.maxpos = 50
-        cfg.maxneg = 20
-        cfg.maxexamples = 10000
+        #cfg.maxpos = 50
+        #cfg.maxneg = 20
+        #cfg.maxexamples = 10000
     else: #or set here the parameters
         print "Loading defautl configuration config.py"
         from config import * #default configuration      
-        cfg.cls=sys.argv[1]
-        cfg.numcl=3
-        #cfg.dbpath="/home/owner/databases/"
-        cfg.dbpath="/users/visics/mpederso/databases/"
-        cfg.testpath="./data/"#"./data/CRF/12_09_19/"
-        cfg.testspec="right"#"full2"
-        cfg.db="VOC"
-        #cfg.N=
+    cfg.cls=sys.argv[1]
+    cfg.numcl=3
+    #cfg.dbpath="/home/owner/databases/"
+    cfg.dbpath="/users/visics/mpederso/databases/"
+    cfg.testpath="./data/"#"./data/CRF/12_09_19/"
+    cfg.testspec="right"#"full2"
+    cfg.db="VOC"
+    #cfg.N=
         
 
     testname=cfg.testpath+cfg.cls+("%d"%cfg.numcl)+"_"+cfg.testspec
@@ -148,7 +148,7 @@ if __name__ == '__main__':
             tsImages=numpy.concatenate((tsPosImages,tsNegImages),0)
             tsImagesFull=getRecord(VOC07Data(select="all",cl="%s_test.txt"%cfg.cls,
                             basepath=cfg.dbpath,
-                            usetr=True,usedf=False),5000)
+                            usetr=True,usedf=False),10000)
     elif cfg.db=="buffy":
         trPosImages=getRecord(Buffy(select="all",cl="trainval.txt",
                         basepath=cfg.dbpath,
@@ -189,9 +189,39 @@ if __name__ == '__main__':
     ######to comment down
     #it=6;testname="./data/person3_right"
     #it=12;testname="./data/CRF/12_09_23/bicycle3_fixed"
-    #it=4;testname="./data/bicycle3_full"
-    it=2;testname="./data/bicycle2_test"
-    models=util.load("%s%d.model"%(testname,it))
+    #it=2;testname="./data/bicycle2_test"
+
+    if 0: #standard configuration
+        cfg.usebbTEST=False
+        cfg.numhypTEST=1
+        cfg.aiterTEST=3
+        cfg.restartTEST=0
+        cfg.intervTEST=10
+
+    if 0: #used during training
+        cfg.usebbTEST=True
+        cfg.numhypTEST=50
+        cfg.aiterTEST=1
+        cfg.restartTEST=0
+        cfg.intervTEST=5
+
+    if 1: #personalized
+        cfg.usebbTEST=True
+        cfg.numhypTEST=50
+        cfg.aiterTEST=3
+        cfg.restartTEST=0
+        cfg.intervTEST=10
+
+    cfg.numcl=3
+    cfg.N=4
+    cfg.useclip=True
+    #testname="./data/CRF/12_10_02_parts_full/bicycle2_testN2_final"
+    #testname="./data/person1_testN2best0"#inria1_inria3"bicycle2_testN4aiter3_final
+    #testname="./data/bicycle2_testN4aiter3_final"
+    #testname="./data/bicycle2_testN4aiter38"
+    testname="./data/bicycle3_N4C3_final"
+    models=util.load("%s.model"%(testname))
+    #models=util.load("%s%d.model"%(testname,it))
     #just for the new
 #    for idm,m in enumerate(models):
 #        aux=models[idm]["cost"]
@@ -201,5 +231,5 @@ if __name__ == '__main__':
     ##############test
     #import itertools
     #runtest(models,tsImages,cfg,parallel=False,numcore=4,detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=True)#,save="%s%d"%(testname,it))
-    runtest(models,tsImages,cfg,parallel=True,numcore=4,show=True,detfun=testINC)#,save="./bicycleFullBB50Clip")
+    runtest(models,tsImagesFull,cfg,parallel=True,numcore=8,show=False,detfun=testINC,save="./bestbike3C4N")
 

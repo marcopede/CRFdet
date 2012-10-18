@@ -24,19 +24,38 @@ def refinePos(el):
     dratios=[]
     fy=[]
     fx=[]
+    det=[]
     for m in models:
-        fy.append(m["ww"][0].shape[0])
-        fx.append(m["ww"][0].shape[1])
+        fy.append(m["ww"][0].shape[0]/cfg.N)
+        fx.append(m["ww"][0].shape[1]/cfg.N)
         dratios.append(fy[-1]/float(fx[-1]))
     fy=numpy.array(fy)
     fx=numpy.array(fx)
     dratios=numpy.array(dratios)
     #dratios=numpy.array(cfg.fy)/numpy.array(cfg.fx)
     img=util.myimread(imname,resize=cfg.resize)
+    #make a mirror out of the image --> max out 50%
+    print "Old bbox:",bbox
+    extbbox=numpy.array(bbox[:6])
+    if bbox[0]<=1 and cfg.useclip:
+        extbbox[0]=-bbox[2]
+        extbbox[4]=1
+    if bbox[1]<=1 and cfg.useclip:
+        extbbox[1]=-bbox[3]
+        extbbox[4]=1
+    if bbox[2]>=img.shape[0]-1 and cfg.useclip:
+        extbbox[2]=img.shape[0]+(img.shape[0]-bbox[0])
+        extbbox[4]=1
+    if bbox[3]>=img.shape[1]-1 and cfg.useclip:
+        extbbox[3]=img.shape[1]+(img.shape[1]-bbox[1])
+        extbbox[4]=1
+    print "New bbox:",extbbox
+    #raw_input()
     if imageflip:
         img=util.myimread(imname,True,resize=cfg.resize)
         if bbox!=None:
-             bbox = util.flipBBox(img,[bbox])[0]
+            bbox = util.flipBBox(img,[bbox])[0]
+            extbbox = util.flipBBox(img,[extbbox])[0]    
     maxy=numpy.max([x["ww"][0].shape[0] for x in models])    
     maxx=numpy.max([x["ww"][0].shape[1] for x in models])    
     if (bbox!=[]):
@@ -46,28 +65,41 @@ def refinePos(el):
         y2=min(bbox[2]+marginy,img.shape[0]);x2=min(bbox[3]+marginx,img.shape[1])
         img=img[y1:y2,x1:x2]
         newbbox=(bbox[0]-y1,bbox[1]-x1,bbox[2]-y1,bbox[3]-x1)
+        extnewbbox=(extbbox[0]-y1,extbbox[1]-x1,extbbox[2]-y1,extbbox[3]-x1)
         cropratio= marginy/float(marginx)
         dist=abs(numpy.log(dratios)-numpy.log(cropratio))
-        idm=numpy.where(dist<0.4)[0] #
-        if cfg.rescale and len(idm)>0:
-            tiley=((bbox[2]-bbox[0]))/numpy.max(fy[idm])
-            tilex=((bbox[3]-bbox[1]))/numpy.max(fx[idm])
-            if tiley>8*cfg.N and tilex>8*cfg.N:
-                rescale=(8*cfg.N)/float(min(tiley,tilex))
-                img=zoom(img,(rescale,rescale,1),order=1)
-                newbbox=numpy.array(newbbox)*rescale
+        #idm=numpy.where(dist<0.4)[0] #
+        idm=numpy.where(dist<0.5)[0] #
+        #print "                 Selected ratios",idm
         if cfg.useclip:
-            if bbox[4]==1:# use all models for truncated
+            if bbox[4]==1 or extbbox[4]==1:# use all models for truncated
                 #print "TRUNCATED!!!"
                 idm=range(len(models)) 
-        selmodels=[models[x] for x in idm] 
-        if cfg.usebbPOS:
-            [f,det]=rundetbb(img,cfg.N,selmodels,numdet=cfg.numhypPOS, interv=cfg.intervPOS,aiter=cfg.aiterPOS,restart=cfg.restartPOS)
-        else:         
-            [f,det]=rundet(img,cfg.N,selmodels,numhyp=cfg.numhypPOS,interv=cfg.intervPOS,aiter=cfg.
-aiterPOS,restart=cfg.restartPOS)
+        if len(idm)>0:
+            if cfg.rescale:# and len(idm)>0:
+                #tiley=((bbox[2]-bbox[0]))/float(numpy.max(fy[idm]))
+                #tilex=((bbox[3]-bbox[1]))/float(numpy.max(fx[idm]))
+                tiley=((extbbox[2]-extbbox[0]))/float(numpy.max(fy[idm]))
+                tilex=((extbbox[3]-extbbox[1]))/float(numpy.max(fx[idm]))
+                #print "Tile y",tiley,(bbox[2]-bbox[0])/8,"Tile x",tilex,(bbox[3]-bbox[1])/8
+                if tiley>8*cfg.N and tilex>8*cfg.N:
+                    rescale=(8*cfg.N)/float(min(tiley,tilex))
+                    img=zoom(img,(rescale,rescale,1),order=1)
+                    newbbox=numpy.array(newbbox)*rescale
+                    extnewbbox=numpy.array(extnewbbox)*rescale
+                else:
+                    print "Not Rescaling!!!!"
+            selmodels=[models[x] for x in idm] 
+            #t1=time.time()
+            if cfg.usebbPOS:
+                [f,det]=rundetbb(img,cfg.N,selmodels,numdet=cfg.numhypPOS, interv=cfg.intervPOS,aiter=cfg.aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc)
+            else:         
+                #[f,det]=rundet(img,cfg.N,selmodels,numhyp=cfg.numhypPOS,interv=cfg.intervPOS,aiter=cfg.aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc)
+                [f,det]=rundetc(img,cfg.N,selmodels,numhyp=cfg.numhypPOS,interv=cfg.intervPOS,aiter=cfg.
+aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc,bbox=extnewbbox)
     #else: #for negatives
     #    [f,det]=rundet(img,cfg,models)
+    #print "Rundet time:",time.time()-t1
     print "Detection time:",time.time()-t
     #detectCRF.check(det[:10],f,models)
     boundingbox(det,cfg.N)
@@ -78,15 +110,17 @@ aiterPOS,restart=cfg.restartPOS)
     best=-1
     for idl,l in enumerate(det):
         ovr=util.overlap(newbbox,l["bbox"])
-        #print ovr
+        #print ovr,l["scr"]
         if ovr>cfg.posovr and l["scr"]>cfg.posthr:#valid detection
             if l["scr"]>bestscr:
                 best=idl
                 bestscr=l["scr"]
+    #raw_input()
     if len(det)>0 and best!=-1:
+        print "Pos det:",[x["scr"] for x in det[:5]]
         if cfg.show:
             visualize([det[best]],cfg.N,f,img)
-        feat,edge=getfeature([det[best]],cfg.N,f,models,cfg.bias)
+        feat,edge=getfeature([det[best]],cfg.N,f,models,cfg.trunc)
         #add image name and bbx so that each annotation is unique
         if imageflip:
             det[best]["idim"]=el["file"].split("/")[-1]+".flip"
@@ -97,6 +131,8 @@ aiterPOS,restart=cfg.restartPOS)
         #det[best]["scr"]-=models[det[best]["id"]]["rho"]/float(cfg.bias)
         return det[best],feat[0],edge[0],[rescale,y1,x1,y2,x2]#last just for drawing
     return [],[],[],[rescale,y1,x1,y2,x2]
+
+
 
 def hardNeg(el):
     t=time.time()
@@ -115,9 +151,9 @@ def hardNeg(el):
         img=util.myimread(imname,resize=cfg.resize)
     #imageflip=el["flip"]
     if cfg.usebbNEG:
-        [f,det]=rundetbb(img,cfg.N,models,numdet=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG)
+        [f,det]=rundetbb(img,cfg.N,models,numdet=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc)
     else:
-        [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG)
+        [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc)
     ldet=[]
     lfeat=[]
     ledge=[]
@@ -127,7 +163,7 @@ def hardNeg(el):
         if det[idl]["scr"]>-1:
             det[idl]["idim"]=el["file"].split("/")[-1]
             ldet.append(det[idl])
-            feat,edge=getfeature([det[idl]],cfg.N,f,models,cfg.bias)
+            feat,edge=getfeature([det[idl]],cfg.N,f,models,cfg.trunc)
             lfeat+=feat
             ledge+=edge
     if cfg.show:
@@ -153,9 +189,9 @@ def hardNegPos(el):
         img=util.myimread(imname,resize=cfg.resize)
     #imageflip=el["flip"]
     if cfg.usebbNEG:
-        [f,det]=rundetbb(img,cfg.N,models,numdet=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG)
+        [f,det]=rundetbb(img,cfg.N,models,numdet=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc)
     else:
-        [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG)
+        [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc)
     ldet=[]
     lfeat=[]
     ledge=[]
@@ -175,7 +211,7 @@ def hardNegPos(el):
             if not(skip):
                 det[idl]["idim"]=el["file"].split("/")[-1]
                 ldet.append(det[idl])
-                feat,edge=getfeature([det[idl]],cfg.N,f,models,cfg.bias)
+                feat,edge=getfeature([det[idl]],cfg.N,f,models,cfg.trunc)
                 lfeat+=feat
                 ledge+=edge
         if len(ldet)==cfg.numneg:
@@ -202,9 +238,9 @@ def test(el,docluster=True,show=False,inclusion=False,onlybest=False):
         img=util.myimread(imname,resize=cfg.resize)
     #imageflip=el["flip"]
     if cfg.usebbTEST:
-        [f,det]=rundetbb(img,cfg.N,models,numdet=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST)
+        [f,det]=rundetbb(img,cfg.N,models,numdet=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc)
     else:
-        [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST)
+        [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc)
     boundingbox(det,cfg.N)
     if cfg.useclip:
         clip(det,img.shape)
@@ -261,7 +297,7 @@ def check(det,f,models,bias):
             printf("Error %f too big, there is something wrong!!!"%(numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-scr-models[idm]["rho"]))
             raw_input()
 
-def getfeature(det,N,f,models,bias):
+def getfeature(det,N,f,models,trunc=0):
     """ check if score of detections and score from features are correct"""
     lfeat=[];ledge=[]
     for l in range(len(det)):#lsort[:100]:
@@ -272,7 +308,7 @@ def getfeature(det,N,f,models,bias):
         m2=f.hog[r]
         res=det[l]["def"]
         mcost=models[idm]["cost"].astype(numpy.float32)
-        dfeat,edge=crf3.getfeat_fullN(m2,N,res)
+        dfeat,edge=crf3.getfeat_fullN(m2,N,res,trunc=trunc)
         lfeat.append(dfeat)
         ledge.append(edge)
         #print "Scr",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-models[idm]["rho"],"Error",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-scr-models[idm]["rho"]
@@ -311,14 +347,15 @@ def clip(det,imsize):#imsize(y,x)
         det[idl]["bbox"]=(y1,x1,y2,x2)
         #print det[idl]["bbox"]
 
-def visualize(det,N,f,img):
+def visualize(det,N,f,img,fig=300,text=""):
     """visualize a detection and the corresponding featues"""
     pl=pylab
     col=['w','r','g','b','y','c','k','y','c','k']
-    pl.figure(300,figsize=(15,5))
+    pl.figure(fig,figsize=(15,5))
     pl.clf()
     pl.subplot(1,3,1)
     pl.imshow(img)
+    pl.title(text)
     im=img
     pad=0
     cc=0
@@ -339,7 +376,7 @@ def visualize(det,N,f,img):
            im2=numpy.zeros((im.shape[0]+sf*numy*2,im.shape[1]+sf*numx*2,im.shape[2]),dtype=im.dtype)
            im2[sf*numy:sf*numy+im.shape[0],sf*numx:sf*numx+im.shape[1]]=im
            rcim=numpy.zeros((sf*numy,sf*numx,3),dtype=im.dtype)
-        dfeat,edge=crf3.getfeat_full(m2,pad,res)
+        dfeat,edge=crf3.getfeat_fullN(m2,N,res)
         #print "Scr",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost),"Error",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-scr
         pl.subplot(1,3,1)
         for px in range(res.shape[2]):
@@ -420,7 +457,8 @@ def visualize2(det,N,img,bb=[],text=""):
     pl.show()
 
 
-def rundet(img,N,models,numhyp=5,interv=10,aiter=3,restart=0):
+def rundet(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0):
+    "run the CRF optimization at each level of the HOG pyramid"
     f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
     det=[]
     for idm,m in enumerate(models):
@@ -431,7 +469,7 @@ def rundet(img,N,models,numhyp=5,interv=10,aiter=3,restart=0):
         for r in range(len(f.hog)):
             m2=f.hog[r]
             #print numy,numx
-            lscr,fres=crf3.match_fullN(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,aiter=aiter,restart=restart)
+            lscr,fres=crf3.match_fullN(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,aiter=aiter,restart=restart,trunc=trunc)
             #print "Total time",time.time()-t
             #print "Score",lscr
             idraw=False
@@ -452,7 +490,195 @@ def rundet(img,N,models,numhyp=5,interv=10,aiter=3,restart=0):
     #    pylab.show()
     return [f,det]
 
-def rundetbb(img,N,models,numdet=50,interv=10,aiter=3,restart=0):
+import math as mt
+
+def rundetw(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1):
+    "run the CRF optimization at each level of the HOG pyramid but in a sliding window way"
+    f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
+    #add maximum padding to each hog    
+    maxfy=max([x["ww"][0].shape[0] for x in models])
+    maxfx=max([x["ww"][0].shape[1] for x in models])
+    padf=[]
+    #add 1 more maxf pad at the end to account for remaining parts of the grid
+    for idl,l in enumerate(f.hog):
+        #padf.append(numpy.zeros((f.hog[idl].shape[0]+2*maxfy,f.hog[idl].shape[1]+2*maxfx,f.hog[idl].shape[2]),dtype=f.hog[idl].dtype))
+        padf.append(numpy.zeros((f.hog[idl].shape[0]+2*maxfy+2*maxfy,f.hog[idl].shape[1]+2*maxfx+2*maxfx,f.hog[idl].shape[2]),dtype=f.hog[idl].dtype))
+        padf[-1][maxfy:maxfy+f.hog[idl].shape[0],maxfx:maxfx+f.hog[idl].shape[1]]=f.hog[idl]
+    det=[]
+    iwstepy=wstepy
+    iwstepx=wstepx
+    for idm,m in enumerate(models):
+        #for each model the minimum window size is 2 times the model size
+        #minwy=m["ww"].shape[0]
+        mcost=m["cost"].astype(numpy.float32)
+        m1=m["ww"][0]
+        numy=m["ww"][0].shape[0]
+        numx=m["ww"][0].shape[1]
+        if iwstepy==-1:
+            wstepy=2*numy#numy+1
+        if iwstepx==-1:
+            wstepx=2*numx#numx+1
+        minstepy=max(iwstepy,wstepy+2*numy)
+        #minstepy=max(wstepy,int(1.5*numy))
+        minstepx=max(iwstepx,wstepx+2*numx)
+        #minstepx=max(wstepx,int(1.5*numx))
+        for r in range(len(padf)):
+            #m2=padf[r]
+            #print "###############scale %d (%d,%d)#############"%(r,padf[r].shape[0],padf[r].shape[1])
+            #scan the image with step wstepx-y
+            for wy in range(((padf[r].shape[0]-(minstepy-wstepy))/wstepy)):
+                for wx in range(((padf[r].shape[1]-(minstepx-wstepx))/wstepx)):
+                    #print "WY:",wy,"WX",wx
+                    m2=padf[r][wy*wstepy:wy*wstepy+minstepy,wx*wstepx:wx*wstepx+minstepx]
+                    #print m2.shape
+                    lscr,fres=crf3.match_fullN_nopad(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,aiter=aiter,restart=restart,trunc=trunc)
+                    for idt in range(len(lscr)):
+                        det.append({"id":m["id"],"hog":r,"scl":f.scale[r],"def":(fres[idt].T+numpy.array([wstepy*wy-maxfy,wstepx*wx-maxfx]).T).T,"scr":lscr[idt]-models[idm]["rho"]})
+    det.sort(key=lambda by: -by["scr"])
+    #if cfg.show:
+    #    pylab.draw()
+    #    pylab.show()
+    return [f,det]
+
+
+def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1):
+    "run the CRF optimization at each level of the HOG pyramid but in a sliding window way"
+    f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
+    #add maximum padding to each hog    
+    maxfy=max([x["ww"][0].shape[0] for x in models])
+    maxfx=max([x["ww"][0].shape[1] for x in models])
+    padf=[]
+    #add 1 more maxf pad at the end to account for remaining parts of the grid
+    for idl,l in enumerate(f.hog):
+        #padf.append(numpy.zeros((f.hog[idl].shape[0]+2*maxfy,f.hog[idl].shape[1]+2*maxfx,f.hog[idl].shape[2]),dtype=f.hog[idl].dtype))
+        padf.append(numpy.zeros((f.hog[idl].shape[0]+2*maxfy+2*maxfy,f.hog[idl].shape[1]+2*maxfx+2*maxfx,f.hog[idl].shape[2]),dtype=f.hog[idl].dtype))
+        padf[-1][maxfy:maxfy+f.hog[idl].shape[0],maxfx:maxfx+f.hog[idl].shape[1]]=f.hog[idl]
+    #compute filters and max bounds
+    loc=[]
+    iwstepy=wstepy
+    iwstepx=wstepx
+    for idm,m in enumerate(models):
+        mcost=m["cost"].astype(numpy.float32)
+        m1=m["ww"][0]
+        numy=m["ww"][0].shape[0]
+        numx=m["ww"][0].shape[1]
+        if iwstepy==-1:
+            #wstepy=numy+1
+            wstepy=2*numy#/2
+        if iwstepx==-1:
+            #wstepx=numx+1
+            wstepx=2*numx#/2
+        minstepy=max(iwstepy,2*numy+wstepy)
+        minstepx=max(iwstepx,2*numx+wstepx)
+        for r in range(len(padf)):
+            #scan the image with step wstepx-y
+            for wy in range(((padf[r].shape[0]-(minstepy-wstepy))/wstepy)):
+                for wx in range(((padf[r].shape[1]-(minstepx-wstepx))/wstepx)):
+                    m2=padf[r][wy*wstepy:wy*wstepy+minstepy,wx*wstepx:wx*wstepx+minstepx]
+                    rdata,dmin=crf3.filtering_nopad(m1,m2,N,mcost,trunc=trunc)
+                    bound=numpy.sum(rdata.reshape((numy*numx,-1)).max(1))-dmin*numy*numx-m["rho"]
+                    #id position scale uniquely define a detection
+                    loc.append({"id":m["id"],"hog":r,"pos":(wy,wx),"scl":f.scale[r],"bscr":bound,"rdata":rdata,"dmin":dmin,"tied":False})
+    #get the best detections
+    det=[]                
+    nmaxloc=numpy.argmax([x["bscr"] for x in loc])
+    while (True):
+        maxloc=nmaxloc
+        #maxloc=numpy.argmax([x["scr"] for x in loc])
+        idm=loc[maxloc]["id"]
+        dmin=loc[maxloc]["dmin"]
+        rdata=loc[maxloc]["rdata"]
+        dmin=loc[maxloc]["dmin"]
+        #print "Best",maxloc,"Dmin",dmin,"Rdata.min()",rdata.min()
+        lscr,fres=crf3.matching_nopad(N,mcost,rdata,dmin,numhyp=1,aiter=aiter,restart=restart,trunc=trunc)
+        #print "After matching"
+        loc[maxloc]["bscr"]=lscr[0]-models[idm]["rho"]#-dmin*numy*numx
+        loc[maxloc]["def"]=fres[0]
+        #print "Computed",lscr[0]-models[idm]["rho"]
+        loc[maxloc]["tied"]=True
+        nmaxloc=numpy.argmax([x["bscr"] for x in loc])
+        if maxloc==nmaxloc or loc[nmaxloc]["tied"]: #found a solution
+            #maxloc=loc[maxloc]["scr"]
+            #save solution
+            sol=loc[nmaxloc]
+            r=sol["hog"]
+            dmin=sol["dmin"]
+            wy,wx=sol["pos"]        
+            res=sol["def"]
+            if iwstepy==-1:
+                wstepy=2*numy#/2
+            if iwstepx==-1:
+                wstepx=2*numx#/2
+            minstepy=max(iwstepy,wstepy+2*numy)
+            minstepx=max(iwstepx,wstepx+2*numx)        
+            det.append({"id":sol["id"],"hog":sol["hog"],"scl":sol["scl"],"def":(res.T+numpy.array([wstepy*wy-maxfy,wstepx*wx-maxfx]).T).T,"scr":sol["bscr"]})
+            #print "Solution",sol["bscr"]
+            #add penalties to forbid same solution
+            res2=fres[0]
+            numy=rdata.shape[0]
+            numx=rdata.shape[1]
+            movy=rdata.shape[2]
+            movx=rdata.shape[3]        
+            for py in range(res2.shape[1]):
+                for px in range(res2.shape[2]):
+                    rcy=res2[0,py,px]#+m1.shape[0]
+                    rcx=res2[1,py,px]#+m1.shape[1]
+                    #data.reshape((data.shape[0],data.shape[1],movy,movx))[py,px,rcy,rcx]=1
+                    #rdata.reshape((numy,numx,movy,movx))[py,px,max(0,rcy-1):rcy+2,max(0,rcx-1):rcx+2]=-10
+                    rdata[py,px,max(0,rcy-1):rcy+2,max(0,rcx-1):rcx+2]=10
+            if len(det)>=numdet:#found all solutions
+                break
+            loc[nmaxloc]["bscr"]=numpy.sum(rdata.reshape((numy*numx,movy*movx)).max(1))-dmin*numy*numx-models[sol["id"]]["rho"]
+            loc[nmaxloc]["tied"]=False
+            nmaxloc=numpy.argmax([x["bscr"] for x in loc])
+    det.sort(key=lambda by: -by["scr"])
+    return [f,det]
+
+
+
+def rundetc(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,bbox=None):
+    "run the CRF optimization at each level of the HOG pyramid adding constraints to force the  detection to be in the bounding box"
+    f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
+    det=[]
+    nbbox=None
+    for idm,m in enumerate(models):
+        mcost=m["cost"].astype(numpy.float32)
+        m1=m["ww"][0]
+        numy=m["ww"][0].shape[0]
+        numx=m["ww"][0].shape[1]
+        for r in range(len(f.hog)):
+            m2=f.hog[r]
+            #print numy,numx
+            if bbox!=None:
+                nbbox=numpy.array(bbox)*f.scale[r]
+            lscr,fres=crf3.match_fullN(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,aiter=aiter,restart=restart,trunc=trunc,bbox=nbbox)
+            #print "Total time",time.time()-t
+            #print "Score",lscr
+            idraw=False
+            if idraw:
+                import drawHOG
+                #rec=drawHOG.drawHOG(dfeat)
+                pylab.figure(figsize=(15,5))
+                #subplot(1,2,1)
+                #imshow(rec)
+                pylab.title("Reconstructed HOG Image (Learned Costs)")
+                pylab.subplot(1,2,2)
+                img=drawHOG.drawHOG(m2)
+            for idt in range(len(lscr)):
+                det.append({"id":m["id"],"hog":r,"scl":f.scale[r],"def":fres[idt],"scr":lscr[idt]-models[idm]["rho"]})
+    det.sort(key=lambda by: -by["scr"])
+    #if cfg.show:
+    #    pylab.draw()
+    #    pylab.show()
+    print "Number of detections:",len(det)
+    return [f,det]
+
+
+def rundetbb(img,N,models,numdet=50,interv=10,aiter=3,restart=0,trunc=0):
+    "run the CRF optimization at each level of the HOG pyramid but using branch and bound algorithm"
+    #note that branch and bound sometime is generating more than once the same hipothesis
+    # I do not know yet why...
+    #Maybe the punishment to repeat a location is not high enough
     #print "Branc and bound"
     f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
     ldet2=[]
@@ -461,31 +687,12 @@ def rundetbb(img,N,models,numdet=50,interv=10,aiter=3,restart=0):
         m1=m["ww"][0]
         numy=m["ww"][0].shape[0]
         numx=m["ww"][0].shape[1]
-        ldet=crf3.match_bbN(m1,f.hog,N,mcost,show=False,rot=False,numhyp=numdet,aiter=aiter,restart=restart)
+        ldet=crf3.match_bbN(m1,f.hog,N,mcost,show=False,rot=False,numhyp=numdet,aiter=aiter,restart=restart,trunc=trunc)
         for l in ldet:
             r=l["scl"]
             ldet2.append({"id":m["id"],"hog":r,"scl":f.scale[r],"def":l["def"][0],"scr":l["scr"]-models[idm]["rho"]})            
     ldet2.sort(key=lambda by: -by["scr"])
     return [f,ldet2]
-
-
-def rundetbb_old(img,cfg,models,numdet=50,interv=10,aiter=3,restart=0):
-    #notsave=False
-    #print "Branc and bound"
-    f=pyrHOG2.pyrHOG(img,interv=interv,savedir=cfg.auxdir+"/hog/",notsave=not(cfg.savefeat),notload=not(cfg.loadfeat),hallucinate=True,cformat=True)
-    ldet2=[]
-    for idm,m in enumerate(models):
-        mcost=m["cost"].astype(numpy.float32)
-        m1=m["ww"][0]
-        numy=m["ww"][0].shape[0]#models[idm]["ww"][0].shape[0]#cfg.fy[idm]
-        numx=m["ww"][0].shape[1]#models[idm]["ww"][0].shape[1]#cfg.fx
-        ldet=crf3.match_bb(m1,f.hog,mcost,show=False,rot=False,numhyp=numdet,aiter=aiter,restart=restart)
-        for l in ldet:
-            r=l["scl"]
-            ldet2.append({"id":m["id"],"hog":r,"scl":f.scale[r],"def":l["def"][0],"scr":l["scr"]-models[idm]["rho"]})            
-    ldet2.sort(key=lambda by: -by["scr"])
-    return [f,ldet2]
-
 
 def detectCrop(a):
     """
@@ -516,6 +723,19 @@ def detectCrop(a):
         img=img[y1:y2,x1:x2]
     res=rundet(img,cfg,models)
     return res
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
