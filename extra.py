@@ -143,5 +143,31 @@ def showDefNodes(cost):
     pl.imshow(vyn+hyn+vxn+hxn,interpolation="nearest")#,vmin=vmin,vmax=vmax)
     pl.xlabel("quad All (%.5f,%.5f)"%((vxn+hxn+vyn+hyn).min(),(vxn+hxn+vyn+hyn).max()))
 
-
+def showDef2(cost):
+    from scipy.ndimage.filters import uniform_filter
+    #vmin=cost.min()
+    #vmax=cost.max()
+    pl=pylab
+    vy=(cost[0])
+    vx=(cost[1])
+    hy=(cost[2])
+    hx=(cost[3])
+    vyn=uniform_filter(vy,[2,1],mode="constant")
+    vxn=uniform_filter(vx,[2,1],mode="constant")
+    hyn=uniform_filter(hy,[1,2],mode="constant")
+    hxn=uniform_filter(hx,[1,2],mode="constant")
+    qvy=(cost[4])
+    qvx=(cost[5])
+    qhy=(cost[6])
+    qhx=(cost[7])
+    qvyn=uniform_filter(qvy,[2,1],mode="constant")
+    qvxn=uniform_filter(qvx,[2,1],mode="constant")
+    qhyn=uniform_filter(qhy,[1,2],mode="constant")
+    qhxn=uniform_filter(qhx,[1,2],mode="constant")
+    vmin=(vyn+hyn+vxn+hxn+qvyn+qhyn+qvxn+qhxn).min()
+    vmax=(vyn+hyn+vxn+hxn+qvyn+qhyn+qvxn+qhxn).max()    
+    pl.imshow(vyn+hyn+vxn+hxn,interpolation="nearest")#,vmin=vmin,vmax=vmax)
+    pl.xlabel("Def (min %.5f,max %.5f)"%(vmin,vmax))
+    return vyn+hyn+vxn+hxn+qvyn+qhyn+qvxn+qhxn
+    
 
