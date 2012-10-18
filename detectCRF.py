@@ -502,9 +502,11 @@ def rundetw(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,
     #add 1 more maxf pad at the end to account for remaining parts of the grid
     for idl,l in enumerate(f.hog):
         #padf.append(numpy.zeros((f.hog[idl].shape[0]+2*maxfy,f.hog[idl].shape[1]+2*maxfx,f.hog[idl].shape[2]),dtype=f.hog[idl].dtype))
-        padf.append(numpy.zeros((f.hog[idl].shape[0]+2*maxfy+maxfy,f.hog[idl].shape[1]+2*maxfx+maxfx,f.hog[idl].shape[2]),dtype=f.hog[idl].dtype))
+        padf.append(numpy.zeros((f.hog[idl].shape[0]+2*maxfy+2*maxfy,f.hog[idl].shape[1]+2*maxfx+2*maxfx,f.hog[idl].shape[2]),dtype=f.hog[idl].dtype))
         padf[-1][maxfy:maxfy+f.hog[idl].shape[0],maxfx:maxfx+f.hog[idl].shape[1]]=f.hog[idl]
     det=[]
+    iwstepy=wstepy
+    iwstepx=wstepx
     for idm,m in enumerate(models):
         #for each model the minimum window size is 2 times the model size
         #minwy=m["ww"].shape[0]
@@ -512,14 +514,14 @@ def rundetw(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,
         m1=m["ww"][0]
         numy=m["ww"][0].shape[0]
         numx=m["ww"][0].shape[1]
-        minstepy=max(wstepy,2*numy)
+        minstepy=max(iwstepy,4*numy)
         #minstepy=max(wstepy,int(1.5*numy))
-        minstepx=max(wstepx,2*numx)
+        minstepx=max(iwstepx,4*numx)
         #minstepx=max(wstepx,int(1.5*numx))
-        if wstepy==-1:
-            wstepy=numy+1
-        if wstepx==-1:
-            wstepx=numx+1
+        if iwstepy==-1:
+            wstepy=2*numy#numy+1
+        if iwstepx==-1:
+            wstepx=2*numx#numx+1
         for r in range(len(padf)):
             #m2=padf[r]
             #print "###############scale %d (%d,%d)#############"%(r,padf[r].shape[0],padf[r].shape[1])
@@ -538,6 +540,97 @@ def rundetw(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,
     #    pylab.show()
     return [f,det]
 
+
+def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1):
+    "run the CRF optimization at each level of the HOG pyramid but in a sliding window way"
+    f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
+    #add maximum padding to each hog    
+    maxfy=max([x["ww"][0].shape[0] for x in models])
+    maxfx=max([x["ww"][0].shape[1] for x in models])
+    padf=[]
+    #add 1 more maxf pad at the end to account for remaining parts of the grid
+    for idl,l in enumerate(f.hog):
+        #padf.append(numpy.zeros((f.hog[idl].shape[0]+2*maxfy,f.hog[idl].shape[1]+2*maxfx,f.hog[idl].shape[2]),dtype=f.hog[idl].dtype))
+        padf.append(numpy.zeros((f.hog[idl].shape[0]+2*maxfy+2*maxfy,f.hog[idl].shape[1]+2*maxfx+2*maxfx,f.hog[idl].shape[2]),dtype=f.hog[idl].dtype))
+        padf[-1][maxfy:maxfy+f.hog[idl].shape[0],maxfx:maxfx+f.hog[idl].shape[1]]=f.hog[idl]
+    #compute filters and max bounds
+    loc=[]
+    for idm,m in enumerate(models):
+        mcost=m["cost"].astype(numpy.float32)
+        m1=m["ww"][0]
+        numy=m["ww"][0].shape[0]
+        numx=m["ww"][0].shape[1]
+        minstepy=max(wstepy,4*numy)
+        minstepx=max(wstepx,4*numx)
+        if wstepy==-1:
+            #wstepy=numy+1
+            wstepy=numy#/2
+        if wstepx==-1:
+            #wstepx=numx+1
+            wstepx=numx#/2
+        for r in range(len(padf)):
+            #scan the image with step wstepx-y
+            for wy in range(((padf[r].shape[0]-minstepy)/wstepy)):
+                for wx in range(((padf[r].shape[1]-minstepx)/wstepx)):
+                    m2=padf[r][wy*wstepy:wy*wstepy+minstepy,wx*wstepx:wx*wstepx+minstepx]
+                    rdata,dmin=crf3.filtering_nopad(m1,m2,N,mcost,trunc=trunc)
+                    bound=numpy.sum(rdata.reshape((numy*numx,-1)).max(1))-dmin*numy*numx-m["rho"]
+                    #id position scale uniquely define a detection
+                    loc.append({"id":m["id"],"hog":r,"pos":(wy,wx),"scl":f.scale[r],"bscr":bound,"rdata":rdata,"dmin":dmin,"tied":False})
+    #get the best detections
+    det=[]                
+    nmaxloc=numpy.argmax([x["bscr"] for x in loc])
+    while (True):
+        maxloc=nmaxloc
+        #maxloc=numpy.argmax([x["scr"] for x in loc])
+        idm=loc[maxloc]["id"]
+        dmin=loc[maxloc]["dmin"]
+        rdata=loc[maxloc]["rdata"]
+        dmin=loc[maxloc]["dmin"]
+        #print "Best",maxloc,"Dmin",dmin,"Rdata.min()",rdata.min()
+        lscr,fres=crf3.matching_nopad(N,mcost,rdata,dmin,numhyp=1,aiter=aiter,restart=restart,trunc=trunc)
+        #print "After matching"
+        loc[maxloc]["bscr"]=lscr[0]-models[idm]["rho"]#-dmin*numy*numx
+        loc[maxloc]["def"]=fres[0]
+        #print "Computed",lscr[0]-models[idm]["rho"]
+        loc[maxloc]["tied"]=True
+        nmaxloc=numpy.argmax([x["bscr"] for x in loc])
+        if maxloc==nmaxloc or loc[nmaxloc]["tied"]: #found a solution
+            #maxloc=loc[maxloc]["scr"]
+            #save solution
+            sol=loc[nmaxloc]
+            r=sol["hog"]
+            dmin=sol["dmin"]
+            wy,wx=sol["pos"]        
+            res=sol["def"]
+            minstepy=max(wstepy,4*numy)
+            minstepx=max(wstepx,4*numx)        
+            if wstepy==-1:
+                wstepy=numy#/2
+            if wstepx==-1:
+                wstepx=numx#/2
+            det.append({"id":sol["id"],"hog":sol["hog"],"scl":sol["scl"],"def":(res.T+numpy.array([wstepy*wy-maxfy,wstepx*wx-maxfx]).T).T,"scr":sol["bscr"]})
+            #print "Solution",sol["bscr"]
+            #add penalties to forbid same solution
+            res2=fres[0]
+            numy=rdata.shape[0]
+            numx=rdata.shape[1]
+            movy=rdata.shape[2]
+            movx=rdata.shape[3]        
+            for py in range(res2.shape[1]):
+                for px in range(res2.shape[2]):
+                    rcy=res2[0,py,px]#+m1.shape[0]
+                    rcx=res2[1,py,px]#+m1.shape[1]
+                    #data.reshape((data.shape[0],data.shape[1],movy,movx))[py,px,rcy,rcx]=1
+                    #rdata.reshape((numy,numx,movy,movx))[py,px,max(0,rcy-1):rcy+2,max(0,rcx-1):rcx+2]=-10
+                    rdata[py,px,max(0,rcy-1):rcy+2,max(0,rcx-1):rcx+2]=10
+            if len(det)>=numdet:#found all solutions
+                break
+            loc[nmaxloc]["bscr"]=numpy.sum(rdata.reshape((numy*numx,movy*movx)).max(1))-dmin*numy*numx-models[sol["id"]]["rho"]
+            loc[nmaxloc]["tied"]=False
+            nmaxloc=numpy.argmax([x["bscr"] for x in loc])
+    det.sort(key=lambda by: -by["scr"])
+    return [f,det]
 
 
 

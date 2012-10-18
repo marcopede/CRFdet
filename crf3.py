@@ -651,6 +651,85 @@ def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    n
         return scr,res2,frot
     return lscr,res2
 
+def filtering_nopad(m1,m2,N,cost,trunc=0,rot=False,bbox=None):
+    #m1 is expected to be divisible by N
+    t=time.time()
+    #check that image is bigger than model
+    assert(m2.shape[0]>m1.shape[0])
+    assert(m2.shape[1]>m1.shape[1])
+    #check shape is divisible by N
+    assert(m1.shape[0]%N==0)
+    assert(m1.shape[1]%N==0)
+    numy=m1.shape[0]/N#p1.shape[0]
+    numx=m1.shape[1]/N#p1.shape[1]
+    #print numy,numx
+    movy=(m2.shape[0]-m1.shape[0])
+    movx=(m2.shape[1]-m1.shape[1])
+    numlab=movy*movx
+    data=numpy.zeros((numy,numx,numlab),dtype=c_float)
+    auxdata=numpy.zeros((3,numy,numx,numlab),dtype=c_float)
+    #print "time preparation",time.time()-t
+    t=time.time()
+    mmax=numpy.zeros(2,dtype=c_int)
+    #original model
+    m2=numpy.ascontiguousarray(m2)
+    scn=numpy.mgrid[:movy,:movx].astype(numpy.int32)
+    #scn[0]=scn[0]#-m1.shape[0]
+    #scn[1]=scn[1]#-m1.shape[1]
+    tmp=scn.copy()
+    for px in range(numx):
+        for py in range(numy):
+            ff.scaneigh(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[N*py:N*(py+1),N*px:N*(px+1)]),N,N,m1.shape[2],scn[0]+N*py,scn[1]+N*px,auxdata[1,py,px],tmp[0],tmp[1],0,0,scn[0].size,trunc)
+            #print "Done ",py,px 
+    if rot:
+        #rotate +1
+        m2=numpy.ascontiguousarray(rotate(m2,shift=1))
+        for px in range(numx):
+            for py in range(numy):
+                ff.refineighfull(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[2*py:2*(py+1),2*px:2*(px+1)]),
+                    2,2,m1.shape[2],0,0,py*2+pad,px*2+pad,movy,movx,auxdata[2,py,px],
+                    mmax,mmax,ctypes.POINTER(c_float)(),0,0,0)
+        #rotate -1
+        m2=numpy.ascontiguousarray(rotate(m2,shift=-2))
+        for px in range(numx):
+            for py in range(numy):
+                ff.refineighfull(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[2*py:2*(py+1),2*px:2*(px+1)]),
+                    2,2,m1.shape[2],0,0,py*2+pad,px*2+pad,movy,movx,auxdata[0,py,px],
+                    mmax,mmax,ctypes.POINTER(c_float)(),0,0,0)
+
+        #print "time hog",time.time()-t
+        data=numpy.min(auxdata,0)
+        mrot=numpy.argmin(auxdata,0)
+        #print rot
+        rdata=data.reshape((data.shape[0]*data.shape[1],-1))
+        #rrot=rot.reshape((rot.shape[0]*rot.shape[1],-1))
+    else:
+        data=-auxdata[1]
+        rdata=data.reshape((data.shape[0]*data.shape[1],-1))
+
+    rmin=rdata.min()
+    rdata=rdata-rmin
+    rdata=rdata.reshape((numy,numx,movy,movx))
+    return rdata,rmin
+
+def matching_nopad(N,cost,rdata,rmin,numhyp=10,aiter=3,restart=0,trunc=0):
+    
+    numy=rdata.shape[0]
+    numx=rdata.shape[1]
+    movy=rdata.shape[2]
+    movx=rdata.shape[3]
+    res=numpy.zeros((numhyp,numy,numx),dtype=c_int)
+    t=time.time()
+    lscr=numpy.zeros(numhyp,dtype=numpy.float32)
+    scr=crfgr2(numy,numx,cost,movy,movx,rdata.reshape((numy*numx,movy*movx)),numhyp,lscr,res,aiter,restart)  
+    scr=scr-rmin*numy*numx
+    lscr=lscr-rmin*numy*numx
+    res2=numpy.zeros((numhyp,2,res.shape[1],res.shape[2]),dtype=c_int)
+    res2[:,0]=(res/(movx))
+    res2[:,1]=(res%(movx))
+    return lscr,res2
+
+
 def match_fullN_nopad(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    numhyp=10,output=False,aiter=3,restart=0,trunc=0,bbox=None):
     #m1 is expected to be divisible by N
     t=time.time()
@@ -968,7 +1047,7 @@ def match_bbN(m1,pm2,N,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0,trun
             if lscr.max()+0.00001>=maxb.max():
                 stop=True
                 lmax=lscr.argmax()
-                print "Found maxima Lev",lmax,"Scr",lscr[lmax],"#",len(ldet),"Infer",infer
+                #print "Found maxima Lev",lmax,"Scr",lscr[lmax],"#",len(ldet),"Infer",infer
                 infer=0
                 #raw_input()
                 ldet.append({"scl":lmax,"scr":lscr[lmax],"def":lres[lmax].copy()})
@@ -1100,9 +1179,12 @@ if __name__ == "__main__":
         #im=util.myimread("000379.jpg")[:,::-1,:]#flip
         #im=util.myimread("/users/visics/mpederso/code/git/condor-run/N4C2force_parts/CRFdet/data/CRF/12_10_18/aeroplane2_N4C2fpthr1051.png")
         m=util.load("./data/bicycle2_testN36.model")
-        for l in range(len(m)): 
-            m[l]["cost"]=m[l]["cost"]*0.1
+        #for l in range(len(m)): 
+        #    m[l]["cost"]=m[l]["cost"]*0.1
         import detectCRF
+        t=time.time()
+        [f,det0]=detectCRF.rundetwbb(im,3,m,numdet=125,interv=5,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1)
+        print "Elapsed time for SWBB",time.time()-t
         t=time.time()
         [f,det1]=detectCRF.rundetw(im,3,m,numhyp=5,interv=5,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1)
         print "Elapsed time for SW",time.time()-t
@@ -1114,10 +1196,17 @@ if __name__ == "__main__":
         print "Elapsed time for BB",time.time()-t
         if 0:
             for l in range(100):
-                detectCRF.visualize([det1[l]],3,f,im,fig=200,text="SW")
-                detectCRF.visualize([det2[l]],3,f,im,fig=300,text="BB")
+                detectCRF.visualize([det0[l]],3,f,im,fig=200,text="SWBB")
+                detectCRF.visualize([det1[l]],3,f,im,fig=300,text="BB")
                 show()
                 raw_input()
+        scrwbb1=[]
+        scrwbb=[x["scr"] for x in det0]
+        for idl,l in enumerate(scrwbb[:-1]):
+            if l-scrwbb[idl+1]<0.00001:
+                pass
+            else:
+                scrwbb1.append(l)
         scrw=[x["scr"] for x in det1]
         scrw1=[]
         #scrw1=scrw        
@@ -1128,6 +1217,7 @@ if __name__ == "__main__":
                 scrw1.append(l)
         scrn=[x["scr"] for x in det2]
         scrbb=[x["scr"] for x in det3]
+        plot(scrwbb1,"c",lw=3)
         plot(scrw1,lw=3)
         plot(scrn,"g",lw=3)
         plot(scrbb,"r",lw=3)
