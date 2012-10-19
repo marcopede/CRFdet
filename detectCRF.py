@@ -514,20 +514,20 @@ def rundetw(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,
         m1=m["ww"][0]
         numy=m["ww"][0].shape[0]
         numx=m["ww"][0].shape[1]
-        minstepy=max(iwstepy,4*numy)
-        #minstepy=max(wstepy,int(1.5*numy))
-        minstepx=max(iwstepx,4*numx)
-        #minstepx=max(wstepx,int(1.5*numx))
         if iwstepy==-1:
             wstepy=2*numy#numy+1
         if iwstepx==-1:
             wstepx=2*numx#numx+1
+        minstepy=max(iwstepy,wstepy+2*numy)
+        #minstepy=max(wstepy,int(1.5*numy))
+        minstepx=max(iwstepx,wstepx+2*numx)
+        #minstepx=max(wstepx,int(1.5*numx))
         for r in range(len(padf)):
             #m2=padf[r]
             #print "###############scale %d (%d,%d)#############"%(r,padf[r].shape[0],padf[r].shape[1])
             #scan the image with step wstepx-y
-            for wy in range(((padf[r].shape[0]-minstepy)/wstepy)):
-                for wx in range(((padf[r].shape[1]-minstepx)/wstepx)):
+            for wy in range(((padf[r].shape[0]-(minstepy-wstepy))/wstepy)):
+                for wx in range(((padf[r].shape[1]-(minstepx-wstepx))/wstepx)):
                     #print "WY:",wy,"WX",wx
                     m2=padf[r][wy*wstepy:wy*wstepy+minstepy,wx*wstepx:wx*wstepx+minstepx]
                     #print m2.shape
@@ -555,23 +555,25 @@ def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-
         padf[-1][maxfy:maxfy+f.hog[idl].shape[0],maxfx:maxfx+f.hog[idl].shape[1]]=f.hog[idl]
     #compute filters and max bounds
     loc=[]
+    iwstepy=wstepy
+    iwstepx=wstepx
     for idm,m in enumerate(models):
         mcost=m["cost"].astype(numpy.float32)
         m1=m["ww"][0]
         numy=m["ww"][0].shape[0]
         numx=m["ww"][0].shape[1]
-        minstepy=max(wstepy,4*numy)
-        minstepx=max(wstepx,4*numx)
-        if wstepy==-1:
+        if iwstepy==-1:
             #wstepy=numy+1
-            wstepy=numy#/2
-        if wstepx==-1:
+            wstepy=2*numy#/2
+        if iwstepx==-1:
             #wstepx=numx+1
-            wstepx=numx#/2
+            wstepx=2*numx#/2
+        minstepy=max(iwstepy,2*numy+wstepy)
+        minstepx=max(iwstepx,2*numx+wstepx)
         for r in range(len(padf)):
             #scan the image with step wstepx-y
-            for wy in range(((padf[r].shape[0]-minstepy)/wstepy)):
-                for wx in range(((padf[r].shape[1]-minstepx)/wstepx)):
+            for wy in range(((padf[r].shape[0]-(minstepy-wstepy))/wstepy)):
+                for wx in range(((padf[r].shape[1]-(minstepx-wstepx))/wstepx)):
                     m2=padf[r][wy*wstepy:wy*wstepy+minstepy,wx*wstepx:wx*wstepx+minstepx]
                     rdata,dmin=crf3.filtering_nopad(m1,m2,N,mcost,trunc=trunc)
                     bound=numpy.sum(rdata.reshape((numy*numx,-1)).max(1))-dmin*numy*numx-m["rho"]
@@ -603,12 +605,12 @@ def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-
             dmin=sol["dmin"]
             wy,wx=sol["pos"]        
             res=sol["def"]
-            minstepy=max(wstepy,4*numy)
-            minstepx=max(wstepx,4*numx)        
-            if wstepy==-1:
-                wstepy=numy#/2
-            if wstepx==-1:
-                wstepx=numx#/2
+            if iwstepy==-1:
+                wstepy=2*numy#/2
+            if iwstepx==-1:
+                wstepx=2*numx#/2
+            minstepy=max(iwstepy,wstepy+2*numy)
+            minstepx=max(iwstepx,wstepx+2*numx)        
             det.append({"id":sol["id"],"hog":sol["hog"],"scl":sol["scl"],"def":(res.T+numpy.array([wstepy*wy-maxfy,wstepx*wx-maxfx]).T).T,"scr":sol["bscr"]})
             #print "Solution",sol["bscr"]
             #add penalties to forbid same solution
