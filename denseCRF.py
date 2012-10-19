@@ -20,6 +20,7 @@ import crf3
 import logging as lg
 import os
 import pegasos2 as pegasos
+import denseCRFtest
 
 ########################## load configuration parametes
 
@@ -285,7 +286,7 @@ Number Negative SV:%d
         print "Loaded final model"
         lg.info("Loaded final model")    
         #last_round=True
-        cpit=cfg.cfg.posit
+        cpit=cfg.posit
     except:
         pass
     
@@ -1086,7 +1087,7 @@ Negative in cache vectors %d
     #mypool.close()
     #mypool.join()
     ##############test
-    import denseCRFtest
+    #import denseCRFtest
     #denseCRFtest.runtest(models,tsImages,cfg,parallel=True,numcore=numcore,save="%s%d"%(testname,it),detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=localshow)
 
     lg.info("############# Run test on %d positive examples #################"%len(tsImages))
