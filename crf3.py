@@ -1175,16 +1175,16 @@ if __name__ == "__main__":
     if 1:#check crf_fullN_nopad
         from pylab import *
         import util
-        #im=util.myimread("000535.jpg")[:,::-1,:]#flip
+        im=util.myimread("000535.jpg")[:,::-1,:]#flip
         #im=util.myimread("000379.jpg")[:,::-1,:]#flip
-        im=util.myimread("005467.jpg")[:,::-1,:]#flip
+        #im=util.myimread("005467.jpg")[:,::-1,:]#flip
         #im=util.myimread("/users/visics/mpederso/code/git/condor-run/N4C2force_parts/CRFdet/data/CRF/12_10_18/aeroplane2_N4C2fpthr1051.png")
         m=util.load("./data/bicycle2_testN36.model")
-        for l in range(len(m)): 
-            m[l]["cost"]=m[l]["cost"]*0.1
+        #for l in range(len(m)): 
+        #    m[l]["cost"]=m[l]["cost"]*0.1
         import detectCRF
         t=time.time()
-        [f,det0]=detectCRF.rundetwbb(im,3,m,numdet=10,interv=5,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1)
+        [f,det0]=detectCRF.rundetwbb(im,3,m,numdet=40,interv=5,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1)
         print "Elapsed time for SWBB",time.time()-t
         t=time.time()
         [f,det1]=detectCRF.rundetw(im,3,m,numhyp=1,interv=5,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1)
@@ -1193,7 +1193,7 @@ if __name__ == "__main__":
         [f,det2]=detectCRF.rundet(im,3,m,numhyp=1,interv=5,aiter=3,restart=0,trunc=0)
         print "Elapsed time for Normal",time.time()-t
         t=time.time()
-        [f,det3]=detectCRF.rundetbb(im,3,m,numdet=3,interv=5,aiter=3,restart=0,trunc=0)
+        [f,det3]=detectCRF.rundetbb(im,3,m,numdet=10,interv=5,aiter=3,restart=0,trunc=0)
         print "Elapsed time for BB",time.time()-t
         if 0:
             for l in range(100):

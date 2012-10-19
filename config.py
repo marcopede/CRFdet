@@ -103,6 +103,10 @@ cfg.aiterTEST=3
 cfg.restartTEST=0
 cfg.intervTEST=10
 
+cfg.useswTEST=False
+cfg.swstepy=-1
+cfg.swstepx=-1
+
 #cfg.savedir=InriaPosData(basepath=dbpath).getStorageDir() #where to save
 #    mydebug=False
 #    if mydebug:
