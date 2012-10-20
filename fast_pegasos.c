@@ -192,7 +192,7 @@ void fast_pegasos_comp(ftype *w,int numcomp,int *compx,int *compy,ftype **ptrsam
     printf("N:%g t:%d\n",n,t);
 }
 
-void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype **ptrsamplescomp,int totsamples,int *label,int *comp,ftype C,int iter,int part,int k,int numthr,int *sizereg,ftype valreg)
+void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype **ptrsamplescomp,int totsamples,int *label,int *comp,ftype C,int iter,int part,int k,int numthr,int *sizereg,ftype valreg,ftype lb)
 {
     int wx=0,wxtot=0,wcx;
     #ifdef _OPENMP
@@ -283,7 +283,7 @@ void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype *
             }
         }
         for (cp=0;cp<numcomp;cp++)
-            limit(w+sumszx[cp],valreg,compx[cp]-1,sizereg[cp]);//0.01    
+            limit(w+sumszx[cp],lb,compx[cp]-1,sizereg[cp]);//0.01    
         /*if (scr*y<1.0)
         {
             addmul(w+sumszx[comp[pex]],x,C*y*n*totsamples,wx);            

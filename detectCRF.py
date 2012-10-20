@@ -239,12 +239,12 @@ def test(el,docluster=True,show=False,inclusion=False,onlybest=False):
     #imageflip=el["flip"]
     if cfg.usebbTEST:
         if cfg.useswTEST:
-            [f,det]=rundetwbb(img,cfg.N,models,numdet=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc,swtepy=cfg.swstepy,swtepx=cfg.swstepx)
+            [f,det]=rundetwbb(img,cfg.N,models,numdet=cfg.numhypTEST*len(models),interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc,wstepy=cfg.swstepy,wstepx=cfg.swstepx)
         else:
             [f,det]=rundetbb(img,cfg.N,models,numdet=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc)
     else:
         if cfg.useswTEST:
-            [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc,swtepy=cfg.swstepy,swtepx=cfg.swstepx)
+            [f,det]=rundetw(img,cfg.N,models,numhyp=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc,wstepy=cfg.swstepy,wstepx=cfg.swstepx)
         else:
             [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc)
     boundingbox(det,cfg.N)
@@ -437,7 +437,9 @@ def visualize2(det,N,img,bb=[],text=""):
         sf=int(8*N/scl)
         #m2=f.hog[r]
         if l==0:
-           im2=numpy.zeros((im.shape[0]+sf*numy*2,im.shape[1]+sf*numx*2,im.shape[2]),dtype=im.dtype)
+           #im2=numpy.zeros((im.shape[0]+sf*numy*2,im.shape[1]+sf*numx*2,im.shape[2]),dtype=im.dtype)
+            #for sliding windows to work
+           im2=numpy.zeros((im.shape[0]+sf*numy*4,im.shape[1]+sf*numx*4,im.shape[2]),dtype=im.dtype)
            im2[sf*numy:sf*numy+im.shape[0],sf*numx:sf*numx+im.shape[1]]=im
            rcim=numpy.zeros((sf*numy,sf*numx,3),dtype=im.dtype)
         #dfeat,edge=crf3.getfeat_full(m2,pad,res)
@@ -450,7 +452,10 @@ def visualize2(det,N,img,bb=[],text=""):
                 if det[l].has_key("bbox"):
                     util.box(det[l]["bbox"][0],det[l]["bbox"][1],det[l]["bbox"][2],det[l]["bbox"][3],col=col[cc%10],lw=2)
                 if l==0:
-                    rcim[sf*py:sf*(py+1),sf*px:sf*(px+1)]=im2[sf*numy+impy:sf*numy+impy+sf,sf*numx+impx:sf*numx+impx+sf] 
+                    if sf*numy+impy>im2.shape[0] or sf*numx+impx>im2.shape[1]:
+                        rcim[sf*py:sf*(py+1),sf*px:sf*(px+1)]=0
+                    else:
+                        rcim[sf*py:sf*(py+1),sf*px:sf*(px+1)]=im2[sf*numy+impy:sf*numy+impy+sf,sf*numx+impx:sf*numx+impx+sf] 
         cc+=1
         if l==0:
             pl.subplot(1,2,2)
@@ -566,8 +571,8 @@ def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-
     for idm,m in enumerate(models):
         mcost=m["cost"].astype(numpy.float32)
         m1=m["ww"][0]
-        numy=m["ww"][0].shape[0]
-        numx=m["ww"][0].shape[1]
+        numy=m["ww"][0].shape[0]/N
+        numx=m["ww"][0].shape[1]/N
         if iwstepy==-1:
             #wstepy=numy+1
             wstepy=2*numy#/2
@@ -609,7 +614,10 @@ def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-
             sol=loc[nmaxloc]
             r=sol["hog"]
             dmin=sol["dmin"]
-            wy,wx=sol["pos"]        
+            wy,wx=sol["pos"] 
+            idm=sol["id"] 
+            numy=models[idm]["ww"][0].shape[0]/N
+            numx=models[idm]["ww"][0].shape[1]/N      
             res=sol["def"]
             if iwstepy==-1:
                 wstepy=2*numy#/2

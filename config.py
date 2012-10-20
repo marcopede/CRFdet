@@ -85,6 +85,7 @@ cfg.lb=0.001
 cfg.useSGD=True
 
 #trade-off speed accuracy
+#now in training when not using bb it is using force parts
 cfg.usebbPOS=False #note for bb numhyp is the total number of detections while for the normal method is the number of hypotheses per scale
 cfg.numhypPOS=5
 cfg.aiterPOS=3
