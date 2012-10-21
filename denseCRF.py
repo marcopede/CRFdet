@@ -733,6 +733,8 @@ for it in range(cpit,cfg.posit):
         if (abs(dscr-l["scr"])>0.00005):
             print "Error in checking the score function"
             print "Feature score",dscr,"CRF score",l["scr"]
+            lg.info("Error in checking the score function")
+            lg.info("Feature score %f CRF score %f"%(dscr,l["scr"]))
             raw_input()
 
     ########### check positive convergence    
@@ -803,6 +805,8 @@ for it in range(cpit,cfg.posit):
                 if (abs(dscr-l["scr"])>0.00005):
                     print "Error in checking the score function"
                     print "Feature score",dscr,"CRF score",l["scr"]
+                    lg.info("Error in checking the score function")
+                    lg.info("Feature score %f CRF score %f"%(dscr,l["scr"]))
                     raw_input()
 
         #if no negative sample add empty negatives
