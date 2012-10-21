@@ -334,13 +334,15 @@ def boundingbox(det,N):
         #m2=f.hog[r]
         res=det[l]["def"]
         pos=numpy.zeros(res.shape)
-        sf=int(8*N/scl)
+        sh=8/float(scl)
+        sf=(8*N/float(scl))
+        print "Size hog",sh,"Size part",sf
         for px in range(res.shape[2]):
             for py in range(res.shape[1]):
                 #util.box(py*2*hogpix+res[0,py,px]*hogpix,px*2*hogpix+res[1,py,px]*hogpix,py*2*hogpix+res[0,py,px]*hogpix+2*hogpix,px*2*hogpix+res[1,py,px]*hogpix+2*hogpix, col=col[fres.shape[0]-hy-1], lw=2)  
-                pos[0,py,px]=(py)*sf+(res[0,py,px]+1)*sf/N
-                pos[1,py,px]=(px)*sf+(res[1,py,px]+1)*sf/N
-        det[l]["bbox"]=(numpy.min(pos[0]),numpy.min(pos[1]),numpy.max(pos[0])+sf,numpy.max(pos[1])+sf)
+                pos[0,py,px]=int((py)*sf)+int((res[0,py,px]+1)*sh)
+                pos[1,py,px]=int((px)*sf)+int((res[1,py,px]+1)*sh)
+        det[l]["bbox"]=(numpy.min(pos[0]),numpy.min(pos[1]),numpy.max(pos[0])+int(sf),numpy.max(pos[1])+int(sf))
 
 def clip(det,imsize):#imsize(y,x)
     """clip the deteciton bboxes to be inside the image"""
@@ -412,10 +414,13 @@ def visualize(det,N,f,img,fig=300,text=""):
     pl.show()
     #raw_input()
 
-def visualize2(det,N,img,bb=[],text=""):
+def visualize2(det,N,img,bb=[],text="",color=None):
     """visualize a detection and the corresponding featues"""
     pl=pylab
-    col=['w','r','g','b','y','c','k','y','c','k']
+    if color!=None:
+        col=color
+    else:
+        col=['w','r','g','b','y','c','k','y','c','k']
     pl.figure(300,figsize=(8,4))
     pl.clf()
     pl.subplot(1,2,1)
@@ -434,7 +439,7 @@ def visualize2(det,N,img,bb=[],text=""):
         scr=det[l]["scr"]
         numy=det[l]["def"].shape[1]#cfg.fy[idm]
         numx=det[l]["def"].shape[2]#cfg.fx[idm]
-        sf=int(8*N/scl)
+        sf=float(8*N/scl)
         #m2=f.hog[r]
         if l==0:
            #im2=numpy.zeros((im.shape[0]+sf*numy*2,im.shape[1]+sf*numx*2,im.shape[2]),dtype=im.dtype)
@@ -446,16 +451,17 @@ def visualize2(det,N,img,bb=[],text=""):
         pl.subplot(1,2,1)
         for px in range(res.shape[2]):
             for py in range(res.shape[1]):
-                impy=(py)*sf+(res[0,py,px]+1)*sf/N
-                impx=(px)*sf+(res[1,py,px]+1)*sf/N
-                util.box(impy,impx,impy+sf,impx+sf, col=col[cc%10], lw=1.5)  
+                impy=int((py)*sf+(res[0,py,px]+1)*sf/N)
+                impx=int((px)*sf+(res[1,py,px]+1)*sf/N)
+                util.box(impy,impx,impy+int(sf),impx+int(sf), col=col[cc%10], lw=1.5)  
                 if det[l].has_key("bbox"):
                     util.box(det[l]["bbox"][0],det[l]["bbox"][1],det[l]["bbox"][2],det[l]["bbox"][3],col=col[cc%10],lw=2)
                 if l==0:
-                    if sf*numy+impy>im2.shape[0] or sf*numx+impx>im2.shape[1]:
-                        rcim[sf*py:sf*(py+1),sf*px:sf*(px+1)]=0
+                    if int(sf*numy)+impy>im2.shape[0] or int(sf*numx)+impx>im2.shape[1]:
+                        rcim[int(sf*py):int(sf*(py+1)),int(sf*px):int(sf*(px+1))]=0
                     else:
-                        rcim[sf*py:sf*(py+1),sf*px:sf*(px+1)]=im2[sf*numy+impy:sf*numy+impy+sf,sf*numx+impx:sf*numx+impx+sf] 
+                        rcim[int(sf*py):int(sf*py)+int(sf),
+int(sf*px):int(sf*px)+int(sf)]=im2[int(sf*numy)+impy:int(sf*numy)+impy+int(sf),int(sf*numx)+impx:int(sf*numx)+impx+int(sf)] 
         cc+=1
         if l==0:
             pl.subplot(1,2,2)
