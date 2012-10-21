@@ -336,7 +336,7 @@ def boundingbox(det,N):
         pos=numpy.zeros(res.shape)
         sh=8/float(scl)
         sf=(8*N/float(scl))
-        print "Size hog",sh,"Size part",sf
+        #print "Size hog",sh,"Size part",sf
         for px in range(res.shape[2]):
             for py in range(res.shape[1]):
                 #util.box(py*2*hogpix+res[0,py,px]*hogpix,px*2*hogpix+res[1,py,px]*hogpix,py*2*hogpix+res[0,py,px]*hogpix+2*hogpix,px*2*hogpix+res[1,py,px]*hogpix+2*hogpix, col=col[fres.shape[0]-hy-1], lw=2)  
