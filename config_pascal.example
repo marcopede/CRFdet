@@ -115,11 +115,11 @@ cfg.usebbPOS=True #note for bb numhyp is the total number of detections while fo
 cfg.numhypPOS=50
 cfg.aiterPOS=3
 cfg.restartPOS=0
-cfg.invervPOS=5
+cfg.intervPOS=5
 
 cfg.usebbNEG=True
 cfg.numhypNEG=50#cfg.neginpos
 cfg.aiterNEG=3
 cfg.restartNEG=0
-cfg.invervNEG=5
+cfg.intervNEG=5
 
