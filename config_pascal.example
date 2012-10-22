@@ -102,7 +102,7 @@ if mydebug:
     #cfg.valreg=0.001*cfg.k*cfg.N**2 #good for N=4
     cfg.valreg=0
     cfg.initdef=0.01*cfg.k*cfg.N**2
-    cfg.lb=0.001
+    cfg.lb=0.001/cfg.k
 
 
 cfg.usebbTEST=True

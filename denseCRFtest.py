@@ -49,7 +49,7 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
     for ii,res in enumerate(itr):
         if show:
             im=myimread(arg[ii]["file"])
-            detectCRF.visualize2(res[:3],cfg.N,im)
+            detectCRF.visualize2(res[:3],cfg.N,im,bb=tsImages[ii]["bbox"][0])
             print [x["scr"] for x in res[:5]]
         ltdet+=res
 
@@ -98,7 +98,7 @@ def testINC(x):
 ########################## load configuration parametes
 if __name__ == '__main__':
 
-    if 1: #use the configuration file
+    if 0: #use the configuration file
         print "Loading defautl configuration config.py"
         from config import * #default configuration      
 
@@ -125,11 +125,13 @@ if __name__ == '__main__':
         from config import * #default configuration      
     cfg.cls=sys.argv[1]
     cfg.numcl=3
-    #cfg.dbpath="/home/owner/databases/"
-    cfg.dbpath="/users/visics/mpederso/databases/"
+    cfg.dbpath="/home/owner/databases/"
+    #cfg.dbpath="/users/visics/mpederso/databases/"
     cfg.testpath="./data/"#"./data/CRF/12_09_19/"
     cfg.testspec="right"#"full2"
-    cfg.db="VOC"
+    #cfg.db="VOC"
+    cfg.db="imagenet"
+    cfg.cls="tandem"
     #cfg.N=
         
 
@@ -176,7 +178,15 @@ if __name__ == '__main__':
         #test
         tsImages=getRecord(InriaTestFullData(basepath=cfg.dbpath),cfg.maxtest)
         tsImagesFull=tsImages
-
+    elif cfg.db=="imagenet":
+        tsPosImages=getRecord(imageNet(select="all",cl="%s_test.txt"%cfg.cls,
+                        basepath=cfg.dbpath,
+                        trainfile="/tandem/",
+                        imagepath="/tandem/images/",
+                        annpath="/tandem/Annotation/n02835271/",
+                        usetr=True,usedf=False),cfg.maxtest)
+        tsImages=tsPosImages#numpy.concatenate((tsPosImages,tsNegImages),0)
+        tsImagesFull=tsPosImages
     ##############load model
     for l in range(cfg.posit):
         try:
@@ -206,30 +216,33 @@ if __name__ == '__main__':
         cfg.intervTEST=5
 
     if 1: #personalized
-        cfg.usebbTEST=True
-        cfg.numhypTEST=50
+        cfg.usebbTEST=False#True
+        cfg.numhypTEST=1
         cfg.aiterTEST=3
         cfg.restartTEST=0
-        cfg.intervTEST=10
+        cfg.intervTEST=5
 
-    cfg.numcl=3
-    cfg.N=4
+    cfg.numcl=2
+    cfg.N=3
     cfg.useclip=True
     #testname="./data/CRF/12_10_02_parts_full/bicycle2_testN2_final"
     #testname="./data/person1_testN2best0"#inria1_inria3"bicycle2_testN4aiter3_final
     #testname="./data/bicycle2_testN4aiter3_final"
     #testname="./data/bicycle2_testN4aiter38"
-    testname="./data/bicycle3_N4C3_final"
+    #testname="./data/bicycle2_testN36"
+    testname="./data/resultsN2/bicycle2_N2C2_final"
+    cfg.trunc=1
     models=util.load("%s.model"%(testname))
+    cfg.N=models[0]["N"]
     #models=util.load("%s%d.model"%(testname,it))
     #just for the new
-#    for idm,m in enumerate(models):
-#        aux=models[idm]["cost"]
+    #for idm,m in enumerate(models):
+    #    models[idm]["cost"]=models[idm]["cost"]*0.2
 #        newc=numpy.zeros((8,aux.shape[1],aux.shape[2]),dtype=aux.dtype)
 #        newc[:4]=aux
 #        models[idm]["cost"]=newc
     ##############test
     #import itertools
     #runtest(models,tsImages,cfg,parallel=False,numcore=4,detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=True)#,save="%s%d"%(testname,it))
-    runtest(models,tsImagesFull,cfg,parallel=True,numcore=8,show=False,detfun=testINC,save="./bestbike3C4N")
+    runtest(models,tsImagesFull[:32],cfg,parallel=True,numcore=4,show=True,detfun=testINC)#,save="./bestbike3C4N")
 

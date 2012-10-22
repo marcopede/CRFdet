@@ -156,6 +156,44 @@ elif cfg.db=="inria":
     #test
     tsImages=getRecord(InriaTestFullData(basepath=cfg.dbpath),cfg.maxtest)
     tsImagesFull=tsImages
+elif cfg.db=="imagenet":
+    #training
+    trPosImages1=getRecord(imageNet(select="all",cl="%s_trainval.txt"%cfg.cls,
+                    basepath=cfg.dbpath,
+                    trainfile="/tandem/",
+                    imagepath="/tandem/images/",
+                    annpath="/tandem/Annotation/n02835271/",
+                    usetr=True,usedf=False),cfg.maxpos/2)
+    trPosImages2=getRecord(VOC07Data(select="pos",cl="%s_trainval.txt"%"bicycle",
+                    basepath=cfg.dbpath,#"/home/databases/",
+                    usetr=True,usedf=False),cfg.maxpos/2)
+    trPosImagesNoTrunc2=getRecord(VOC07Data(select="pos",cl="%s_trainval.txt"%"bicycle",
+                    basepath=cfg.dbpath,#"/home/databases/",
+                    usetr=False,usedf=False),cfg.maxpos)
+    trPosImages=numpy.concatenate((trPosImages1,trPosImages2),0)
+    trPosImagesNoTrunc=numpy.concatenate((trPosImages1,trPosImagesNoTrunc2),0)
+    trNegImages=getRecord(VOC07Data(select="neg",cl="%s_trainval.txt"%"bicycle",
+                    basepath=cfg.dbpath,#"/home/databases/",#"/share/ISE/marcopede/database/",
+                    usetr=True,usedf=False),cfg.maxneg)
+    trNegImagesFull=getRecord(VOC07Data(select="neg",cl="%s_trainval.txt"%"bicycle",
+                    basepath=cfg.dbpath,usetr=True,usedf=False),cfg.maxnegfull)
+    #test  
+    tsPosImages1=getRecord(imageNet(select="all",cl="%s_test.txt"%cfg.cls,
+                    basepath=cfg.dbpath,
+                    trainfile="/tandem/",
+                    imagepath="/tandem/images/",
+                    annpath="/tandem/Annotation/n02835271/",
+                    usetr=True,usedf=False),cfg.maxtest/2)
+    tsPosImages2=getRecord(VOC07Data(select="pos",cl="%s_test.txt"%"bicycle",
+                    basepath=cfg.dbpath,#"/home/databases/",#"/share/ISE/marcopede/database/",
+                    usetr=True,usedf=False),cfg.maxtest/2)        
+    tsNegImages=getRecord(VOC07Data(select="neg",cl="%s_test.txt"%"bicycle",
+                    basepath=cfg.dbpath,#"/home/databases/",#"/share/ISE/marcopede/database/",
+                    usetr=True,usedf=False),cfg.maxneg)
+    tsImages=numpy.concatenate((tsPosImages1,tsPosImages2,tsNegImages),0)
+    tsImagesFull=getRecord(VOC07Data(select="all",cl="%s_test.txt"%"bicycle",
+                    basepath=cfg.dbpath,
+                    usetr=True,usedf=False),cfg.maxtestfull)
 
 ########################compute aspect ratio and dector size 
 name,bb,r,a=extractInfo(trPosImages)

@@ -684,6 +684,23 @@ class Buffy(VOC07Data):
         return auxb
     
 
+class imageNet(VOC07Data):
+
+    def getImageName(self,i):
+        item=self.selines[i]
+        return (self.imagepath+item[:-1]+".JPEG")
+
+    def getBBox(self,i,cl="person",usetr=None,usedf=None):
+        if usetr==None:
+            usetr=self.usetr
+        if usedf==None:
+            usedf=self.usedf
+        item=self.selines[i]
+        filename=self.annpath+item[:-1]+".xml"
+        bb=getbboxVOC07(filename,"n02835271",usetr,usedf)
+        return bb
+
+
 class VOC11Data(VOC07Data):
     """
     VOC07 instance (you can choose positive or negative images with the option select)

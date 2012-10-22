@@ -47,7 +47,7 @@ if __name__ == '__main__':
         cfg.testpath="./data/"#"./data/CRF/12_09_19/"
         cfg.testspec="right"#"full2"
         cfg.db="VOC"
-        cfg.cls="bottle"
+        cfg.cls="diningtable"
         #cfg.N=
        
     testname=cfg.testpath+cfg.cls+("%d"%cfg.numcl)+"_"+cfg.testspec
