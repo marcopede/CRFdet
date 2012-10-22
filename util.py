@@ -34,11 +34,15 @@ def myimread(imgname,flip=False,resize=None):
         img=pylab.imread(imgname)
     else:
         img=numpy.ascontiguousarray(pylab.imread(imgname)[::-1])
+    if len(img.shape)==2:
+        aux=numpy.zeros((img.shape[0],img.shape[1],3),dtype=img.dtype)
+        aux[:,:,0]=img;aux[:,:,1]=img;aux[:,:,2]=img
+        img=aux       
     if flip:
         img=numpy.ascontiguousarray(img[:,::-1,:])        
     if resize!=None:
         from scipy.misc import imresize
-        img=imresize(img,resize)
+        img=imresize(img,resize)     
     return img
 
 def flipBBox(img,oldbbox):

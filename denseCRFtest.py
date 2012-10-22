@@ -49,7 +49,10 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
     for ii,res in enumerate(itr):
         if show:
             im=myimread(arg[ii]["file"])
-            detectCRF.visualize2(res[:3],cfg.N,im,bb=tsImages[ii]["bbox"][0])
+            if tsImages[ii]["bbox"]!=[]:
+                detectCRF.visualize2(res[:3],cfg.N,im,bb=tsImages[ii]["bbox"][0])
+            else:
+                detectCRF.visualize2(res[:3],cfg.N,im)
             print [x["scr"] for x in res[:5]]
         ltdet+=res
 
