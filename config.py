@@ -107,6 +107,9 @@ cfg.intervTEST=10
 cfg.useswTEST=False
 cfg.swstepy=-1
 cfg.swstepx=-1
+cfg.swsizey=-1
+cfg.swsizex=-1
+cfg.swforcestep=False
 
 #cfg.savedir=InriaPosData(basepath=dbpath).getStorageDir() #where to save
 #    mydebug=False

@@ -244,7 +244,8 @@ def test(el,docluster=True,show=False,inclusion=False,onlybest=False):
             [f,det]=rundetbb(img,cfg.N,models,numdet=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc)
     else:
         if cfg.useswTEST:
-            [f,det]=rundetw(img,cfg.N,models,numhyp=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc,wstepy=cfg.swstepy,wstepx=cfg.swstepx)
+            [f,det]=rundetw2(img,cfg.N,models,numhyp=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc,
+            wstepy=cfg.swstepy,wstepx=cfg.swstepx,wsizey=cfg.swsizey,wsizex=cfg.swsizex,forcestep=cfg.swforcestep)
         else:
             [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc)
     boundingbox(det,cfg.N)
@@ -509,8 +510,10 @@ def rundet(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0):
 
 import math as mt
 
-def rundetw(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1):
+def rundetw(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1,wsizey=-1,wsizex=-1,forcestep=False):
     "run the CRF optimization at each level of the HOG pyramid but in a sliding window way"
+    #forcestep=True --> step=min(step,size-num*2)
+    #forcestep=False --> forcesize size=max(size,step+num*2)
     f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
     #add maximum padding to each hog    
     maxfy=max([x["ww"][0].shape[0] for x in models])
@@ -524,6 +527,8 @@ def rundetw(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,
     det=[]
     iwstepy=wstepy
     iwstepx=wstepx
+    iwsizey=wsizey
+    iwsizex=wsizex
     for idm,m in enumerate(models):
         #for each model the minimum window size is 2 times the model size
         #minwy=m["ww"].shape[0]
@@ -531,22 +536,33 @@ def rundetw(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,
         m1=m["ww"][0]
         numy=m["ww"][0].shape[0]
         numx=m["ww"][0].shape[1]
+        #minimum condition wsize=step+2*num
+        #so max def = 2*num
+        #if I choose step --> wsize>=step+2*num
+        #if I choose wsize --> step<wsize-2*num
         if iwstepy==-1:
             wstepy=2*numy#numy+1
         if iwstepx==-1:
             wstepx=2*numx#numx+1
-        minstepy=max(iwstepy,wstepy+2*numy)
-        #minstepy=max(wstepy,int(1.5*numy))
-        minstepx=max(iwstepx,wstepx+2*numx)
-        #minstepx=max(wstepx,int(1.5*numx))
+        if iwsizey<0:
+            wsizey=-iwsizey*4*numy
+        if iwsizex<0:
+            wsizex=-iwsizex*4*numx
+        if forcestep:
+            wstepy=min(wstepy,wsizey-2*numy)
+            wstepx=min(wstepx,wsizex-2*numx)
+        else: #forcesize
+            wsizey=max(wsizey,wstepy+2*numy)
+            wsizex=max(wsizex,wstepx+2*numx)   
+        #print "Object Model",numy,numx
+        #print "Sliding steps",wstepy,wstepx
+        #print "Windows size",wsizey,wsizex
         for r in range(len(padf)):
-            #m2=padf[r]
-            #print "###############scale %d (%d,%d)#############"%(r,padf[r].shape[0],padf[r].shape[1])
-            #scan the image with step wstepx-y
-            for wy in range(((padf[r].shape[0]-(minstepy-wstepy))/wstepy)):
-                for wx in range(((padf[r].shape[1]-(minstepx-wstepx))/wstepx)):
+            #scan the image with step wstepx-y and window size wsizex-y
+            for wy in range(((padf[r].shape[0]-(wsizey-wstepy))/wstepy)):
+                for wx in range(((padf[r].shape[1]-(wsizex-wstepx))/wstepx)):
                     #print "WY:",wy,"WX",wx
-                    m2=padf[r][wy*wstepy:wy*wstepy+minstepy,wx*wstepx:wx*wstepx+minstepx]
+                    m2=padf[r][wy*wstepy:wy*wstepy+wsizey,wx*wstepx:wx*wstepx+wsizex]
                     #print m2.shape
                     lscr,fres=crf3.match_fullN_nopad(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,aiter=aiter,restart=restart,trunc=trunc)
                     for idt in range(len(lscr)):
@@ -558,7 +574,73 @@ def rundetw(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,
     return [f,det]
 
 
-def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1):
+def rundetw2(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1,wsizey=-1,wsizex=-1,forcestep=False):
+    "run the CRF optimization at each level of the HOG pyramid but in a sliding window way"
+    #forcestep=True --> step=min(step,size-num*2)
+    #forcestep=False --> forcesize size=max(size,step+num*2)
+    f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
+    #add maximum padding to each hog    
+    maxfy=max([x["ww"][0].shape[0] for x in models])
+    maxfx=max([x["ww"][0].shape[1] for x in models])
+    padf=[]
+    #add 1 more maxf pad at the end to account for remaining parts of the grid
+    for idl,l in enumerate(f.hog):
+        #padf.append(numpy.zeros((f.hog[idl].shape[0]+2*maxfy,f.hog[idl].shape[1]+2*maxfx,f.hog[idl].shape[2]),dtype=f.hog[idl].dtype))
+        padf.append(numpy.zeros((f.hog[idl].shape[0]+2*maxfy+2*maxfy,f.hog[idl].shape[1]+2*maxfx+2*maxfx,f.hog[idl].shape[2]),dtype=f.hog[idl].dtype))
+        padf[-1][maxfy:maxfy+f.hog[idl].shape[0],maxfx:maxfx+f.hog[idl].shape[1]]=f.hog[idl]
+    det=[]
+    iwstepy=wstepy
+    iwstepx=wstepx
+    iwsizey=wsizey
+    iwsizex=wsizex
+    for idm,m in enumerate(models):
+        #for each model the minimum window size is 2 times the model size
+        #minwy=m["ww"].shape[0]
+        mcost=m["cost"].astype(numpy.float32)
+        m1=m["ww"][0]
+        numy=m["ww"][0].shape[0]
+        numx=m["ww"][0].shape[1]
+        #minimum condition wsize=step+2*num
+        #so max def = 2*num
+        #if I choose step --> wsize>=step+2*num
+        #if I choose wsize --> step<wsize-2*num
+        if iwstepy==-1:
+            wstepy=2*numy#numy+1
+        if iwstepx==-1:
+            wstepx=2*numx#numx+1
+        if iwsizey<0:
+            wsizey=-iwsizey*4*numy
+        if iwsizex<0:
+            wsizex=-iwsizex*4*numx
+        if forcestep:
+            wstepy=min(wstepy,wsizey-2*numy)
+            wstepx=min(wstepx,wsizex-2*numx)
+        else: #forcesize
+            wsizey=max(wsizey,wstepy+2*numy)
+            wsizex=max(wsizex,wstepx+2*numx)   
+        #print "Object Model",numy,numx
+        #print "Sliding steps",wstepy,wstepx
+        #print "Windows size",wsizey,wsizex
+        for r in range(len(padf)):
+            #scan the image with step wstepx-y and window size wsizex-y
+            for wy in range(max(((padf[r].shape[0]-wsizey-2*maxfy)/wstepy)+2,1)):#at least 1 it
+                for wx in range(max(((padf[r].shape[1]-wsizex-2*maxfx)/wstepx)+2,1)):
+                    #print "WY:",wy,"WX",wx
+                    m2=padf[r][wy*wstepy:wy*wstepy+wsizey,wx*wstepx:wx*wstepx+wsizex]
+                    #print m2.shape
+                    lscr,fres=crf3.match_fullN_nopad(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,aiter=aiter,restart=restart,trunc=trunc)
+                    for idt in range(len(lscr)):
+                        det.append({"id":m["id"],"hog":r,"scl":f.scale[r],"def":(fres[idt].T+numpy.array([wstepy*wy-maxfy,wstepx*wx-maxfx]).T).T,"scr":lscr[idt]-models[idm]["rho"]})
+
+                
+    det.sort(key=lambda by: -by["scr"])
+    #if cfg.show:
+    #    pylab.draw()
+    #    pylab.show()
+    return [f,det]
+
+
+def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1,wsizey=-1,wsizex=-1,forcestep=False):
     "run the CRF optimization at each level of the HOG pyramid but in a sliding window way"
     f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
     #add maximum padding to each hog    
@@ -574,26 +656,40 @@ def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-
     loc=[]
     iwstepy=wstepy
     iwstepx=wstepx
+    iwsizey=wsizey
+    iwsizex=wsizex
     for idm,m in enumerate(models):
         mcost=m["cost"].astype(numpy.float32)
         m1=m["ww"][0]
-        numy=m["ww"][0].shape[0]/N
-        numx=m["ww"][0].shape[1]/N
+        numy=m["ww"][0].shape[0]
+        numx=m["ww"][0].shape[1]
+        numly=m["ww"][0].shape[0]/N
+        numlx=m["ww"][0].shape[1]/N
         if iwstepy==-1:
             #wstepy=numy+1
             wstepy=2*numy#/2
         if iwstepx==-1:
             #wstepx=numx+1
             wstepx=2*numx#/2
-        minstepy=max(iwstepy,2*numy+wstepy)
-        minstepx=max(iwstepx,2*numx+wstepx)
+        if iwsizey==-1:
+            wsizey=4*numy
+        if iwsizex==-1:
+            wsizex=4*numx
+        if forcestep:
+            wstepy=min(wstepy,wsizey-2*numy)
+            wstepx=min(wstepx,wsizex-2*numx)
+        else: #forcesize
+            wsizey=max(wsizey,wstepy+2*numy)
+            wsizex=max(wsizex,wstepx+2*numx)  
+        #minstepy=max(iwstepy,2*numy+wstepy)
+        #minstepx=max(iwstepx,2*numx+wstepx)
         for r in range(len(padf)):
             #scan the image with step wstepx-y
-            for wy in range(((padf[r].shape[0]-(minstepy-wstepy))/wstepy)):
-                for wx in range(((padf[r].shape[1]-(minstepx-wstepx))/wstepx)):
-                    m2=padf[r][wy*wstepy:wy*wstepy+minstepy,wx*wstepx:wx*wstepx+minstepx]
+            for wy in range(((padf[r].shape[0]-(wsizey-wstepy))/wstepy)):
+                for wx in range(((padf[r].shape[1]-(wsizex-wstepx))/wstepx)):
+                    m2=padf[r][wy*wstepy:wy*wstepy+wsizey,wx*wstepx:wx*wstepx+wsizex]
                     rdata,dmin=crf3.filtering_nopad(m1,m2,N,mcost,trunc=trunc)
-                    bound=numpy.sum(rdata.reshape((numy*numx,-1)).max(1))-dmin*numy*numx-m["rho"]
+                    bound=numpy.sum(rdata.reshape((numly*numlx,-1)).max(1))-dmin*numly*numlx-m["rho"]
                     #id position scale uniquely define a detection
                     loc.append({"id":m["id"],"hog":r,"pos":(wy,wx),"scl":f.scale[r],"bscr":bound,"rdata":rdata,"dmin":dmin,"tied":False})
     #get the best detections
@@ -622,21 +718,21 @@ def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-
             dmin=sol["dmin"]
             wy,wx=sol["pos"] 
             idm=sol["id"] 
-            numy=models[idm]["ww"][0].shape[0]/N
-            numx=models[idm]["ww"][0].shape[1]/N      
+            numy=models[idm]["ww"][0].shape[0]#/N
+            numx=models[idm]["ww"][0].shape[1]#/N      
             res=sol["def"]
             if iwstepy==-1:
                 wstepy=2*numy#/2
             if iwstepx==-1:
                 wstepx=2*numx#/2
-            minstepy=max(iwstepy,wstepy+2*numy)
-            minstepx=max(iwstepx,wstepx+2*numx)        
+            #minstepy=max(iwstepy,wstepy+2*numy)
+            #minstepx=max(iwstepx,wstepx+2*numx)        
             det.append({"id":sol["id"],"hog":sol["hog"],"scl":sol["scl"],"def":(res.T+numpy.array([wstepy*wy-maxfy,wstepx*wx-maxfx]).T).T,"scr":sol["bscr"]})
             #print "Solution",sol["bscr"]
             #add penalties to forbid same solution
             res2=fres[0]
-            numy=rdata.shape[0]
-            numx=rdata.shape[1]
+            numly=rdata.shape[0]
+            numlx=rdata.shape[1]
             movy=rdata.shape[2]
             movx=rdata.shape[3]        
             for py in range(res2.shape[1]):
@@ -648,7 +744,7 @@ def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-
                     rdata[py,px,max(0,rcy-1):rcy+2,max(0,rcx-1):rcx+2]=10
             if len(det)>=numdet:#found all solutions
                 break
-            loc[nmaxloc]["bscr"]=numpy.sum(rdata.reshape((numy*numx,movy*movx)).max(1))-dmin*numy*numx-models[sol["id"]]["rho"]
+            loc[nmaxloc]["bscr"]=numpy.sum(rdata.reshape((numly*numlx,movy*movx)).max(1))-dmin*numly*numlx-models[sol["id"]]["rho"]
             loc[nmaxloc]["tied"]=False
             nmaxloc=numpy.argmax([x["bscr"] for x in loc])
     det.sort(key=lambda by: -by["scr"])

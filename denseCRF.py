@@ -325,6 +325,8 @@ Number Negative SV:%d
         lg.info("Loaded final model")    
         #last_round=True
         cpit=cfg.posit
+        initial=False
+        loadedchk=True
     except:
         pass
     
@@ -1144,5 +1146,12 @@ ap=denseCRFtest.runtest(models,tsImagesFull,cfg,parallel=parallel,numcore=numcor
 lg.info("Ap is:%f"%ap)
 print "Training Finished!!!"
 lg.info("End of the training!!!!")
-# unitl positve convergercy
+#delete cache files if there
+try:
+    os.remove(localsave+".pos.valid")
+    os.remove(localsave+".neg.valid")
+    os.remove(localsave+".pos.chk")
+    os.remove(localsave+".neg.chk")
+except:
+    pass
 
