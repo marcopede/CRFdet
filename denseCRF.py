@@ -785,8 +785,10 @@ for it in range(cpit,cfg.posit):
         #add a bound on not found examples
         boldposl=oldposl+(totPosEx-total[-2])*(1-cfg.posthr)
         bnewposl=newposl+(totPosEx-total[-1])*(1-cfg.posthr)
-        #posratio.append((boldposl-bnewposl)/boldposl)
-        posratio.append((boldposl-bnewposl)/newposl)#divide without bound to be more strict!
+        if cfg.posconvbound:
+            posratio.append((boldposl-bnewposl)/boldposl)
+        else:
+            posratio.append((boldposl-bnewposl)/newposl)#divide without bound to be more strict!
         print "Old pos loss:",oldposl,boldposl
         print "New pos loss:",newposl,bnewposl
         print "Ratio Pos loss",posratio

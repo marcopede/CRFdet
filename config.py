@@ -111,6 +111,8 @@ cfg.swsizey=-1
 cfg.swsizex=-1
 cfg.swforcestep=False
 
+cfg.posconvbound=True
+
 #cfg.savedir=InriaPosData(basepath=dbpath).getStorageDir() #where to save
 #    mydebug=False
 #    if mydebug:
