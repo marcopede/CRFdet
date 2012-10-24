@@ -537,9 +537,12 @@ if initial:
     #raw_input()
 
     ######################### add CRF
+    szdef=8
+    if cfg.userot:
+        szdef=10
     for idm,m in enumerate(models):   
-        models[idm]["cost"]=cfg.initdef*numpy.ones((8,cfg.fy[idm],cfg.fx[idm]))
-
+        models[idm]["cost"]=cfg.initdef*numpy.ones((szdef,cfg.fy[idm],cfg.fx[idm]))
+        #models[idm]["cost"][8:]=0
 
     waux=[]
     rr=[]
@@ -727,9 +730,10 @@ for it in range(cpit,cfg.posit):
                 cbb[3]=(cbb[3]-x1)*rescale
                 im=extra.myzoom(im[y1:y2,x1:x2],(rescale,rescale,1),1)
                 if res[0]!=[]:
-                    detectCRF.visualize2([res[0]],cfg.N,im,cbb,text)
+                    #detectCRF.visualize2([res[0]],cfg.N,im,cbb,text)
+                    detectCRF.visualize_rot([res[0]],cfg.N,im,bb=[cbb],text=text)
                 else:
-                    detectCRF.visualize2([],cfg.N,im,cbb,text)
+                    detectCRF.visualize_rot([],cfg.N,im,bb=[cbb],text=text)
                 #raw_input()
         print "Added examples",padd
         print "Improved examples",pbetter
@@ -902,7 +906,7 @@ for it in range(cpit,cfg.posit):
         w1=numpy.array([])
         #from w to model m1
         for idm,m in enumerate(models[:cfg.numcl]):
-            models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],cfg.N,-w[cumsize[idm+1]-1]*bias,len(m["ww"]),lenf,m["ww"][0].shape[0],m["ww"][0].shape[1],useCRF=True,k=cfg.k)
+            models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],cfg.N,-w[cumsize[idm+1]-1]*bias,len(m["ww"]),lenf,m["ww"][0].shape[0],m["ww"][0].shape[1],useCRF=True,userot=cfg.userot,k=cfg.k)
             models[idm]["id"]=idm
             #models[idm]["ra"]=w[cumsize[idm+1]-1]
             #from model to w #changing the clip...
@@ -1033,7 +1037,7 @@ Negative in cache vectors %d
             print "Total negatives:",len(lndetnew)
             if localshow and res[0]!=[]:
                 im=myimread(arg[ii]["file"])
-                detectCRF.visualize2(res[0][:5],cfg.N,im)
+                detectCRF.visualize_rot(res[0][:5],cfg.N,im)
             lndetnew+=res[0]
             lnfeatnew+=res[1]
             lnedgenew+=res[2]
@@ -1070,7 +1074,7 @@ Negative in cache vectors %d
                 print "Total Negatives:",len(lndetnew)
                 if localshow and res[0]!=[]:
                     im=myimread(arg[ii]["file"])
-                    detectCRF.visualize2(res[0][:5],cfg.N,im)
+                    detectCRF.visualize_rot(res[0][:5],cfg.N,im)
                 lndetnew+=res[0]
                 lnfeatnew+=res[1]
                 lnedgenew+=res[2]

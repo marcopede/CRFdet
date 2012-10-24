@@ -108,6 +108,9 @@ cfg.useswTEST=False
 cfg.swstepy=-1
 cfg.swstepx=-1
 
+cfg.userot=False
+cfg.rotangle=20
+
 #cfg.savedir=InriaPosData(basepath=dbpath).getStorageDir() #where to save
 #    mydebug=False
 #    if mydebug:

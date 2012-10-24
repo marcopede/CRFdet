@@ -3,7 +3,7 @@ import numpy
 #danger: code dupicated in pyrHOG2.py: find a solution
 
 
-def initmodel(fy,fx,N,useRL,lenf,CRF=False,small2=False):
+def initmodel(fy,fx,N,useRL,lenf,CRF=False,userot=False,small2=False):
     ww=[]
     hww=[]
     voc=[]
@@ -30,7 +30,11 @@ def initmodel(fy,fx,N,useRL,lenf,CRF=False,small2=False):
     model={"ww":ww,"rho":rho,"fy":ww[0].shape[0],"fx":ww[0].shape[1],"N":N}
     if CRF:
         #cost=0.01*numpy.ones((2,fy*2,fx*2),dtype=numpy.float32)
-        cost=0.01*numpy.ones((8,fy*2,fx*2),dtype=numpy.float32)
+        if userot:
+            cost=0.01*numpy.ones((10,fy*2,fx*2),dtype=numpy.float32)
+            cost[8:]=0
+        else:
+            cost=0.01*numpy.ones((8,fy*2,fx*2),dtype=numpy.float32)
         model["cost"]=cost
     if small2:
         model["small2"]=numpy.array([0.0,0.0,0.0])#2x2,4x4,not used
@@ -57,12 +61,16 @@ def model2w(model,deform,usemrf,usefather,k=1,lastlev=0,usebow=False,useCRF=Fals
         w=numpy.concatenate((w,model["small2"].flatten()))
     return w
 
-def w2model(descr,N,rho,lev,fsz,fy=[],fx=[],bin=5,siftsize=2,deform=False,usemrf=False,usefather=False,k=1,mindef=0.001,useoccl=False,usebow=False,useCRF=False,small2=False):
+def w2model(descr,N,rho,lev,fsz,fy=[],fx=[],bin=5,siftsize=2,deform=False,usemrf=False,usefather=False,k=1,mindef=0.001,useoccl=False,usebow=False,useCRF=False,userot=False,small2=False):
         #does not work with occlusions
         """
         build a new model from the weights of the SVM
         """     
         ww=[]  
+        if userot:
+            ndef=10
+        else:
+            ndef=8
         p=0
         occl=[0]*lev
         d=descr
@@ -81,8 +89,8 @@ def w2model(descr,N,rho,lev,fsz,fy=[],fx=[],bin=5,siftsize=2,deform=False,usemrf
                 p=p+bin**(siftsize**2)
         m={"ww":ww,"rho":rho,"fy":fy,"fx":fx,"occl":occl,"N":N}
         if useCRF:
-            m["cost"]=((d[p:p+8*(fy/N)*(fx/N)].reshape((8,fy/N,fx/N))*(k)))#.clip(mindef,10))
-            p=p+8*(fy/N)*(fx/N)
+            m["cost"]=((d[p:p+ndef*(fy/N)*(fx/N)].reshape((ndef,fy/N,fx/N))*(k)))#.clip(mindef,10))
+            p=p+ndef*(fy/N)*(fx/N)
             #m["cost"]=((d[p:p+4*(2*fy)*(2*fx)].reshape((4,2*fy,2*fx))/float(k)).clip(mindef,10))
             #p=p+4*(2*fy)*(2*fx)
         if small2:

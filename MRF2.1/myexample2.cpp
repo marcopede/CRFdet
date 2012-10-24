@@ -48,6 +48,9 @@ dtype * st_qcost_v_y;
 dtype * st_qcost_v_x;
 dtype * st_qcost_h_y;
 dtype * st_qcost_h_x;
+//rotations
+dtype * st_rot_v;
+dtype * st_rot_h;
 
 int st_numlab;
 int st_num_lab_x;
@@ -288,6 +291,39 @@ MRF::CostVal smoothApp6(int p1, int p2, int l1, int l2)
         {
         //printf("Vertical Edge! part:%d score:%f\n",p1,st_cost_y[p1]*abs(y1-y2));
         return st_cost_v_y[p1]*abs(y1-y2)+st_cost_v_x[p1]*abs(x1-x2)+st_qcost_v_y[p1]*(y1-y2)*(y1-y2)+st_qcost_v_x[p1]*(x1-x2)*(x1-x2); //vertical edge
+        }
+}
+
+
+MRF::CostVal smoothAppRot(int p1, int p2, int l1, int l2)
+{
+    if (p1>p2)
+    {
+        int tmp;
+        tmp=p2;p2=p1; p1=tmp;
+        tmp = l1; l1 = l2; l2 = tmp;
+    }
+//    int p1x=p1%st_parts_x;
+//    int p1y=p1/st_parts_x;
+//    int p2x=p2%st_parts_x;
+//    int p2y=p2/st_parts_x;
+      int r1=l1/(st_num_lab_x*st_num_lab_y);
+      int r2=l2/(st_num_lab_x*st_num_lab_y);
+      int ll1=l1%(st_num_lab_x*st_num_lab_y);
+      int ll2=l2%(st_num_lab_x*st_num_lab_y);
+      int x1=ll1%st_num_lab_x;
+      int y1=ll1/st_num_lab_x;
+      int x2=ll2%st_num_lab_x;    
+      int y2=ll2/st_num_lab_x;
+    if (p2==p1+1)
+        {
+        //printf("Horizontal Edge! part:%d score:%f\n",p1,st_cost_x[p1]*abs(x1-x2));
+        return st_cost_h_y[p1]*abs(y1-y2)+st_cost_h_x[p1]*abs(x1-x2)+st_qcost_h_y[p1]*(y1-y2)*(y1-y2)+st_qcost_h_x[p1]*(x1-x2)*(x1-x2)+st_rot_h[p1]*abs(r1-r2); //horizontal edge
+        }
+    else
+        {
+        //printf("Vertical Edge! part:%d score:%f\n",p1,st_cost_y[p1]*abs(y1-y2));
+        return st_cost_v_y[p1]*abs(y1-y2)+st_cost_v_x[p1]*abs(x1-x2)+st_qcost_v_y[p1]*(y1-y2)*(y1-y2)+st_qcost_v_x[p1]*(x1-x2)*(x1-x2)+st_rot_v[p1]*abs(r1-r2); //vertical edge
         }
 }
 
@@ -688,6 +724,152 @@ dtype compute_graph2(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,
     //printf("t0=%d t1=%d Diff %f \n",t0,t1,float(t1-t0)/CLOCKS_PER_SEC);
     return -bestE;
 }
+
+dtype compute_graph_rot(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,int num_lab_x,dtype *data,int numhyp,dtype* lscr,int *reslab,int aiter,int restart)
+{
+    MRF* mrf;
+    //Expansion* mrf; 
+    //EnergyFunction *energy;
+    MRF::EnergyVal E,bestE;
+    double lowerBound;
+    float t,tot_t;
+    int iter;
+
+    int seed = 1124285485;
+    srand(seed);
+
+    dtype scr;
+    //copy costs in local memory
+    //dtype V[maxlab*maxlab];
+    st_cost_v_y=costs;
+    st_cost_v_x=costs+num_parts_x*num_parts_y;
+    st_cost_h_y=costs+2*num_parts_x*num_parts_y;
+    st_cost_h_x=costs+3*num_parts_x*num_parts_y;
+    st_qcost_v_y=costs+4*num_parts_x*num_parts_y;;
+    st_qcost_v_x=costs+5*num_parts_x*num_parts_y;
+    st_qcost_h_y=costs+6*num_parts_x*num_parts_y;
+    st_qcost_h_x=costs+7*num_parts_x*num_parts_y;
+    st_rot_v=costs+8*num_parts_x*num_parts_y;
+    st_rot_h=costs+9*num_parts_x*num_parts_y;
+
+    st_parts_x=num_parts_x;
+    st_parts_y=num_parts_y;
+    st_num_lab_x=num_lab_x;
+    st_num_lab_y=num_lab_y;
+    st_numlab=num_lab_y*num_lab_x;//num_parts_x*num_parts_y;//num_labels;
+    //dtype* V=(dtype*)malloc(st_numlab*st_numlab*sizeof(dtype));
+    clock_t t0,t1;
+    t0 = clock ();
+    int l1,l2;
+    //printf("Init");
+
+         DataCost *dt         = new DataCost(data);
+        SmoothnessCost *sm   = new SmoothnessCost(smoothAppRot);
+        //SmoothnessCost *sm   = new SmoothnessCost(V, st_cost_x, st_cost_y);
+        //SmoothnessCost *sm   = new SmoothnessCost(1, 100, 1, st_cost_v_x, st_cost_v_y);
+        EnergyFunction *energy = new EnergyFunction(dt,sm);
+
+        //int *ilaborder = new int[st_numlab];
+        //int *sumpart = new int[st_numlab];
+        ///new way
+        //printf("%d,%d\n",num_parts_x,num_parts_y);
+        //mrf = new MaxProdBP(num_parts_x,num_parts_y,num_parts_x*num_parts_y,energy);
+        //mrf = new BPS(num_parts_x,num_parts_y,num_parts_x*num_parts_y,energy);
+        //mrf = new Swap(num_parts_x,num_parts_y,num_lab_y*num_lab_x,energy);
+        mrf = new Expansion(num_parts_x,num_parts_y,num_lab_y*num_lab_x*3,energy);
+        //((Expansion*)mrf)->setLabelOrder(0);
+        //if (laborder!=NULL)
+        //    ((Expansion*)mrf)->setMyLabelOrder(laborder);
+        Energy* trees=NULL;
+        //((Expansion*)mrf)->setEnergies(trees);
+        int* sol=NULL;
+        //((Expansion*)mrf)->setSolutions(sol);
+#include<time.h>
+        //clock_t t0,t1;
+        //mrf = new TRWS(num_parts_x,num_parts_y,num_lab_y*num_lab_x,energy);
+        //mrf = new ICM(num_parts_x,num_parts_y,st_numlab,energy);
+
+	    // can disable caching of values of general smoothness function:
+	    //mrf->dontCacheSmoothnessCosts();
+        //t0 = clock ();
+	    mrf->initialize();
+        tot_t = 0;
+	//int restart=0;//set this to a different value to try multiple starts
+                  // look likr it is better optimize than restart
+    int aux;
+        //printf("Before C\n");
+	for (iter=0; iter<numhyp; iter++) 
+    {
+        bestE=10000;
+        for (int idrestart=restart; idrestart>=0;idrestart--)
+        {
+                //((Expansion*)mrf)->setLabelOrder(0);
+                /*for (int lab=0;lab<st_numlab;lab++)
+                    for (int part=0;part<num_parts_y*num_parts_x;part++)
+                        sumpart[lab]+=data[part*st_numlab+lab];
+                argsort(sumpart,ilaborder,st_numlab);*/
+                /*for (int i = 0; i < st_numlab; i++)
+                    ilaborder[i]=i;*/
+                //((Expansion*)mrf)->setMyLabelOrder(ilaborder);
+            //printf("Before(%d,%d)\n",num_lab_y,num_lab_x);
+            if (restart==0)
+		        mrf->optimize(aiter, t);
+		    else
+		    {
+			    //mrf->initialize();
+                ((Expansion*)mrf)->clearAnswer();
+			    mrf->optimize(aiter,t);	
+		    }
+                //printf("After C\n");
+      		E = mrf->totalEnergy();
+            //printf("After(%d,%d)",num_lab_y,num_lab_x);
+            if (restart>0 && E>bestE)
+            {
+                //printf("Higher energy it=%d rest=%d energy=%f\n",iter,idrestart,E);
+                continue;
+            }
+            //printf("Lower energy it=%d rest=%d energy=%f\n",iter,idrestart,E);
+            bestE=E;
+       		//lowerBound = mrf->lowerBound();
+       		tot_t = tot_t + t ;
+            for ( int  i = 0; i < num_parts_y*num_parts_x; i++ )
+            {
+                reslab[iter*num_parts_y*num_parts_x+i] = mrf->getLabel(i);//gc->whatLabel(i);
+            }
+	    }        
+	    *lscr=-bestE;
+	    lscr++;
+        //t0 = clock ();
+        for ( int  i = 0; i < num_parts_y*num_parts_x; i++ )
+        {
+            int aux=reslab[iter*num_parts_y*num_parts_x+i];
+			//reslab[iter*num_parts_y*num_parts_x+i] = aux;//gc->whatLabel(i);
+            //data[i*st_numlab+aux]=1;//delete solution
+            for (int rx=-1;rx<2;rx++)
+            {
+                for (int ry=-1;ry<2;ry++)  
+                {                       
+                    int rot=aux/st_numlab;
+                    int pp=aux%(st_numlab)+rx+ry*st_num_lab_x;
+                    pp=maxi(pp,0);
+                    pp=mini(pp,st_numlab-1);
+                    data[pp+rot*st_numlab+i*st_numlab]=10;//delete solution
+                }
+            }
+            //printf("%d ",reslab[i]);
+        }
+        //printf("Done\n",num_lab_y,num_lab_x);
+        //t1 = clock ();   
+        //printf("t0=%d t1=%d Diff %f \n",t0,t1,float(t1-t0)/CLOCKS_PER_SEC);
+        //trees=((Expansion*)mrf)->getEnergies();
+        //sol=((Expansion*)mrf)->getSolutions();        
+    }
+    delete mrf;
+    t1 = clock ();
+    //printf("t0=%d t1=%d Diff %f \n",t0,t1,float(t1-t0)/CLOCKS_PER_SEC);
+    return -bestE;
+}
+
 
 } //end extern C
 

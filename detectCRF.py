@@ -35,7 +35,7 @@ def refinePos(el):
     #dratios=numpy.array(cfg.fy)/numpy.array(cfg.fx)
     img=util.myimread(imname,resize=cfg.resize)
     #make a mirror out of the image --> max out 50%
-    print "Old bbox:",bbox
+    #print "Old bbox:",bbox
     extbbox=numpy.array(bbox[:6])
     if bbox[0]<=1 and cfg.useclip:
         extbbox[0]=-bbox[2]
@@ -49,7 +49,7 @@ def refinePos(el):
     if bbox[3]>=img.shape[1]-1 and cfg.useclip:
         extbbox[3]=img.shape[1]+(img.shape[1]-bbox[1])
         extbbox[4]=1
-    print "New bbox:",extbbox
+    #print "New bbox:",extbbox
     #raw_input()
     if imageflip:
         img=util.myimread(imname,True,resize=cfg.resize)
@@ -94,9 +94,11 @@ def refinePos(el):
             if cfg.usebbPOS:
                 [f,det]=rundetbb(img,cfg.N,selmodels,numdet=cfg.numhypPOS, interv=cfg.intervPOS,aiter=cfg.aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc)
             else:         
-                #[f,det]=rundet(img,cfg.N,selmodels,numhyp=cfg.numhypPOS,interv=cfg.intervPOS,aiter=cfg.aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc)
-                [f,det]=rundetc(img,cfg.N,selmodels,numhyp=cfg.numhypPOS,interv=cfg.intervPOS,aiter=cfg.
-aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc,bbox=extnewbbox)
+                if cfg.userot:
+                    [f,det]=rundetr(img,cfg.N,selmodels,numhyp=cfg.numhypPOS,interv=cfg.intervPOS,aiter=cfg.aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc)
+                else:
+                    #for the moment we did not add constrints to rotations!!!!
+                    [f,det]=rundetc(img,cfg.N,selmodels,numhyp=cfg.numhypPOS,interv=cfg.intervPOS,aiter=cfg.aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc,bbox=extnewbbox)
     #else: #for negatives
     #    [f,det]=rundet(img,cfg,models)
     #print "Rundet time:",time.time()-t1
@@ -117,7 +119,7 @@ aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc,bbox=extnewbbox)
                 bestscr=l["scr"]
     #raw_input()
     if len(det)>0 and best!=-1:
-        print "Pos det:",[x["scr"] for x in det[:5]]
+        #print "Pos det:",[x["scr"] for x in det[:5]]
         if cfg.show:
             visualize([det[best]],cfg.N,f,img)
         feat,edge=getfeature([det[best]],cfg.N,f,models,cfg.trunc)
@@ -153,7 +155,10 @@ def hardNeg(el):
     if cfg.usebbNEG:
         [f,det]=rundetbb(img,cfg.N,models,numdet=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc)
     else:
-        [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc)
+        if cfg.userot:
+            [f,det]=rundetr(img,cfg.N,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc)
+        else:
+            [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc)
     ldet=[]
     lfeat=[]
     ledge=[]
@@ -246,7 +251,10 @@ def test(el,docluster=True,show=False,inclusion=False,onlybest=False):
         if cfg.useswTEST:
             [f,det]=rundetw(img,cfg.N,models,numhyp=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc,wstepy=cfg.swstepy,wstepx=cfg.swstepx)
         else:
-            [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc)
+            if cfg.userot:
+                [f,det]=rundetr(img,cfg.N,models,numhyp=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc)
+            else:
+                [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc)
     boundingbox(det,cfg.N)
     if cfg.useclip:
         clip(det,img.shape)
@@ -414,6 +422,108 @@ def visualize(det,N,f,img,fig=300,text=""):
     pl.show()
     #raw_input()
 
+def box(p1y,p1x,p2y,p2x,col='b',lw=1,rot=0):
+    """
+        plot a bbox with the given coordinates
+    """
+    import pylab
+
+    rrot=rot*numpy.pi/180.0
+    cy=(p2y+p1y)/2.0
+    cx=(p2x+p1x)/2.0
+    #print cy,cx
+    from matplotlib.transforms import Affine2D
+    r=Affine2D().rotate_around(cx,cy,rrot)
+    p1=numpy.dot(r,[p1x,p1y,1])
+    p2=numpy.dot(r,[p1x,p2y,1])
+    p3=numpy.dot(r,[p2x,p2y,1])
+    p4=numpy.dot(r,[p2x,p1y,1])
+    #print r,p1,p2,p3,p4
+    #np1y=p1y+(p1y-cy)*numpy.sin(rrot)+(p1x-cx)*numpy.cos(rrot)
+    #np1x=p1x+(p1y-cy)*numpy.cos(rrot)+(p1x-cx)*numpy.sin(rrot)
+    #np2y=p2y+(p2y-cy)*numpy.sin(rrot)+(p2x-cx)*numpy.cos(rrot)
+    #np2x=p2x+(p2y-cy)*numpy.cos(rrot)+(p1x-cx)*numpy.sin(rrot)
+    pylab.plot([p1[0],p2[0],p3[0],p4[0],p1[0]],[p1[1],p2[1],p3[1],p4[1],p1[1]],col,lw=lw)
+    #pylab.fill([p1x,p1x,p2x,p2x,p1x],[p1y,p2y,p2y,p1y,p1y],col,lw=lw)
+
+from scipy.ndimage import rotate
+
+def visualize_rot(det,N,img,f=None,bb=None,fig=300,text=""):
+    """visualize a detection and the corresponding featues"""
+    pl=pylab
+    col=['w','r','g','b','y','c','k','y','c','k']
+    if f==None:
+        subw=2
+    else:
+        subw=3
+    pl.figure(fig,figsize=(5*subw,5))
+    pl.clf()
+    pl.subplot(1,subw,1)
+    pl.imshow(img)
+    pl.title(text)
+    im=img
+    pad=0
+    cc=0
+    #rcim=numpy.array([])
+    if bb!=None:
+        for l in bb:
+            util.box(l[0],l[1],l[2],l[3], col="b--", lw=2)  
+    for l in range(len(det)):#lsort[:100]:
+        scl=det[l]["scl"]
+        idm=det[l]["id"]
+        r=det[l]["hog"]
+        res=det[l]["def"]#[:2]
+        if det[l]["def"].shape[0]>2:#it has rotations
+            rot=det[l]["def"][2]
+        else:
+            rot=numpy.zeros((det[l]["def"].shape[1],det[l]["def"].shape[2]))
+        scr=det[l]["scr"]
+        numy=det[l]["def"].shape[1]#cfg.fy[idm]
+        numx=det[l]["def"].shape[2]#cfg.fx[idm]
+        sf=(8*N/scl)
+        #m1=models[idm]["ww"][0]
+        
+        #mcost=models[idm]["cost"].astype(numpy.float32)
+        if l==0:
+           im2=numpy.zeros((im.shape[0]+int(sf*numy*2),im.shape[1]+int(sf*numx*2),im.shape[2]),dtype=im.dtype)
+           im2[int(sf*numy):int(sf*numy)+im.shape[0],int(sf*numx):int(sf*numx)+im.shape[1]]=im
+           rcim=numpy.zeros((int(sf*numy)+1,int(sf*numx)+1,3),dtype=im.dtype)
+        #print "Scr",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost),"Error",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-scr
+        pl.subplot(1,subw,1)
+        for px in range(res.shape[2]):
+            for py in range(res.shape[1]):
+                #util.box(py*2*hogpix+res[0,py,px]*hogpix,px*2*hogpix+res[1,py,px]*hogpix,py*2*hogpix+res[0,py,px]*hogpix+2*hogpix,px*2*hogpix+res[1,py,px]*hogpix+2*hogpix, col=col[fres.shape[0]-hy-1], lw=2)  
+                impy=int((py)*sf)+int((res[0,py,px]+1)*sf/N)
+                impx=int((px)*sf)+int((res[1,py,px]+1)*sf/N)
+                box(impy,impx,impy+int(sf),impx+int(sf), col=col[cc%10], lw=1.5,rot=20*(rot[py,px]))  
+                if det[l].has_key("bbox"):
+                    box(det[l]["bbox"][0],det[l]["bbox"][1],det[l]["bbox"][2],det[l]["bbox"][3],col=col[cc%10],lw=2)
+                #rcim[sf*py:sf*(py+1),sf*px:sf*(px+1)]=im2[sf*numy+impy:sf*numy+impy+sf,sf*numx+impx:sf*
+                #util.box(py*2*hogpix+res[0,py,px]*hogpix,px*2*hogpix+res[1,py,px]*hogpix,py*2*hogpix+res[0,py,px]*hogpix+2*hogpix,px*2*hogpix+res[1,py,px]*hogpix+2*hogpix, col=col[fres.shape[0]-hy-1], lw=2)  
+                if l==0:
+                    #if rot[py,px]-1!=0:
+                    rcim[int(sf*py):int(sf*py)+int((sf)+1),int(sf*px):int(sf*px)+int((sf)+1)]=rotate(im2[int(sf*numy)+impy:int(sf*numy)+impy+int((sf)+1),int(sf*numx)+impx:int(sf*numx)+impx+int((sf)+1)],20*(rot[py,px]),reshape=False,mode="nearest") 
+                    #else:
+                    #    rcim[sf*py:sf*(py+1),sf*px:sf*(px+1)]=im2[sf*numy+impy:sf*numy+impy+sf,sf*numx+impx:sf*numx+impx+sf] 
+        cc+=1
+        if l==0:
+            if f!=None:
+                pl.subplot(1,subw,3)
+                m2=f.hog[r]
+                dfeat,edge=crf3.getfeat_fullN(m2,N,res)
+                hdet=drawHOG.drawHOG(dfeat)
+                pl.imshow(hdet)
+            pl.subplot(1,subw,2)
+            pl.title("%f"%scr)
+            pl.imshow(rcim)    
+    pl.subplot(1,subw,1)    
+    #pl.axis([0,img.shape[1],0,img.shape[0]])
+    pl.axis("image")
+    pl.draw()
+    pl.show()
+    #raw_input()
+
+
 def visualize2(det,N,img,bb=[],text="",color=None):
     """visualize a detection and the corresponding featues"""
     pl=pylab
@@ -506,6 +616,39 @@ def rundet(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0):
     #    pylab.draw()
     #    pylab.show()
     return [f,det]
+
+def rundetr(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0):
+    "run the CRF optimization at each level of the HOG pyramid"
+    f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
+    det=[]
+    for idm,m in enumerate(models):
+        mcost=m["cost"].astype(numpy.float32)
+        m1=m["ww"][0]
+        numy=m["ww"][0].shape[0]
+        numx=m["ww"][0].shape[1]
+        for r in range(len(f.hog)):
+            m2=f.hog[r]
+            #print numy,numx
+            lscr,fres=crf3.match_fullN_rot(m1,m2,N,mcost,numhyp=numhyp,aiter=aiter,restart=restart,trunc=trunc)
+            #print "Total time",time.time()-t
+            idraw=False
+            if idraw:
+                import drawHOG
+                #rec=drawHOG.drawHOG(dfeat)
+                pylab.figure(figsize=(15,5))
+                #subplot(1,2,1)
+                #imshow(rec)
+                pylab.title("Reconstructed HOG Image (Learned Costs)")
+                pylab.subplot(1,2,2)
+                img=drawHOG.drawHOG(m2)
+            for idt in range(len(lscr)):
+                det.append({"id":m["id"],"hog":r,"scl":f.scale[r],"def":fres[idt],"scr":lscr[idt]-models[idm]["rho"]})
+    det.sort(key=lambda by: -by["scr"])
+    #if cfg.show:
+    #    pylab.draw()
+    #    pylab.show()
+    return [f,det]
+
 
 import math as mt
 

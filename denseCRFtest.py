@@ -50,9 +50,11 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
         if show:
             im=myimread(arg[ii]["file"])
             if tsImages[ii]["bbox"]!=[]:
-                detectCRF.visualize2(res[:3],cfg.N,im,bb=tsImages[ii]["bbox"][0])
+                #detectCRF.visualize2(res[:3],cfg.N,im,bb=tsImages[ii]["bbox"][0])
+                detectCRF.visualize_rot(res[:3],cfg.N,im,bb=tsImages[ii]["bbox"])
             else:
-                detectCRF.visualize2(res[:3],cfg.N,im)
+                #detectCRF.visualize2(res[:3],cfg.N,im)
+                detectCRF.visualize_rot(res[:3],cfg.N,im)
             print [x["scr"] for x in res[:5]]
         ltdet+=res
 
@@ -128,13 +130,13 @@ if __name__ == '__main__':
         from config import * #default configuration      
     cfg.cls=sys.argv[1]
     cfg.numcl=3
-    cfg.dbpath="/home/owner/databases/"
-    #cfg.dbpath="/users/visics/mpederso/databases/"
+    #cfg.dbpath="/home/owner/databases/"
+    cfg.dbpath="/users/visics/mpederso/databases/"
     cfg.testpath="./data/"#"./data/CRF/12_09_19/"
     cfg.testspec="right"#"full2"
-    #cfg.db="VOC"
-    cfg.db="imagenet"
-    cfg.cls="tandem"
+    cfg.db="VOC"
+    #cfg.db="imagenet"
+    #cfg.cls="tandem"
     #cfg.N=
         
 
@@ -233,10 +235,23 @@ if __name__ == '__main__':
     #testname="./data/bicycle2_testN4aiter3_final"
     #testname="./data/bicycle2_testN4aiter38"
     #testname="./data/bicycle2_testN36"
-    testname="./data/resultsN2/bicycle2_N2C2_final"
-    cfg.trunc=1
+    testname="./data/bicycle2_N2C2_final"
     models=util.load("%s.model"%(testname))
+    if models[0]["ww"][0].shape[2]==32:
+        cfg.trunc=1
+    else:
+        cfg.trunc=0
+    if models[0]["cost"].shape[0]==3:
+        cfg.userot=True
+    else:
+        cfg.userot=False
     cfg.N=models[0]["N"]
+    #add rotations
+    cfg.userot=True    
+    for l in range(len(models)): 
+        auxcost=0.001*numpy.ones((10,models[l]["cost"].shape[1],models[l]["cost"].shape[2]),dtype=models[l]["cost"].dtype)
+        auxcost[:8]=models[l]["cost"]
+        models[l]["cost"]=auxcost
     #models=util.load("%s%d.model"%(testname,it))
     #just for the new
     #for idm,m in enumerate(models):
@@ -247,5 +262,5 @@ if __name__ == '__main__':
     ##############test
     #import itertools
     #runtest(models,tsImages,cfg,parallel=False,numcore=4,detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=True)#,save="%s%d"%(testname,it))
-    runtest(models,tsImagesFull[:32],cfg,parallel=True,numcore=4,show=True,detfun=testINC)#,save="./bestbike3C4N")
+    runtest(models,tsImages[:20],cfg,parallel=True,numcore=4,show=True,detfun=testINC)#,save="./bestbike3C4N")
 

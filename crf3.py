@@ -24,7 +24,25 @@ lib.compute_graph2.argtypes=[
     ]
 lib.compute_graph2.restype=ctypes.c_float
 
+lib.compute_graph_rot.argtypes=[
+    #numpy.ctypeslib.ndpointer(dtype=c_int,ndim=2,flags="C_CONTIGUOUS"),# topolgy of the graph
+    c_int,c_int,# num parts
+    #numpy.ctypeslib.ndpointer(dtype=c_float,ndim=3,flags="C_CONTIGUOUS"),# costs for each edge
+    numpy.ctypeslib.ndpointer(dtype=c_float,ndim=3,flags="C_CONTIGUOUS"),# costs for each edge
+    c_int,# num_lab_y
+    c_int,# num_lab_x
+    numpy.ctypeslib.ndpointer(dtype=c_float,ndim=2,flags="C_CONTIGUOUS"),#observations
+    c_int,#num hypotheses
+    numpy.ctypeslib.ndpointer(dtype=c_float,ndim=1,flags="C_CONTIGUOUS"),
+    numpy.ctypeslib.ndpointer(dtype=c_int,ndim=3,flags="C_CONTIGUOUS"),#labels
+    c_int,#aiter
+    c_int#restart
+    ]
+lib.compute_graph_rot.restype=ctypes.c_float
+
 crfgr2=lib.compute_graph2
+crfrot=lib.compute_graph_rot
+#crfrot(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart)  
 
 
 def match_slow(m1,m2,cost,padvalue=0,pad=0,feat=True,show=True):
@@ -226,6 +244,33 @@ def rotate(hog,shift=1):
     rhog[:,:,18:27]=hog[:,:,numpy.mod(numpy.arange(shift,hbin+shift),hbin)+18]
     rhog[:,:,27:]=hog[:,:,27:]
     return rhog
+
+def rotatebil(hog,angle=20.0,step=20.0,hbin=9):#in degrees
+    """
+    rotate each hog cell of a certain shift
+    """
+    shift=angle/step
+    w=angle%step/step
+    shift=int(numpy.floor(shift))
+    if w==0:
+        if shift==0:
+            return hog
+        rhog=numpy.zeros(hog.shape,dtype=numpy.float32)
+        rhog[:,:,:18]=hog[:,:,numpy.mod(numpy.arange(shift,hbin*2+shift),hbin*2)]
+        rhog[:,:,18:27]=hog[:,:,numpy.mod(numpy.arange(shift,hbin+shift),hbin)+18]
+        rhog[:,:,27:]=hog[:,:,27:]
+        return rhog
+    else:
+        fhog=numpy.zeros(hog.shape,dtype=numpy.float32)
+        lhog=hog[:,:,numpy.mod(numpy.arange((shift),(hbin*2+shift)),hbin*2)]
+        rhog=hog[:,:,numpy.mod(numpy.arange((shift+1),(hbin*2+shift+1)),hbin*2)]
+        fhog[:,:,:18]=w*lhog+(1-w)*rhog
+        lhog=hog[:,:,numpy.mod(numpy.arange((shift),(hbin+shift)),hbin)+18]
+        rhog=hog[:,:,numpy.mod(numpy.arange((shift+1),(hbin+shift+1)),hbin)+18]
+        fhog[:,:,18:27]=w*lhog+(1-w)*rhog
+        fhog[:,:,27:]=hog[:,:,27:]
+        return fhog
+
 
 def box(p1y,p1x,p2y,p2x,col='b',lw=1,rot=0):
     """
@@ -650,6 +695,95 @@ def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    n
                 frot[py,px]=mrot[py,px,res[py,px]]-1
         return scr,res2,frot
     return lscr,res2
+
+def match_fullN_rot(m1,m2,N,cost,numhyp=10,output=False,aiter=3,restart=0,trunc=0,bbox=None):
+    #m1 is expected to be divisible by N
+    t=time.time()
+    assert(m1.shape[0]%N==0)
+    assert(m1.shape[1]%N==0)
+    numy=m1.shape[0]/N#p1.shape[0]
+    numx=m1.shape[1]/N#p1.shape[1]
+    #print numy,numx
+    movy=(m2.shape[0]+m1.shape[0])
+    movx=(m2.shape[1]+m1.shape[1])
+    numlab=movy*movx
+    data=numpy.zeros((numy,numx,numlab),dtype=c_float)
+    auxdata=numpy.zeros((numy,numx,3,numlab),dtype=c_float)
+    #print "time preparation",time.time()-t
+    t=time.time()
+    mmax=numpy.zeros(2,dtype=c_int)
+    #original model
+    m2=numpy.ascontiguousarray(m2)
+    scn=numpy.mgrid[:movy,:movx].astype(numpy.int32)
+    scn[0]=scn[0]-m1.shape[0]
+    scn[1]=scn[1]-m1.shape[1]
+    tmp=scn.copy()
+    for px in range(numx):
+        for py in range(numy):
+            ff.scaneigh(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[N*py:N*(py+1),N*px:N*(px+1)]),N,N,m1.shape[2],scn[0]+N*py,scn[1]+N*px,auxdata[py,px,1],tmp[0],tmp[1],0,0,scn[0].size,trunc)
+            #print "Done ",py,px 
+    if output:
+        print "time Match",time.time()-t
+
+    #rotate +1
+    rm2=numpy.ascontiguousarray(rotate(m2,shift=1))
+    #m2=numpy.ascontiguousarray(rotate(m2,shift=0))
+    for px in range(numx):
+        for py in range(numy):
+            ff.scaneigh(rm2,rm2.shape[0],rm2.shape[1],numpy.ascontiguousarray(m1[N*py:N*(py+1),N*px:N*(px+1)]),N,N,m1.shape[2],scn[0]+N*py,scn[1]+N*px,auxdata[py,px,2],tmp[0],tmp[1],0,0,scn[0].size,trunc)
+            #ff.refineighfull(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[2*py:2*(py+1),2*px:2*(px+1)]),
+            #    2,2,m1.shape[2],0,0,py*2+pad,px*2+pad,movy,movx,auxdata[2,py,px],
+            #    mmax,mmax,ctypes.POINTER(c_float)(),0,0,0)
+    #rotate -1
+    #m2=numpy.ascontiguousarray(rotate(m2,shift=-2))
+    rm2=numpy.ascontiguousarray(rotate(m2,shift=-1))#coming from the other rotation
+    for px in range(numx):
+        for py in range(numy):
+            ff.scaneigh(rm2,rm2.shape[0],rm2.shape[1],numpy.ascontiguousarray(m1[N*py:N*(py+1),N*px:N*(px+1)]),N,N,m1.shape[2],scn[0]+N*py,scn[1]+N*px,auxdata[py,px,0],tmp[0],tmp[1],0,0,scn[0].size,trunc)
+
+    #just for test
+    #auxdata[:,:,0]=-10
+    #auxdata[:,:,2]=-10
+    rdata=-auxdata.reshape((numy*numx,-1))
+    rmin=rdata.min()
+    rdata=rdata-rmin
+
+    #if bbox!=None:
+    #    mask=mask_data(m1,m2,N,bbox,val=-1)
+    #    rdata[mask.reshape((numy*numx,-1))==-1]=10
+        
+    res=numpy.zeros((numhyp,numy,numx),dtype=c_int)
+    #print "time matching",time.time()-t
+    #print "before",rdata.sum()
+    #order=numpy.arange(movy*movx,dtype=numpy.int32)
+    #order=numpy.argsort(-numpy.sum(rdata,0)).astype(numpy.int32)
+    if 0:
+        import pylab
+        pylab.figure()
+        detim=-numpy.sum(rdata,0).reshape((movy,movx))
+        pylab.imshow(detim,interpolation="nearest")
+        print "Rigid Best Value",detim.max()-rmin*numy*numx
+        print "Max Location",numpy.where(detim==detim.max())
+        #print (-rdata.reshape(data.shape[0],data.shape[1],-1)).max(2)
+        print "Unconstrained Best Value",numpy.sum((-rdata.reshape(data.shape[0],data.shape[1],-1)).max(2))-rmin*numy*numx
+
+    #t=time.time()
+    t=time.time()
+    lscr=numpy.zeros(numhyp,dtype=numpy.float32)
+    scr=crfrot(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart)  
+    #print "after",rdata.sum()
+    scr=scr-rmin*numy*numx
+    lscr=lscr-rmin*numy*numx
+    res2=numpy.zeros((numhyp,3,res.shape[1],res.shape[2]),dtype=c_int)
+    res2[:,2]=(res/(movy*movx))-1
+    res=(res%(movy*movx))
+    res2[:,0]=(res/(movx))-m1.shape[0]
+    res2[:,1]=(res%(movx))-m1.shape[1]
+    #sdfas
+    if output:
+        print "time config",time.time()-t
+    return lscr,res2
+
 
 def filtering_nopad(m1,m2,N,cost,trunc=0,rot=False,bbox=None):
     #m1 is expected to be divisible by N
@@ -1121,6 +1255,11 @@ def getfeat_full(m1,pad,res2,movy=None,movx=None,mode="Quad",rot=None,trunc=0):
     return dfeat,-edge    
 
 def getfeat_fullN(m1,N,res2,mode="Quad",rot=None,trunc=0):
+    if res2.shape[0]>2:
+        rot=res2[2]
+        szedge=10
+    else:
+        szedge=8
     movy=m1.shape[0]
     movx=m1.shape[1]
     pady=(res2.shape[1])*N
@@ -1144,7 +1283,7 @@ def getfeat_fullN(m1,N,res2,mode="Quad",rot=None,trunc=0):
                 dfeat[py*N:py*N+N,px*N:px*N+N]=m1pad[cpy:cpy+N,cpx:cpx+N]
             else:
                 dfeat[py*N:py*N+N,px*N:px*N+N]=rotate(m1pad[cpy:cpy+N,cpx:cpx+N],rot[py,px])
-    edge=numpy.zeros((res2.shape[0]*4,res2.shape[1],res2.shape[2]),dtype=numpy.float32)
+    edge=numpy.zeros((szedge,res2.shape[1],res2.shape[2]),dtype=numpy.float32)
     #edge[0,:-1,:]=(res2[0,:-1]-res2[0,1:])
     #edge[1,:,:-1]=(res2[1,:,:-1]-res2[1,:,1:])
     if mode=="Old":
@@ -1167,10 +1306,47 @@ def getfeat_fullN(m1,N,res2,mode="Quad",rot=None,trunc=0):
         edge[5,:-1,:]=(res2[1,:-1,:]-res2[1,1:,:])**2
         edge[6,:,:-1]=(res2[0,:,:-1]-res2[0,:,1:])**2
         edge[7,:,:-1]=(res2[1,:,:-1]-res2[1,:,1:])**2  
+        if rot!=None:
+            edge[8,:-1,:]=abs(res2[2,:-1,:]-res2[2,1:,:])
+            edge[9,:,:-1]=abs(res2[2,:,:-1]-res2[2,:,1:])
     return dfeat,-edge    
 
 
 if __name__ == "__main__":
+
+    
+    if 1:#rotations
+        from pylab import *
+        import util
+        im=util.myimread("000535.jpg")[:,::-1,:]#flip
+        #im=util.myimread("000379.jpg")[:,::-1,:]#flip
+        #im=util.myimread("005467.jpg")[:,::-1,:]#flip
+        #im=util.myimread("/users/visics/mpederso/code/git/condor-run/N4C2force_parts/CRFdet/data/CRF/12_10_18/aeroplane2_N4C2fpthr1051.png")
+        m=util.load("./data/bicycle2_N2C2_final.model")
+        #m=util.load("./data/car2_N2C2_final.model")
+        for l in range(len(m)): 
+            auxcost=0.001*numpy.ones((10,m[l]["cost"].shape[1],m[l]["cost"].shape[2]),dtype=m[l]["cost"].dtype)
+            auxcost[:8]=m[l]["cost"]
+            m[l]["cost"]=auxcost#m[l]["cost"]*0.1
+        import detectCRF
+        #t=time.time()
+        #[f,det0]=detectCRF.rundetwbb(im,3,m,numdet=40,interv=5,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1)
+        #print "Elapsed time for SWBB",time.time()-t
+        #t=time.time()
+        #[f,det1]=detectCRF.rundetw(im,3,m,numhyp=1,interv=5,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1)
+        #print "Elapsed time for SW",time.time()-t
+        t=time.time()
+        [f,det2]=detectCRF.rundetr(im,2,m,numhyp=1,interv=5,aiter=3,restart=0,trunc=1)
+        #[f,det2]=detectCRF.rundet(im,2,m,numhyp=1,interv=5,aiter=3,restart=0,trunc=1)
+        print "Elapsed time for Rotation",time.time()-t
+        t=time.time()
+        tmp=detectCRF.getfeature(det2,2,f,m,trunc=1)
+        if 1:
+            for l in range(100):
+                #detectCRF.visualize([det2[l]],2,im,f,fig=200,text="SWBB")
+                detectCRF.visualize_rot([det2[l]],2,im,f,fig=300,text="Rotations")
+                show()
+                raw_input()
 
     if 1:#check crf_fullN_nopad
         from pylab import *
