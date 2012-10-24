@@ -95,7 +95,7 @@ def refinePos(el):
                 [f,det]=rundetbb(img,cfg.N,selmodels,numdet=cfg.numhypPOS, interv=cfg.intervPOS,aiter=cfg.aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc)
             else:         
                 if cfg.userot:
-                    [f,det]=rundetr(img,cfg.N,selmodels,numhyp=cfg.numhypPOS,interv=cfg.intervPOS,aiter=cfg.aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc)
+                    [f,det]=rundetr(img,cfg.N,selmodels,numhyp=cfg.numhypPOS,interv=cfg.intervPOS,aiter=cfg.aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc,rotangle=cfg.rotangle)
                 else:
                     #for the moment we did not add constrints to rotations!!!!
                     [f,det]=rundetc(img,cfg.N,selmodels,numhyp=cfg.numhypPOS,interv=cfg.intervPOS,aiter=cfg.aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc,bbox=extnewbbox)
@@ -122,7 +122,7 @@ def refinePos(el):
         #print "Pos det:",[x["scr"] for x in det[:5]]
         if cfg.show:
             visualize([det[best]],cfg.N,f,img)
-        feat,edge=getfeature([det[best]],cfg.N,f,models,cfg.trunc)
+        feat,edge=getfeature([det[best]],cfg.N,f,models,cfg.trunc,rotangle=cfg.rotangle)
         #add image name and bbx so that each annotation is unique
         if imageflip:
             det[best]["idim"]=el["file"].split("/")[-1]+".flip"
@@ -156,7 +156,7 @@ def hardNeg(el):
         [f,det]=rundetbb(img,cfg.N,models,numdet=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc)
     else:
         if cfg.userot:
-            [f,det]=rundetr(img,cfg.N,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc)
+            [f,det]=rundetr(img,cfg.N,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc,rotangle=cfg.rotangle)
         else:
             [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc)
     ldet=[]
@@ -168,7 +168,7 @@ def hardNeg(el):
         if det[idl]["scr"]>-1:
             det[idl]["idim"]=el["file"].split("/")[-1]
             ldet.append(det[idl])
-            feat,edge=getfeature([det[idl]],cfg.N,f,models,cfg.trunc)
+            feat,edge=getfeature([det[idl]],cfg.N,f,models,cfg.trunc,rotangle=cfg.rotangle)
             lfeat+=feat
             ledge+=edge
     if cfg.show:
@@ -216,7 +216,7 @@ def hardNegPos(el):
             if not(skip):
                 det[idl]["idim"]=el["file"].split("/")[-1]
                 ldet.append(det[idl])
-                feat,edge=getfeature([det[idl]],cfg.N,f,models,cfg.trunc)
+                feat,edge=getfeature([det[idl]],cfg.N,f,models,cfg.trunc,rotangle=cfg.rotangle)
                 lfeat+=feat
                 ledge+=edge
         if len(ldet)==cfg.numneg:
@@ -252,7 +252,7 @@ def test(el,docluster=True,show=False,inclusion=False,onlybest=False):
             [f,det]=rundetw(img,cfg.N,models,numhyp=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc,wstepy=cfg.swstepy,wstepx=cfg.swstepx)
         else:
             if cfg.userot:
-                [f,det]=rundetr(img,cfg.N,models,numhyp=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc)
+                [f,det]=rundetr(img,cfg.N,models,numhyp=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc,rotangle=cfg.rotangle)
             else:
                 [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc)
     boundingbox(det,cfg.N)
@@ -311,7 +311,7 @@ def check(det,f,models,bias):
             printf("Error %f too big, there is something wrong!!!"%(numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-scr-models[idm]["rho"]))
             raw_input()
 
-def getfeature(det,N,f,models,trunc=0):
+def getfeature(det,N,f,models,trunc=0,rotangle=20):
     """ check if score of detections and score from features are correct"""
     lfeat=[];ledge=[]
     for l in range(len(det)):#lsort[:100]:
@@ -322,7 +322,7 @@ def getfeature(det,N,f,models,trunc=0):
         m2=f.hog[r]
         res=det[l]["def"]
         mcost=models[idm]["cost"].astype(numpy.float32)
-        dfeat,edge=crf3.getfeat_fullN(m2,N,res,trunc=trunc)
+        dfeat,edge=crf3.getfeat_fullN(m2,N,res,trunc=trunc,rotangle=rotangle)
         lfeat.append(dfeat)
         ledge.append(edge)
         #print "Scr",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-models[idm]["rho"],"Error",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-scr-models[idm]["rho"]
@@ -448,7 +448,7 @@ def box(p1y,p1x,p2y,p2x,col='b',lw=1,rot=0):
 
 from scipy.ndimage import rotate
 
-def visualize_rot(det,N,img,f=None,bb=None,fig=300,text=""):
+def visualize_rot(det,N,img,f=None,bb=None,fig=300,text="",rotangle=20):
     """visualize a detection and the corresponding featues"""
     pl=pylab
     col=['w','r','g','b','y','c','k','y','c','k']
@@ -495,14 +495,14 @@ def visualize_rot(det,N,img,f=None,bb=None,fig=300,text=""):
                 #util.box(py*2*hogpix+res[0,py,px]*hogpix,px*2*hogpix+res[1,py,px]*hogpix,py*2*hogpix+res[0,py,px]*hogpix+2*hogpix,px*2*hogpix+res[1,py,px]*hogpix+2*hogpix, col=col[fres.shape[0]-hy-1], lw=2)  
                 impy=int((py)*sf)+int((res[0,py,px]+1)*sf/N)
                 impx=int((px)*sf)+int((res[1,py,px]+1)*sf/N)
-                box(impy,impx,impy+int(sf),impx+int(sf), col=col[cc%10], lw=1.5,rot=20*(rot[py,px]))  
+                box(impy,impx,impy+int(sf),impx+int(sf), col=col[cc%10], lw=1.5,rot=rotangle*(rot[py,px]))  
                 if det[l].has_key("bbox"):
                     box(det[l]["bbox"][0],det[l]["bbox"][1],det[l]["bbox"][2],det[l]["bbox"][3],col=col[cc%10],lw=2)
                 #rcim[sf*py:sf*(py+1),sf*px:sf*(px+1)]=im2[sf*numy+impy:sf*numy+impy+sf,sf*numx+impx:sf*
                 #util.box(py*2*hogpix+res[0,py,px]*hogpix,px*2*hogpix+res[1,py,px]*hogpix,py*2*hogpix+res[0,py,px]*hogpix+2*hogpix,px*2*hogpix+res[1,py,px]*hogpix+2*hogpix, col=col[fres.shape[0]-hy-1], lw=2)  
                 if l==0:
                     #if rot[py,px]-1!=0:
-                    rcim[int(sf*py):int(sf*py)+int((sf)+1),int(sf*px):int(sf*px)+int((sf)+1)]=rotate(im2[int(sf*numy)+impy:int(sf*numy)+impy+int((sf)+1),int(sf*numx)+impx:int(sf*numx)+impx+int((sf)+1)],20*(rot[py,px]),reshape=False,mode="nearest") 
+                    rcim[int(sf*py):int(sf*py)+int((sf)+1),int(sf*px):int(sf*px)+int((sf)+1)]=rotate(im2[int(sf*numy)+impy:int(sf*numy)+impy+int((sf)+1),int(sf*numx)+impx:int(sf*numx)+impx+int((sf)+1)],rotangle*(rot[py,px]),reshape=False,mode="nearest") 
                     #else:
                     #    rcim[sf*py:sf*(py+1),sf*px:sf*(px+1)]=im2[sf*numy+impy:sf*numy+impy+sf,sf*numx+impx:sf*numx+impx+sf] 
         cc+=1
@@ -510,7 +510,7 @@ def visualize_rot(det,N,img,f=None,bb=None,fig=300,text=""):
             if f!=None:
                 pl.subplot(1,subw,3)
                 m2=f.hog[r]
-                dfeat,edge=crf3.getfeat_fullN(m2,N,res)
+                dfeat,edge=crf3.getfeat_fullN(m2,N,res,rotangle=rotangle)
                 hdet=drawHOG.drawHOG(dfeat)
                 pl.imshow(hdet)
             pl.subplot(1,subw,2)
@@ -617,7 +617,7 @@ def rundet(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0):
     #    pylab.show()
     return [f,det]
 
-def rundetr(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0):
+def rundetr(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,rotangle=20):
     "run the CRF optimization at each level of the HOG pyramid"
     f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
     det=[]
@@ -629,7 +629,7 @@ def rundetr(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0):
         for r in range(len(f.hog)):
             m2=f.hog[r]
             #print numy,numx
-            lscr,fres=crf3.match_fullN_rot(m1,m2,N,mcost,numhyp=numhyp,aiter=aiter,restart=restart,trunc=trunc)
+            lscr,fres=crf3.match_fullN_rot(m1,m2,N,mcost,rotangle,numhyp=numhyp,aiter=aiter,restart=restart,trunc=trunc)
             #print "Total time",time.time()-t
             idraw=False
             if idraw:

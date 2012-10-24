@@ -264,10 +264,10 @@ def rotatebil(hog,angle=20.0,step=20.0,hbin=9):#in degrees
         fhog=numpy.zeros(hog.shape,dtype=numpy.float32)
         lhog=hog[:,:,numpy.mod(numpy.arange((shift),(hbin*2+shift)),hbin*2)]
         rhog=hog[:,:,numpy.mod(numpy.arange((shift+1),(hbin*2+shift+1)),hbin*2)]
-        fhog[:,:,:18]=w*lhog+(1-w)*rhog
+        fhog[:,:,:18]=(1-w)*lhog+(w)*rhog
         lhog=hog[:,:,numpy.mod(numpy.arange((shift),(hbin+shift)),hbin)+18]
         rhog=hog[:,:,numpy.mod(numpy.arange((shift+1),(hbin+shift+1)),hbin)+18]
-        fhog[:,:,18:27]=w*lhog+(1-w)*rhog
+        fhog[:,:,18:27]=(1-w)*lhog+(w)*rhog
         fhog[:,:,27:]=hog[:,:,27:]
         return fhog
 
@@ -696,7 +696,7 @@ def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    n
         return scr,res2,frot
     return lscr,res2
 
-def match_fullN_rot(m1,m2,N,cost,numhyp=10,output=False,aiter=3,restart=0,trunc=0,bbox=None):
+def match_fullN_rot(m1,m2,N,cost,rotangle,numhyp=10,output=False,aiter=3,restart=0,trunc=0,bbox=None):
     #m1 is expected to be divisible by N
     t=time.time()
     assert(m1.shape[0]%N==0)
@@ -726,7 +726,7 @@ def match_fullN_rot(m1,m2,N,cost,numhyp=10,output=False,aiter=3,restart=0,trunc=
         print "time Match",time.time()-t
 
     #rotate +1
-    rm2=numpy.ascontiguousarray(rotate(m2,shift=1))
+    rm2=numpy.ascontiguousarray(rotatebil(m2,angle=rotangle))
     #m2=numpy.ascontiguousarray(rotate(m2,shift=0))
     for px in range(numx):
         for py in range(numy):
@@ -736,7 +736,7 @@ def match_fullN_rot(m1,m2,N,cost,numhyp=10,output=False,aiter=3,restart=0,trunc=
             #    mmax,mmax,ctypes.POINTER(c_float)(),0,0,0)
     #rotate -1
     #m2=numpy.ascontiguousarray(rotate(m2,shift=-2))
-    rm2=numpy.ascontiguousarray(rotate(m2,shift=-1))#coming from the other rotation
+    rm2=numpy.ascontiguousarray(rotatebil(m2,angle=-rotangle))#coming from the other rotation
     for px in range(numx):
         for py in range(numy):
             ff.scaneigh(rm2,rm2.shape[0],rm2.shape[1],numpy.ascontiguousarray(m1[N*py:N*(py+1),N*px:N*(px+1)]),N,N,m1.shape[2],scn[0]+N*py,scn[1]+N*px,auxdata[py,px,0],tmp[0],tmp[1],0,0,scn[0].size,trunc)
@@ -1254,7 +1254,7 @@ def getfeat_full(m1,pad,res2,movy=None,movx=None,mode="Quad",rot=None,trunc=0):
         edge[7,:,:-1]=(res2[1,:,:-1]-res2[1,:,1:])**2  
     return dfeat,-edge    
 
-def getfeat_fullN(m1,N,res2,mode="Quad",rot=None,trunc=0):
+def getfeat_fullN(m1,N,res2,mode="Quad",rot=None,trunc=0,rotangle=20):
     if res2.shape[0]>2:
         rot=res2[2]
         szedge=10
@@ -1282,7 +1282,7 @@ def getfeat_fullN(m1,N,res2,mode="Quad",rot=None,trunc=0):
             if rot==None:
                 dfeat[py*N:py*N+N,px*N:px*N+N]=m1pad[cpy:cpy+N,cpx:cpx+N]
             else:
-                dfeat[py*N:py*N+N,px*N:px*N+N]=rotate(m1pad[cpy:cpy+N,cpx:cpx+N],rot[py,px])
+                dfeat[py*N:py*N+N,px*N:px*N+N]=rotatebil(m1pad[cpy:cpy+N,cpx:cpx+N],rot[py,px]*rotangle)
     edge=numpy.zeros((szedge,res2.shape[1],res2.shape[2]),dtype=numpy.float32)
     #edge[0,:-1,:]=(res2[0,:-1]-res2[0,1:])
     #edge[1,:,:-1]=(res2[1,:,:-1]-res2[1,:,1:])
@@ -1325,10 +1325,11 @@ if __name__ == "__main__":
         m=util.load("./data/bicycle2_N2C2_final.model")
         #m=util.load("./data/car2_N2C2_final.model")
         for l in range(len(m)): 
-            auxcost=0.001*numpy.ones((10,m[l]["cost"].shape[1],m[l]["cost"].shape[2]),dtype=m[l]["cost"].dtype)
+            auxcost=0.1*numpy.ones((10,m[l]["cost"].shape[1],m[l]["cost"].shape[2]),dtype=m[l]["cost"].dtype)
             auxcost[:8]=m[l]["cost"]
             m[l]["cost"]=auxcost#m[l]["cost"]*0.1
         import detectCRF
+        rotangle=30
         #t=time.time()
         #[f,det0]=detectCRF.rundetwbb(im,3,m,numdet=40,interv=5,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1)
         #print "Elapsed time for SWBB",time.time()-t
@@ -1336,15 +1337,15 @@ if __name__ == "__main__":
         #[f,det1]=detectCRF.rundetw(im,3,m,numhyp=1,interv=5,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1)
         #print "Elapsed time for SW",time.time()-t
         t=time.time()
-        [f,det2]=detectCRF.rundetr(im,2,m,numhyp=1,interv=5,aiter=3,restart=0,trunc=1)
+        [f,det2]=detectCRF.rundetr(im,2,m,numhyp=1,interv=5,aiter=3,restart=0,trunc=1,rotangle=rotangle)
         #[f,det2]=detectCRF.rundet(im,2,m,numhyp=1,interv=5,aiter=3,restart=0,trunc=1)
         print "Elapsed time for Rotation",time.time()-t
         t=time.time()
-        tmp=detectCRF.getfeature(det2,2,f,m,trunc=1)
+        tmp=detectCRF.getfeature(det2,2,f,m,trunc=1,rotangle=rotangle)
         if 1:
             for l in range(100):
                 #detectCRF.visualize([det2[l]],2,im,f,fig=200,text="SWBB")
-                detectCRF.visualize_rot([det2[l]],2,im,f,fig=300,text="Rotations")
+                detectCRF.visualize_rot([det2[l]],2,im,f,fig=300,text="Rotations",rotangle=rotangle)
                 show()
                 raw_input()
 
