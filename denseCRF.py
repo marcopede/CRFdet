@@ -137,7 +137,7 @@ elif cfg.db=="buffy":
                     usetr=True,usedf=False),cfg.maxpos)
     trPosImagesNoTrunc=trPosImages
     trNegImages=getRecord(DirImages(imagepath=cfg.dbpath+"INRIAPerson/train_64x128_H96/neg/"),cfg.maxneg)
-    trNegImagesFull=trNegImages
+    trNegImagesFull=getRecord(DirImages(imagepath=cfg.dbpath+"INRIAPerson/train_64x128_H96/neg/"),cfg.maxnegfull)
     #test
     tsPosImages=getRecord(Buffy(select="all",cl="test.txt",
                     basepath=cfg.dbpath,
@@ -146,7 +146,12 @@ elif cfg.db=="buffy":
                     annpath="buffy/",
                     usetr=True,usedf=False),cfg.maxtest)
     tsImages=tsPosImages#numpy.concatenate((tsPosImages,tsNegImages),0)
-    tsImagesFull=tsPosImages
+    tsImagesFull=tsPosImages=getRecord(Buffy(select="all",cl="test.txt",
+                    basepath=cfg.dbpath,
+                    trainfile="buffy/",
+                    imagepath="buffy/images/",
+                    annpath="buffy/",
+                    usetr=True,usedf=False),cfg.maxtestfull)
 
 elif cfg.db=="inria":
     trPosImages=getRecord(InriaPosData(basepath=cfg.dbpath),cfg.maxpos)
