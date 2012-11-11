@@ -512,6 +512,7 @@ import math as mt
 
 def rundetw(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1,wsizey=-1,wsizex=-1,forcestep=False):
     "run the CRF optimization at each level of the HOG pyramid but in a sliding window way"
+    count=0
     #forcestep=True --> step=min(step,size-num*2)
     #forcestep=False --> forcesize size=max(size,step+num*2)
     f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
@@ -564,6 +565,7 @@ def rundetw(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,
                     #print "WY:",wy,"WX",wx
                     m2=padf[r][wy*wstepy:wy*wstepy+wsizey,wx*wstepx:wx*wstepx+wsizex]
                     #print m2.shape
+                    count+=1
                     lscr,fres=crf3.match_fullN_nopad(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,aiter=aiter,restart=restart,trunc=trunc)
                     for idt in range(len(lscr)):
                         det.append({"id":m["id"],"hog":r,"scl":f.scale[r],"def":(fres[idt].T+numpy.array([wstepy*wy-maxfy,wstepx*wx-maxfx]).T).T,"scr":lscr[idt]-models[idm]["rho"]})
@@ -571,6 +573,7 @@ def rundetw(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,
     #if cfg.show:
     #    pylab.draw()
     #    pylab.show()
+    print "Number evaluations SW:",count
     return [f,det]
 
 
@@ -642,6 +645,7 @@ def rundetw2(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1
 
 def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1,wsizey=-1,wsizex=-1,forcestep=False):
     "run the CRF optimization at each level of the HOG pyramid but in a sliding window way"
+    count=0
     f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
     #add maximum padding to each hog    
     maxfy=max([x["ww"][0].shape[0] for x in models])
@@ -704,6 +708,7 @@ def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-
         dmin=loc[maxloc]["dmin"]
         #print "Best",maxloc,"Dmin",dmin,"Rdata.min()",rdata.min()
         lscr,fres=crf3.matching_nopad(N,mcost,rdata,dmin,numhyp=1,aiter=aiter,restart=restart,trunc=trunc)
+        count+=1
         #print "After matching"
         loc[maxloc]["bscr"]=lscr[0]-models[idm]["rho"]#-dmin*numy*numx
         loc[maxloc]["def"]=fres[0]
@@ -748,6 +753,7 @@ def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-
             loc[nmaxloc]["tied"]=False
             nmaxloc=numpy.argmax([x["bscr"] for x in loc])
     det.sort(key=lambda by: -by["scr"])
+    print "Number evaluations:",count
     return [f,det]
 
 
