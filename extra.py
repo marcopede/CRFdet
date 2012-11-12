@@ -210,5 +210,56 @@ def showDefNodes2(cost):
     pl.imshow(vyn+hyn+vxn+hxn+qvyn+qhyn+qvxn+qhxn,interpolation="nearest")#,vmin=vmin*2,vmax=vmax*2)
     pl.xlabel("All (%.5f,%.5f)"%((vxn+hxn+vyn+hyn+qvyn+qhyn+qvxn+qhxn).min(),(vxn+hxn+vyn+hyn+qvyn+qhyn+qvxn+qhxn).max()))
 
+def defontop(cost,pix=15,N=2):
+    from scipy.ndimage.filters import uniform_filter
+    #vmin=cost.min()
+    #vmax=cost.max()
+    pl=pylab
+    #pl.figure(figsize=(4,12))
+    vy=(cost[0])
+    vx=(cost[1])
+    hy=(cost[2])
+    hx=(cost[3])
+    vyn=uniform_filter(vy,[2,1],mode="constant")
+    vxn=uniform_filter(vx,[2,1],mode="constant")
+    hyn=uniform_filter(hy,[1,2],mode="constant")
+    hxn=uniform_filter(hx,[1,2],mode="constant")
+    qvy=(cost[4])
+    qvx=(cost[5])
+    qhy=(cost[6])
+    qhx=(cost[7])
+    qvyn=uniform_filter(qvy,[2,1],mode="constant")
+    qvxn=uniform_filter(qvx,[2,1],mode="constant")
+    qhyn=uniform_filter(qhy,[1,2],mode="constant")
+    qhxn=uniform_filter(qhx,[1,2],mode="constant")
+    vedges=vyn+hyn+qvyn+qhyn
+    hedges=vxn+hxn+qvxn+qhxn
+    #pl.subplot(ny,nx,1)
+    #pl.imshow(vyn+hyn+qvyn+qhyn,interpolation="nearest")#,vmin=vmin,vmax=vmax)
+    #pl.xlabel("Y (%.5f,%.5f)"%((vyn+hyn+qvyn+qhyn).min(),(vyn+hyn+qvyn+qhyn).max()))
+    #pl.subplot(ny,nx,2)
+    #pl.imshow(vxn+hxn+qvxn+qhxn,interpolation="nearest")#,vmin=vmin,vmax=vmax)
+    #pl.xlabel("X (%.5f,%.5f)"%((vxn+hxn+qvxn+qhxn).min(),(vxn+hxn+qvxn+qhxn).max()))
+    #pl.subplot(ny,nx,3)
+    #pl.imshow(vyn+hyn+vxn+hxn+qvyn+qhyn+qvxn+qhxn,interpolation="nearest")#,vmin=vmin*2,vmax=vmax*2)
+    #pl.xlabel("All (%.5f,%.5f)"%((vxn+hxn+vyn+hyn+qvyn+qhyn+qvxn+qhxn).min(),(vxn+hxn+vyn+hyn+qvyn+qhyn+qvxn+qhxn).max()))
+    vmin=vedges.min();vmax=vedges.max()-vmin
+    hmin=hedges.min();hmax=hedges.max()-hmin
+    pix=pix*N
+    for py in range(vedges.shape[0]):
+        pl.plot([0,pix*vedges.shape[1]],[py*pix,py*pix],"w-.")
+    for px in range(vedges.shape[1]):
+        pl.plot([px*pix,px*pix],[0,pix*vedges.shape[0]],"w-.")
+    for py in range(vedges.shape[0]):
+        for px in range(vedges.shape[1]):
+            #pl.plot([pix/2+px*pix,pix/2+(px)*pix],[pix/2+py*pix,pix/2+(py+1)*pix],"w-",lw=(vedges[py,px]-vmin)/vmax*10,alpha=0.3)
+            if py<vedges.shape[0]-1:
+                pl.plot([pix/2+px*pix,pix/2+(px)*pix],[pix/2+py*pix,pix/2+(py+1)*pix],"w.-",alpha=0.5,lw=(vedges[py,px]-vmin)/vmax*10)
+            #pl.plot([pix/2+px*pix,pix/2+(px+1)*pix],[pix/2+py*pix,pix/2+(py)*pix],"w-",lw=(hedges[py,px]-hmin)/hmax*10,alpha=0.3)
+            if px<vedges.shape[1]-1:
+                pl.plot([pix/2+px*pix,pix/2+(px+1)*pix],[pix/2+py*pix,pix/2+(py)*pix],"w.-",alpha=0.5,lw=(hedges[py,px]-hmin)/hmax*10)
+                 
+
+
 
 

@@ -1175,45 +1175,59 @@ if __name__ == "__main__":
     if 0:#check crf_fullN_nopad
         from pylab import *
         import util
-        im=util.myimread("000535.jpg")[:,::-1,:]#flip
-        #im=util.myimread("000379.jpg")[:,::-1,:]#flip
+        #im=util.myimread("000535.jpg")[:,::-1,:]#flip
+        im=util.myimread("000379.jpg")#flip
         #im=util.myimread("005467.jpg")[:,::-1,:]#flip
-        #im=util.myimread("/users/visics/mpederso/code/git/condor-run/N4C2force_parts/CRFdet/data/CRF/12_10_18/aeroplane2_N4C2fpthr1051.png")
-        m=util.load("./data/bicycle2_testN36.model")
+        #im=util.myimread("/users/visics/mpederso/code/git/condor-run/N4C2force_parts/CRFdet/data/CRF/12_10_18/atesteroplane2_N4C2fpthr1051.png")
+        m=util.load("./data/bicycle2_testN36.model")[0:1]
+        #m=util.load("./data/bicycle2_N2C2_highres_final.model")
+        #m=util.load("./data/bicycle2_N3C2highres6.model")
+        #m=util.load("./data/bicycle2_N2C2_final.model")
         #for l in range(len(m)): 
         #    m[l]["cost"]=m[l]["cost"]*0.1
         import detectCRF
         t=time.time()
-        [f,det0]=detectCRF.rundetwbb(im,3,m,numdet=40,interv=5,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1)
-        print "Elapsed time for SWBB",time.time()-t
+        nhyp=300
+        N=3
+        trunc=0
+        sort=False
+        [f,det0]=detectCRF.rundetwbb(im,N,m,numdet=nhyp,interv=5,aiter=3,restart=0,trunc=trunc,wstepy=-1,wstepx=-1,sort=sort)
+        tswbb=time.time()-t
+        print "Elapsed time for SWBB",tswbb
         t=time.time()
-        [f,det1]=detectCRF.rundetw(im,3,m,numhyp=1,interv=5,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1)
-        print "Elapsed time for SW",time.time()-t
+        [f,det1]=detectCRF.rundetw(im,N,m,numhyp=1,interv=5,aiter=3,restart=0,trunc=trunc,wstepy=-1,wstepx=-1,sort=sort)
+        tsw=time.time()-t
+        print "Elapsed time for SW",tsw
         t=time.time()
-        [f,det2]=detectCRF.rundet(im,3,m,numhyp=1,interv=5,aiter=3,restart=0,trunc=0)
-        print "Elapsed time for Normal",time.time()-t
+        [f,det2]=detectCRF.rundet(im,N,m,numhyp=1,interv=5,aiter=3,restart=0,trunc=trunc,sort=sort)
+        tn=time.time()-t
+        print "Elapsed time for Normal",tn
         t=time.time()
-        #ldet=crf3.match_bbN(m1,f.hog,3,mcost,show=False,rot=False,numhyp=120)
-        [f,det3]=detectCRF.rundetbb(im,3,m,numdet=10,interv=5,aiter=3,restart=0,trunc=0)
-        print "Elapsed time for BB",time.time()-t
-        scrsw=[x["scr"] for x in det1]
-        plot(scrsw,lw=3)
-        scrbb=[x["scr"] for x in det3]
-        plot(scrbb,"g",lw=3)
-        sdfsd
+
+#        [f,det3]=detectCRF.rundetbb(im,3,m,numdet=10,interv=5,aiter=3,restart=0,trunc=0)
+#        print "Elapsed time for BB",time.time()-t
+#        scrsw=[x["scr"] for x in det1]
+#        plot(scrsw,lw=3)
+#        scrbb=[x["scr"] for x in det3]
+#        plot(scrbb,"g",lw=3)
+
+        [f,det3]=detectCRF.rundetbb(im,N,m,numdet=nhyp,interv=5,aiter=3,restart=0,trunc=trunc,sort=sort)
+        tnbb=time.time()-t
+        print "Elapsed time for BB",tnbb
+
         if 0:
             for l in range(100):
-                detectCRF.visualize([det0[l]],3,f,im,fig=200,text="SWBB")
-                detectCRF.visualize([det1[l]],3,f,im,fig=300,text="BB")
+                detectCRF.visualize([det0[l]],N,f,im,fig=200,text="SWBB")
+                detectCRF.visualize([det3[l]],N,f,im,fig=300,text="BB")
                 show()
                 raw_input()
         scrwbb1=[]
-        scrwbb=[x["scr"] for x in det0]
-        for idl,l in enumerate(scrwbb[:-1]):
-            if l-scrwbb[idl+1]<0.00001:
-                pass
-            else:
-                scrwbb1.append(l)
+        scrwbb1=[x["scr"] for x in det0]
+        #for idl,l in enumerate(scrwbb[:-1]):
+        #    if l-scrwbb[idl+1]<0.00001:
+        #        pass
+        #    else:
+        #        scrwbb1.append(l)
         scrw=[x["scr"] for x in det1]
         scrw1=[]
         #scrw1=scrw        
@@ -1224,10 +1238,17 @@ if __name__ == "__main__":
                 scrw1.append(l)
         scrn=[x["scr"] for x in det2]
         scrbb=[x["scr"] for x in det3]
-        plot(scrw1,lw=3)
-        plot(scrn,"g",lw=3)
-        plot(scrbb,"r",lw=3)
-        plot(scrwbb1,"c",lw=3)
+        figure(1,figsize=(5,5))
+        clf()
+        #plot(scrn,"g",lw=3)
+        plot(scrbb,"r",lw=1.5)
+        #plot(scrw1,lw=3)
+        plot(scrwbb1,"c",lw=1.5)
+        grid()
+        xlabel("detections")
+        ylabel("score")
+        legend(("Global %ddet(%.1fs)"%(nhyp,tnbb),"SW %ddet(%.1fs)"%(nhyp,tswbb)))
+        #legend(("Global (%.1fs)"%tn,"Global %ddet(%.1fs)"%(nhyp,tnbb),"SW (%.1fs)"%tsw,"SW %ddet(%.1fs)"%(nhyp,tswbb)))
         show()
         #dsfsd
     if 1:

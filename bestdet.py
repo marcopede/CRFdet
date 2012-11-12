@@ -111,12 +111,19 @@ if __name__ == '__main__':
     #det=util.load("/users/visics/mpederso/code/git/condor-run/N2C2_posthr105/CRFdet/data/CRF/12_10_20/%s2_N2C2_final.det"%(cfg.cls))["det"]
     #det=util.load("/users/visics/mpederso/code/git/condor-run/N2C2_highres/CRFdet/data/CRF/12_11_01/bicycle2_N2C2_highres3.det")["det"]
     #det=util.load("/users/visics/mpederso/code/git/condor-run/N2C2_highres/CRFdet/data/CRF/12_11_01/%s2_N2C2_highres_final.det"%(cfg.cls))["det"]
-    det=util.load("/users/visics/mpederso/code/git/condor-run/N2C2_highres/CRFdet/data/CRF/12_10_29/%s2_N4C2highres_final.det"%(cfg.cls))["det"]
+    #det=util.load("/users/visics/mpederso/code/git/condor-run/N2C2_highres/CRFdet/data/CRF/12_10_29/%s2_N4C2highres_final.det"%(cfg.cls))["det"]
     #det=util.load("/users/visics/mpederso/code/git/condor-run/buffy/CRFdet/data/CRF/12_10_26/person3_buffyN2new_final.det")["det"]
     #det=util.load("/users/visics/mpederso/code/git/condor-run/N2C2_posthr105/CRFdet/data/CRF/12_10_20/%s2_N2C215.det"%(cfg.cls))["det"]
+    #det=util.load("./data/resultsN2/%s2_N2C2_final.det"%(cfg.cls))["det"]
+    #det=util.load("/users/visics/mpederso/code/git/condor-run/N2C2_posthr105/CRFdet/data/CRF/12_10_21/%s2_N2C2k01_final.det"%(cfg.cls))["det"]
+    #det=util.load("/users/visics/mpederso/code/git/condor-run/N2C2_posthr105/CRFdet/data/CRF/12_10_20/%s2_N2C2_final.det"%(cfg.cls))["det"]
+    #det=util.load("/users/visics/mpederso/code/git/condor-run/N2C2_posthr105/CRFdet/data/CRF/12_10_20/%s2_N2C215.det"%(cfg.cls))["det"]
+    #cfg.N=4
+    #det=util.load("/users/visics/mpederso/code/git/condor-run/N3C2_highres/CRFdet/data/CRF/12_11_10/%s2_N2C2highres2_final.det"%cfg.cls)["det"]
+    det=util.load("/users/visics/mpederso/code/git/condor-run/N2C2_highres/CRFdet/data/CRF/12_11_01/bicycle2_N1C2highres2.det")["det"];cfg.N=1
     imgpath=cfg.dbpath+"VOC2007/VOCdevkit/VOC2007/JPEGImages/"
-    cfg.N=4
-    #imgpath=cfg.dbpath+"buffy/images/"
+    line=True
+
     for idl,l in enumerate(det):
         img=util.myimread(imgpath+l["idim"])
 #just for buffy
@@ -144,11 +151,11 @@ if __name__ == '__main__':
         if len(ovr)>0:
             #print "Best ovr",max(ovr)
             if max(ovr)>=0.5:
-                detectCRF.visualize2([l],cfg.N,img,text="rank:%d ovr:%.3f scl:%d"%(idl,max(ovr),l["hog"]),bb=gt[l["idim"]][numpy.array(ovr).argmax()],color="w")
+                detectCRF.visualize2([l],cfg.N,img,text="rank:%d ovr:%.3f scl:%d"%(idl,max(ovr),l["hog"]),bb=gt[l["idim"]][numpy.array(ovr).argmax()],color="w",line=line)
             else:
-                detectCRF.visualize2([l],cfg.N,img,text="rank:%d ovr:%.3f scl:%d"%(idl,max(ovr),l["hog"]),bb=gt[l["idim"]][numpy.array(ovr).argmax()],color="r")
+                detectCRF.visualize2([l],cfg.N,img,text="rank:%d ovr:%.3f scl:%d"%(idl,max(ovr),l["hog"]),bb=gt[l["idim"]][numpy.array(ovr).argmax()],color="r",line=line)
         else:
-            detectCRF.visualize2([l],2,img,text="rank:%d"%(idl),color="r")
+            detectCRF.visualize2([l],cfg.N,img,text="rank:%d"%(idl),color="r",line=line)
         #pl.figure(100)        
         #pl.clf()
         #pl.imshow(img)

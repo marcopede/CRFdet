@@ -415,7 +415,7 @@ def visualize(det,N,f,img,fig=300,text=""):
     pl.show()
     #raw_input()
 
-def visualize2(det,N,img,bb=[],text="",color=None):
+def visualize2(det,N,img,bb=[],text="",color=None,line=False):
     """visualize a detection and the corresponding featues"""
     pl=pylab
     if color!=None:
@@ -454,7 +454,20 @@ def visualize2(det,N,img,bb=[],text="",color=None):
             for py in range(res.shape[1]):
                 impy=int((py)*sf+(res[0,py,px]+1)*sf/N)
                 impx=int((px)*sf+(res[1,py,px]+1)*sf/N)
-                util.box(impy,impx,impy+int(sf),impx+int(sf), col=col[cc%10], lw=1.5)  
+                if line:
+                    if py<res.shape[1]-1: #vertical
+                        impy2=int((py+1)*sf+(res[0,py+1,px]+1)*sf/N)
+                        impx2=int((px)*sf+(res[1,py+1,px]+1)*sf/N)
+                        dst=((impx-impx2)/sf)**2+((impy-impy2)/sf)**2
+                        #print dst
+                        pylab.plot([impx+sf/2.0,impx2+sf/2.0],[impy+sf/2.0,impy2+sf/2.0],col[cc%10]+'.-',markersize=10.0,lw=5/(float(dst)+1))
+                    if px<res.shape[2]-1: #horizontal
+                        impy2=int((py)*sf+(res[0,py,px+1]+1)*sf/N)
+                        impx2=int((px+1)*sf+(res[1,py,px+1]+1)*sf/N)
+                        dst=((impx-impx2)/sf)**2+((impy-impy2)/sf)**2
+                        pylab.plot([impx+sf/2.0,impx2+sf/2.0],[impy+sf/2.0,impy2+sf/2.0],col[cc%10]+'.-',markersize=10.0,lw=5/(float(dst)+1))
+                else:
+                    util.box(impy,impx,impy+int(sf),impx+int(sf), col=col[cc%10], lw=1.5)  
                 if det[l].has_key("bbox"):
                     util.box(det[l]["bbox"][0],det[l]["bbox"][1],det[l]["bbox"][2],det[l]["bbox"][3],col=col[cc%10],lw=2)
                 if l==0:
@@ -475,7 +488,7 @@ int(sf*px):int(sf*px)+int(sf)+1]=im2[int(sf*numy)+impy:int(sf*numy)+impy+int(sf)
     pl.show()
 
 
-def rundet(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0):
+def rundet(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,sort=True):
     "run the CRF optimization at each level of the HOG pyramid"
     f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
     det=[]
@@ -502,16 +515,15 @@ def rundet(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0):
                 img=drawHOG.drawHOG(m2)
             for idt in range(len(lscr)):
                 det.append({"id":m["id"],"hog":r,"scl":f.scale[r],"def":fres[idt],"scr":lscr[idt]-models[idm]["rho"]})
-    det.sort(key=lambda by: -by["scr"])
-    #if cfg.show:
-    #    pylab.draw()
-    #    pylab.show()
+    if sort:
+        det.sort(key=lambda by: -by["scr"])
     return [f,det]
 
 import math as mt
 
-def rundetw(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1,wsizey=-1,wsizex=-1,forcestep=False):
+def rundetw(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1,wsizey=-1,wsizex=-1,forcestep=False,sort=True):
     "run the CRF optimization at each level of the HOG pyramid but in a sliding window way"
+    count=0
     #forcestep=True --> step=min(step,size-num*2)
     #forcestep=False --> forcesize size=max(size,step+num*2)
     f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
@@ -564,13 +576,16 @@ def rundetw(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,
                     #print "WY:",wy,"WX",wx
                     m2=padf[r][wy*wstepy:wy*wstepy+wsizey,wx*wstepx:wx*wstepx+wsizex]
                     #print m2.shape
+                    count+=1
                     lscr,fres=crf3.match_fullN_nopad(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,aiter=aiter,restart=restart,trunc=trunc)
                     for idt in range(len(lscr)):
                         det.append({"id":m["id"],"hog":r,"scl":f.scale[r],"def":(fres[idt].T+numpy.array([wstepy*wy-maxfy,wstepx*wx-maxfx]).T).T,"scr":lscr[idt]-models[idm]["rho"]})
-    det.sort(key=lambda by: -by["scr"])
+    if sort:
+        det.sort(key=lambda by: -by["scr"])
     #if cfg.show:
     #    pylab.draw()
     #    pylab.show()
+    print "Number evaluations SW:",count
     return [f,det]
 
 
@@ -640,8 +655,9 @@ def rundetw2(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1
     return [f,det]
 
 
-def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1,wsizey=-1,wsizex=-1,forcestep=False):
+def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1,wsizey=-1,wsizex=-1,forcestep=False,sort=True):
     "run the CRF optimization at each level of the HOG pyramid but in a sliding window way"
+    count=0
     f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
     #add maximum padding to each hog    
     maxfy=max([x["ww"][0].shape[0] for x in models])
@@ -671,10 +687,10 @@ def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-
         if iwstepx==-1:
             #wstepx=numx+1
             wstepx=2*numx#/2
-        if iwsizey==-1:
-            wsizey=4*numy
-        if iwsizex==-1:
-            wsizex=4*numx
+        if iwsizey<0:
+            wsizey=-iwsizey*4*numy
+        if iwsizex<0:
+            wsizex=-iwsizex*4*numx
         if forcestep:
             wstepy=min(wstepy,wsizey-2*numy)
             wstepx=min(wstepx,wsizex-2*numx)
@@ -704,8 +720,9 @@ def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-
         dmin=loc[maxloc]["dmin"]
         #print "Best",maxloc,"Dmin",dmin,"Rdata.min()",rdata.min()
         lscr,fres=crf3.matching_nopad(N,mcost,rdata,dmin,numhyp=1,aiter=aiter,restart=restart,trunc=trunc)
+        count+=1
         #print "After matching"
-        loc[maxloc]["bscr"]=lscr[0]-models[idm]["rho"]#-dmin*numy*numx
+        loc[maxloc]["bscr"]=lscr[0]-models[idm]["rho"]#-dmin*numly*numlx
         loc[maxloc]["def"]=fres[0]
         #print "Computed",lscr[0]-models[idm]["rho"]
         loc[maxloc]["tied"]=True
@@ -744,10 +761,12 @@ def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-
                     rdata[py,px,max(0,rcy-1):rcy+2,max(0,rcx-1):rcx+2]=10
             if len(det)>=numdet:#found all solutions
                 break
-            loc[nmaxloc]["bscr"]=numpy.sum(rdata.reshape((numly*numlx,movy*movx)).max(1))-dmin*numly*numlx-models[sol["id"]]["rho"]
+            #loc[nmaxloc]["bscr"]=numpy.sum(rdata.reshape((numly*numlx,movy*movx)).max(1))-dmin*numly*numlx-models[sol["id"]]["rho"]
             loc[nmaxloc]["tied"]=False
             nmaxloc=numpy.argmax([x["bscr"] for x in loc])
-    det.sort(key=lambda by: -by["scr"])
+    if sort:
+        det.sort(key=lambda by: -by["scr"])
+    print "Number evaluations:",count
     return [f,det]
 
 
@@ -790,7 +809,7 @@ def rundetc(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,bbox=None)
     return [f,det]
 
 
-def rundetbb(img,N,models,numdet=50,interv=10,aiter=3,restart=0,trunc=0):
+def rundetbb(img,N,models,numdet=50,interv=10,aiter=3,restart=0,trunc=0,sort=True):
     "run the CRF optimization at each level of the HOG pyramid but using branch and bound algorithm"
     #note that branch and bound sometime is generating more than once the same hipothesis
     # I do not know yet why...
@@ -807,7 +826,8 @@ def rundetbb(img,N,models,numdet=50,interv=10,aiter=3,restart=0,trunc=0):
         for l in ldet:
             r=l["scl"]
             ldet2.append({"id":m["id"],"hog":r,"scl":f.scale[r],"def":l["def"][0],"scr":l["scr"]-models[idm]["rho"]})            
-    ldet2.sort(key=lambda by: -by["scr"])
+    if sort:
+        ldet2.sort(key=lambda by: -by["scr"])
     return [f,ldet2]
 
 def detectCrop(a):
