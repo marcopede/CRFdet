@@ -445,9 +445,9 @@ def visualize2(det,N,img,bb=[],text="",color=None):
         if l==0:
            #im2=numpy.zeros((im.shape[0]+sf*numy*2,im.shape[1]+sf*numx*2,im.shape[2]),dtype=im.dtype)
             #for sliding windows to work
-           im2=numpy.zeros((im.shape[0]+sf*numy*4,im.shape[1]+sf*numx*4,im.shape[2]),dtype=im.dtype)
+           im2=numpy.zeros((im.shape[0]+sf*numy*2,im.shape[1]+sf*numx*2,im.shape[2]),dtype=im.dtype)
            im2[sf*numy:sf*numy+im.shape[0],sf*numx:sf*numx+im.shape[1]]=im
-           rcim=numpy.zeros((sf*numy,sf*numx,3),dtype=im.dtype)
+           rcim=numpy.zeros((sf*numy+1,sf*numx+1,3),dtype=im.dtype)
         #dfeat,edge=crf3.getfeat_full(m2,pad,res)
         pl.subplot(1,2,1)
         for px in range(res.shape[2]):
@@ -458,11 +458,11 @@ def visualize2(det,N,img,bb=[],text="",color=None):
                 if det[l].has_key("bbox"):
                     util.box(det[l]["bbox"][0],det[l]["bbox"][1],det[l]["bbox"][2],det[l]["bbox"][3],col=col[cc%10],lw=2)
                 if l==0:
-                    if int(sf*numy)+impy>im2.shape[0] or int(sf*numx)+impx>im2.shape[1]:
-                        rcim[int(sf*py):int(sf*(py+1)),int(sf*px):int(sf*(px+1))]=0
-                    else:
-                        rcim[int(sf*py):int(sf*py)+int(sf),
-int(sf*px):int(sf*px)+int(sf)]=im2[int(sf*numy)+impy:int(sf*numy)+impy+int(sf),int(sf*numx)+impx:int(sf*numx)+impx+int(sf)] 
+                    #if int(sf*numy)+impy>im2.shape[0] or int(sf*numx)+impx>im2.shape[1]:
+                    #    rcim[int(sf*py):int(sf*(py+1)),int(sf*px):int(sf*(px+1))]=0
+                    #else:
+                        rcim[int(sf*py):int(sf*py)+int(sf)+1,
+int(sf*px):int(sf*px)+int(sf)+1]=im2[int(sf*numy)+impy:int(sf*numy)+impy+int(sf)+1,int(sf*numx)+impx:int(sf*numx)+impx+int(sf)+1] 
         cc+=1
         if l==0:
             pl.subplot(1,2,2)

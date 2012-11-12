@@ -1172,7 +1172,7 @@ def getfeat_fullN(m1,N,res2,mode="Quad",rot=None,trunc=0):
 
 if __name__ == "__main__":
 
-    if 1:#check crf_fullN_nopad
+    if 0:#check crf_fullN_nopad
         from pylab import *
         import util
         im=util.myimread("000535.jpg")[:,::-1,:]#flip
@@ -1193,8 +1193,14 @@ if __name__ == "__main__":
         [f,det2]=detectCRF.rundet(im,3,m,numhyp=1,interv=5,aiter=3,restart=0,trunc=0)
         print "Elapsed time for Normal",time.time()-t
         t=time.time()
+        #ldet=crf3.match_bbN(m1,f.hog,3,mcost,show=False,rot=False,numhyp=120)
         [f,det3]=detectCRF.rundetbb(im,3,m,numdet=10,interv=5,aiter=3,restart=0,trunc=0)
         print "Elapsed time for BB",time.time()-t
+        scrsw=[x["scr"] for x in det1]
+        plot(scrsw,lw=3)
+        scrbb=[x["scr"] for x in det3]
+        plot(scrbb,"g",lw=3)
+        sdfsd
         if 0:
             for l in range(100):
                 detectCRF.visualize([det0[l]],3,f,im,fig=200,text="SWBB")
@@ -1223,7 +1229,7 @@ if __name__ == "__main__":
         plot(scrbb,"r",lw=3)
         plot(scrwbb1,"c",lw=3)
         show()
-        dsfsd
+        #dsfsd
     if 1:
         from pylab import *
         import util
@@ -1252,6 +1258,7 @@ if __name__ == "__main__":
         mcost=factor*numpy.ones((8,numy,numx),dtype=c_float)
         t=time.time()
         ldet=crf3.match_bbN(m1,f.hog,N,mcost,show=False,rot=False,numhyp=120)
+        ldet1=crf3.match_bbN(m1,f.hog,N,mcost,show=False,rot=False,numhyp=120)
         print "Time:",time.time()-t
         rr=[x["scr"] for x in ldet]
         figure(22)
@@ -1323,7 +1330,7 @@ if __name__ == "__main__":
             lscr,fres=crf3.match_fullN(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,bbox=numpy.array(bbox)*f.scale[r])
             print "Total time",time.time()-t
             #print "Score",scr
-            idraw=True#False
+            idraw=False
             if idraw:
                 import drawHOG
                 #rec=drawHOG.drawHOG(dfeat)
