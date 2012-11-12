@@ -42,8 +42,8 @@ if __name__ == '__main__':
         from config import * #default configuration      
         cfg.cls=sys.argv[1]
         cfg.numcl=2
-        #cfg.dbpath="/home/owner/databases/"
-        cfg.dbpath="/users/visics/mpederso/databases/"
+        cfg.dbpath="/home/owner/databases/"
+        #cfg.dbpath="/users/visics/mpederso/databases/"
         cfg.testpath="./data/"#"./data/CRF/12_09_19/"
         cfg.testspec="right"#"full2"
         cfg.db="VOC"
@@ -105,11 +105,12 @@ if __name__ == '__main__':
     import detectCRF
     #det=util.load("./data/CRF/12_10_02_parts_full/bicycle2_testN1_final.det")["det"]
     #det=util.load("./data/CRF/12_10_02_parts_full/bicycle2_testN2_final.det")["det"]
-    #det=util.load("./data/resultsN2/%s2_N2C2_final.det"%(cfg.cls))["det"]
+    det=util.load("./data/resultsN2/%s2_N2C2_final.det"%(cfg.cls))["det"]
     #det=util.load("/users/visics/mpederso/code/git/condor-run/N2C2_posthr105/CRFdet/data/CRF/12_10_21/%s2_N2C2k01_final.det"%(cfg.cls))["det"]
-    det=util.load("/users/visics/mpederso/code/git/condor-run/N2C2_posthr105/CRFdet/data/CRF/12_10_20/%s2_N2C2_final.det"%(cfg.cls))["det"]
+    #det=util.load("/users/visics/mpederso/code/git/condor-run/N2C2_posthr105/CRFdet/data/CRF/12_10_20/%s2_N2C2_final.det"%(cfg.cls))["det"]
     #det=util.load("/users/visics/mpederso/code/git/condor-run/N2C2_posthr105/CRFdet/data/CRF/12_10_20/%s2_N2C215.det"%(cfg.cls))["det"]
     imgpath=cfg.dbpath+"VOC2007/VOCdevkit/VOC2007/JPEGImages/"
+    line=True
     for idl,l in enumerate(det):
         img=util.myimread(imgpath+l["idim"])
         #gooddet=-1
@@ -119,11 +120,11 @@ if __name__ == '__main__':
         if len(ovr)>0:
             #print "Best ovr",max(ovr)
             if max(ovr)>=0.5:
-                detectCRF.visualize2([l],2,img,text="rank:%d ovr:%.3f scl:%d"%(idl,max(ovr),l["hog"]),bb=gt[l["idim"]][numpy.array(ovr).argmax()],color="w")
+                detectCRF.visualize2([l],2,img,text="rank:%d ovr:%.3f scl:%d"%(idl,max(ovr),l["hog"]),bb=gt[l["idim"]][numpy.array(ovr).argmax()],color="w",line=line)
             else:
-                detectCRF.visualize2([l],2,img,text="rank:%d ovr:%.3f scl:%d"%(idl,max(ovr),l["hog"]),bb=gt[l["idim"]][numpy.array(ovr).argmax()],color="r")
+                detectCRF.visualize2([l],2,img,text="rank:%d ovr:%.3f scl:%d"%(idl,max(ovr),l["hog"]),bb=gt[l["idim"]][numpy.array(ovr).argmax()],color="r",line=line)
         else:
-            detectCRF.visualize2([l],2,img,text="rank:%d"%(idl),color="r")
+            detectCRF.visualize2([l],2,img,text="rank:%d"%(idl),color="r",line=line)
         #pl.figure(100)        
         #pl.clf()
         #pl.imshow(img)
