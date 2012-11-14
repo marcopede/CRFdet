@@ -655,9 +655,8 @@ def rundetw2(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1
     return [f,det]
 
 
-def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1,wsizey=-1,wsizex=-1,forcestep=False,sort=True):
+def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-1,wstepx=-1,wsizey=-1,wsizex=-1,forcestep=False):
     "run the CRF optimization at each level of the HOG pyramid but in a sliding window way"
-    count=0
     f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
     #add maximum padding to each hog    
     maxfy=max([x["ww"][0].shape[0] for x in models])
@@ -687,9 +686,9 @@ def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-
         if iwstepx==-1:
             #wstepx=numx+1
             wstepx=2*numx#/2
-        if iwsizey<0:
+        if iwsizey==-1:
             wsizey=-iwsizey*4*numy
-        if iwsizex<0:
+        if iwsizex==-1:
             wsizex=-iwsizex*4*numx
         if forcestep:
             wstepy=min(wstepy,wsizey-2*numy)
@@ -712,22 +711,23 @@ def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-
     det=[]                
     nmaxloc=numpy.argmax([x["bscr"] for x in loc])
     while (True):
+        #print loc[nmaxloc]["bscr"],
         maxloc=nmaxloc
         #maxloc=numpy.argmax([x["scr"] for x in loc])
         idm=loc[maxloc]["id"]
         dmin=loc[maxloc]["dmin"]
         rdata=loc[maxloc]["rdata"]
-        dmin=loc[maxloc]["dmin"]
+        mcost=models[idm]["cost"]#.astype(numpy.float32)
+        #dmin=loc[maxloc]["dmin"]
         #print "Best",maxloc,"Dmin",dmin,"Rdata.min()",rdata.min()
         lscr,fres=crf3.matching_nopad(N,mcost,rdata,dmin,numhyp=1,aiter=aiter,restart=restart,trunc=trunc)
-        count+=1
         #print "After matching"
-        loc[maxloc]["bscr"]=lscr[0]-models[idm]["rho"]#-dmin*numly*numlx
-        loc[maxloc]["def"]=fres[0]
+        loc[maxloc]["bscr"]=lscr[0]-models[idm]["rho"]#-dmin*numy*numx
+        loc[maxloc]["def"]=fres[0]#.copy()#copy not really necessary
         #print "Computed",lscr[0]-models[idm]["rho"]
         loc[maxloc]["tied"]=True
         nmaxloc=numpy.argmax([x["bscr"] for x in loc])
-        if maxloc==nmaxloc or loc[nmaxloc]["tied"]: #found a solution
+        if loc[nmaxloc]["tied"]:#maxloc==nmaxloc or loc[nmaxloc]["tied"]: #found a solution
             #maxloc=loc[maxloc]["scr"]
             #save solution
             sol=loc[nmaxloc]
@@ -735,19 +735,20 @@ def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-
             dmin=sol["dmin"]
             wy,wx=sol["pos"] 
             idm=sol["id"] 
+            rdata=sol["rdata"]
             numy=models[idm]["ww"][0].shape[0]#/N
             numx=models[idm]["ww"][0].shape[1]#/N      
-            res=sol["def"]
+            res2=sol["def"]
             if iwstepy==-1:
                 wstepy=2*numy#/2
             if iwstepx==-1:
                 wstepx=2*numx#/2
             #minstepy=max(iwstepy,wstepy+2*numy)
             #minstepx=max(iwstepx,wstepx+2*numx)        
-            det.append({"id":sol["id"],"hog":sol["hog"],"scl":sol["scl"],"def":(res.T+numpy.array([wstepy*wy-maxfy,wstepx*wx-maxfx]).T).T,"scr":sol["bscr"]})
+            det.append({"id":sol["id"],"hog":sol["hog"],"scl":sol["scl"],"def":(res2.T+numpy.array([wstepy*wy-maxfy,wstepx*wx-maxfx]).T).T,"scr":sol["bscr"]})
             #print "Solution",sol["bscr"]
             #add penalties to forbid same solution
-            res2=fres[0]
+            #res2=res#fres[0]
             numly=rdata.shape[0]
             numlx=rdata.shape[1]
             movy=rdata.shape[2]
@@ -761,14 +762,12 @@ def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-
                     rdata[py,px,max(0,rcy-1):rcy+2,max(0,rcx-1):rcx+2]=10
             if len(det)>=numdet:#found all solutions
                 break
+            #NOT NECESSARY BOUND CAN BE PREVIOUS DETECTION
             #loc[nmaxloc]["bscr"]=numpy.sum(rdata.reshape((numly*numlx,movy*movx)).max(1))-dmin*numly*numlx-models[sol["id"]]["rho"]
             loc[nmaxloc]["tied"]=False
             nmaxloc=numpy.argmax([x["bscr"] for x in loc])
-    if sort:
-        det.sort(key=lambda by: -by["scr"])
-    print "Number evaluations:",count
+    det.sort(key=lambda by: -by["scr"])
     return [f,det]
-
 
 
 def rundetc(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,bbox=None):
