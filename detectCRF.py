@@ -488,6 +488,190 @@ int(sf*px):int(sf*px)+int(sf)+1]=im2[int(sf*numy)+impy:int(sf*numy)+impy+int(sf)
     pl.show()
 
 
+def visualizeDet(det,N,img,bb=[],text="",color=None,line=False):
+    """visualize a detection and the corresponding featues"""
+    pl=pylab
+    if color!=None:
+        col=color
+    else:
+        col=['w','r','g','b','y','c','k','y','c','k']
+    im=img
+    pad=0
+    cc=0
+    pl.imshow(img)
+    if bb!=[]:
+        util.box(bb[0],bb[1],bb[2],bb[3], col="b--", lw=2)  
+    for l in range(len(det)):#lsort[:100]:
+        scl=det[l]["scl"]
+        idm=det[l]["id"]
+        r=det[l]["hog"]
+        res=det[l]["def"]
+        scr=det[l]["scr"]
+        numy=det[l]["def"].shape[1]#cfg.fy[idm]
+        numx=det[l]["def"].shape[2]#cfg.fx[idm]
+        sf=float(8*N/scl)
+        #m2=f.hog[r]
+        if l==0:
+           #im2=numpy.zeros((im.shape[0]+sf*numy*2,im.shape[1]+sf*numx*2,im.shape[2]),dtype=im.dtype)
+            #for sliding windows to work
+           im2=numpy.zeros((im.shape[0]+sf*numy*2,im.shape[1]+sf*numx*2,im.shape[2]),dtype=im.dtype)
+           im2[sf*numy:sf*numy+im.shape[0],sf*numx:sf*numx+im.shape[1]]=im
+           rcim=numpy.zeros((sf*numy+1,sf*numx+1,3),dtype=im.dtype)
+        #dfeat,edge=crf3.getfeat_full(m2,pad,res)
+        for px in range(res.shape[2]):
+            for py in range(res.shape[1]):
+                impy=int((py)*sf+(res[0,py,px]+1)*sf/N)
+                impx=int((px)*sf+(res[1,py,px]+1)*sf/N)
+                if line:
+                    if py<res.shape[1]-1: #vertical
+                        impy2=int((py+1)*sf+(res[0,py+1,px]+1)*sf/N)
+                        impx2=int((px)*sf+(res[1,py+1,px]+1)*sf/N)
+                        dst=((impx-impx2)/sf)**2+((impy-impy2)/sf)**2
+                        #print dst
+                        pylab.plot([impx+sf/2.0,impx2+sf/2.0],[impy+sf/2.0,impy2+sf/2.0],col[cc%10]+'.-',markersize=10.0,lw=5/(float(dst)+1))
+                    if px<res.shape[2]-1: #horizontal
+                        impy2=int((py)*sf+(res[0,py,px+1]+1)*sf/N)
+                        impx2=int((px+1)*sf+(res[1,py,px+1]+1)*sf/N)
+                        dst=((impx-impx2)/sf)**2+((impy-impy2)/sf)**2
+                        pylab.plot([impx+sf/2.0,impx2+sf/2.0],[impy+sf/2.0,impy2+sf/2.0],col[cc%10]+'.-',markersize=10.0,lw=5/(float(dst)+1))
+                else:
+                    util.box(impy,impx,impy+int(sf),impx+int(sf), col=col[cc%10], lw=1.5)  
+                if det[l].has_key("bbox"):
+                    util.box(det[l]["bbox"][0],det[l]["bbox"][1],det[l]["bbox"][2],det[l]["bbox"][3],col=col[cc%10],lw=2)
+                if l==0:
+                    rcim[int(sf*py):int(sf*py)+int(sf)+1,
+int(sf*px):int(sf*px)+int(sf)+1]=im2[int(sf*numy)+impy:int(sf*numy)+impy+int(sf)+1,int(sf*numx)+impx:int(sf*numx)+impx+int(sf)+1] 
+        cc+=1
+    #pl.axis("image")
+    pl.axis([0,img.shape[1],img.shape[0],0])
+    pl.draw()
+    pl.show()
+
+def visualizeRec(det,N,img,bb=[],text="",color=None,line=False):
+    """visualize a detection and the corresponding featues"""
+    pl=pylab
+    if color!=None:
+        col=color
+    else:
+        col=['w','r','g','b','y','c','k','y','c','k']
+    #pl.figure(300,figsize=(8,4))
+    #pl.clf()
+    #pl.subplot(1,2,1)
+    #pl.title(text)
+    #pl.imshow(img)
+    im=img
+    pad=0
+    cc=0
+    for l in range(len(det)):#lsort[:100]:
+        scl=det[l]["scl"]
+        idm=det[l]["id"]
+        r=det[l]["hog"]
+        res=det[l]["def"]
+        scr=det[l]["scr"]
+        numy=det[l]["def"].shape[1]#cfg.fy[idm]
+        numx=det[l]["def"].shape[2]#cfg.fx[idm]
+        sf=float(8*N/scl)
+        #m2=f.hog[r]
+        if l==0:
+           #im2=numpy.zeros((im.shape[0]+sf*numy*2,im.shape[1]+sf*numx*2,im.shape[2]),dtype=im.dtype)
+            #for sliding windows to work
+           im2=numpy.zeros((im.shape[0]+sf*numy*2+1,im.shape[1]+sf*numx*2+1,im.shape[2]),dtype=numpy.float32)
+           im2[sf*numy:sf*numy+im.shape[0],sf*numx:sf*numx+im.shape[1]]=im
+           rcim=numpy.zeros((sf*(numy+1)+1,sf*(numx+1)+1,3),dtype=numpy.float32)
+           mask=numpy.zeros((int(sf)+int(sf),int(sf)+int(sf),3),dtype=numpy.float32)
+           temp=(mask[0:mask.shape[0]/2].T+numpy.linspace(0,0.5,mask.shape[0]/2)).T
+           mask[0:mask.shape[0]/2]=temp
+           #pl.figure();pl.imshow(mask);pl.show()
+           #raw_input()
+           ll=mask.shape[0]-mask.shape[0]/2
+           aux=numpy.zeros((3,mask.shape[1]/2))
+           mask[mask.shape[0]/2:]=(mask[mask.shape[0]/2:].T+numpy.linspace(0.5,0,ll).T).T
+           #pl.figure();pl.imshow(mask);pl.show()
+           #raw_input()
+           aux[:]=numpy.linspace(0,0.5,mask.shape[1]/2)
+           mask[:,0:mask.shape[1]/2]=mask[:,0:mask.shape[1]/2]+aux.T
+           ll=mask.shape[1]-mask.shape[1]/2
+           aux=numpy.zeros((3,ll))
+           aux[:]=numpy.linspace(0.5,0,ll)
+           mask[:,ll:]=mask[:,ll:]+aux.T[:]
+           #pl.figure();pl.imshow(mask);pl.show()
+           #raw_input()
+        #dfeat,edge=crf3.getfeat_full(m2,pad,res)
+        #pl.subplot(1,2,1)
+        for px in range(res.shape[2]):
+            for py in range(res.shape[1]):
+                impy=int((py)*sf+(res[0,py,px]+1)*sf/N)
+                impx=int((px)*sf+(res[1,py,px]+1)*sf/N)
+                #rcim[int(sf*py):int(sf*py)+int(sf)+int(sf)+1,int(sf*px):int(sf*px)+int(sf)+int(sf)+1]=rcim[int(sf*py):int(sf*py)+int(sf)+int(sf)+1,int(sf*px):int(sf*px)+int(sf)+int(sf)+1]+mask*im2[int(sf*numy)+int(-sf/2)+impy:int(sf*numy)+int(-sf/2)+impy+int(sf)+int(sf)+1,int(sf*numx)+int(-sf/2)+impx:int(sf*numx)+int(-sf/2)+impx+int(sf)+int(sf)+1] 
+                rcim[int(sf)*py:int(sf)*py+int(sf)+int(sf),int(sf)*px:int(sf)*px+int(sf)+int(sf)]=rcim[int(sf)*py:int(sf)*py+int(sf)+int(sf),int(sf)*px:int(sf)*px+int(sf)+int(sf)]+mask*im2[int(sf)*numy+int(-sf/2)+impy:int(sf)*numy+int(-sf/2)+impy+int(sf)+int(sf),int(sf)*numx+int(-sf/2)+impx:int(sf)*numx+int(-sf/2)+impx+int(sf)+int(sf)] 
+        cc+=1
+        if l==0:
+            #pl.subplot(1,2,2)
+            #pl.title("scr:%.3f id:%d"%(scr,idm))
+            pl.imshow(rcim[sf/2:-sf/2,sf/2:-sf/2]/rcim.max())#.astype(numpy.uint8))    
+
+
+def visualizeRec2(det,N,img,bb=[],text="",color=None,line=False):
+    """visualize a detection and the corresponding featues"""
+    pl=pylab
+    if color!=None:
+        col=color
+    else:
+        col=['w','r','g','b','y','c','k','y','c','k']
+    #pl.figure(300,figsize=(8,4))
+    #pl.clf()
+    #pl.subplot(1,2,1)
+    #pl.title(text)
+    #pl.imshow(img)
+    im=img
+    pad=0
+    cc=0
+    for l in range(len(det)):#lsort[:100]:
+        scl=det[l]["scl"]
+        idm=det[l]["id"]
+        r=det[l]["hog"]
+        res=det[l]["def"]
+        #res=numpy.ones((res.shape[0],res.shape[1],res.shape[2]))
+        scr=det[l]["scr"]
+        numy=det[l]["def"].shape[1]#cfg.fy[idm]
+        numx=det[l]["def"].shape[2]#cfg.fx[idm]
+        sf=float(8*N/scl)
+        imres=numpy.zeros((res.shape[0],res.shape[1]+2,res.shape[2]+2))
+        from scipy.interpolate import griddata,interp2d,LinearNDInterpolator
+        from scipy.ndimage.interpolation import map_coordinates
+        for px in range(res.shape[2]):
+            for py in range(res.shape[1]):
+                imres[0,py+1,px+1]=int((py)*sf+(res[0,py,px]+1)*sf/N+sf)
+                imres[1,py+1,px+1]=int((px)*sf+(res[1,py,px]+1)*sf/N+sf)
+        imres[0,0,:]=imres[0,1,:]-sf;imres[1,0,:]=imres[1,1,:]
+        imres[0,-1,:]=imres[0,-2,:]+sf;imres[1,-1,:]=imres[1,-2,:]
+        imres[1,:,0]=imres[1,:,1]-sf;imres[0,:,0]=imres[0,:,1]
+        imres[1,:,-1]=imres[1,:,-2]+sf;imres[0,:,-1]=imres[0,:,-2]
+        #imres[0,0,0]=imres[0,1,1]-sf;imres[1,0,0]=imres[1,1,1]-sf
+        #imres[0,-1,0]=imres[0,-2,1]+sf;imres[0,-1,:]=imres[0,-2,:]+sf
+        #imres[1,:,0]=imres[1,:,1]-sf;imres[0,:,0]=imres[0,:,1]-sf
+        #imres[1,:,-1]=imres[1,:,-2]+sf;imres[0,:,-1]=imres[0,:,-2]+sf
+        grid = numpy.mgrid[0:numy+2,0:numx+2]
+        gridf = numpy.mgrid[0:numy:1j*sf*numy, 0:numx:1j*sf*numx]
+        #grid2=numpy.concatenate((grid[0].reshape((-1,1)),grid[1].flatten().reshape((-1,1))),1)
+        meshy=griddata((grid[0].flatten(),grid[1].flatten()),imres[0,grid[0].flatten(),grid[1].flatten()],(gridf[0],gridf[1]), method='linear')
+        meshx=griddata((grid[0].flatten(),grid[1].flatten()),imres[1,grid[0].flatten(),grid[1].flatten()],(gridf[0],gridf[1]), method='linear')
+        rec0=map_coordinates(im[:,:,0], numpy.array([meshy,meshx]), order=1, mode='constant')
+        rec1=map_coordinates(im[:,:,1], numpy.array([meshy,meshx]), order=1, mode='constant')
+        rec2=map_coordinates(im[:,:,2], numpy.array([meshy,meshx]), order=1, mode='constant')
+        cc+=1
+        if l==0:
+            #pl.subplot(1,2,2)
+            #pl.title("scr:%.3f id:%d"%(scr,idm))
+            rec=numpy.zeros((rec0.shape[0],rec0.shape[1],3))
+            rec[:,:,0]=rec0;rec[:,:,1]=rec1;rec[:,:,2]=rec2
+            pl.imshow(rec/rec.max())#.astype(numpy.uint8))
+            pl.axis([0,rec.shape[1],rec.shape[0],0])    
+            pl.draw()
+            pl.show()
+            
+
+
 def rundet(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,sort=True):
     "run the CRF optimization at each level of the HOG pyramid"
     f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)

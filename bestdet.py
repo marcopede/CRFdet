@@ -46,7 +46,7 @@ if __name__ == '__main__':
         cfg.dbpath="/users/visics/mpederso/databases/"
         cfg.testpath="./data/"#"./data/CRF/12_09_19/"
         cfg.testspec="right"#"full2"
-        cfg.db="VOC"#"buffy"
+        cfg.db="VOC"
         #cfg.cls="diningtable"
         #cfg.N=
        
@@ -119,16 +119,17 @@ if __name__ == '__main__':
     #det=util.load("/users/visics/mpederso/code/git/condor-run/N2C2_posthr105/CRFdet/data/CRF/12_10_20/%s2_N2C2_final.det"%(cfg.cls))["det"]
     #det=util.load("/users/visics/mpederso/code/git/condor-run/N2C2_posthr105/CRFdet/data/CRF/12_10_20/%s2_N2C26.det"%(cfg.cls))["det"]
     #cfg.N=4
-    #det=util.load("/users/visics/mpederso/code/git/condor-run/N3C2_highres/CRFdet/data/CRF/12_11_10/%s2_N2C2highres2_final.det"%cfg.cls)["det"]
-    det=util.load("/users/visics/mpederso/code/git/condor-run/N3C2_highres/CRFdet/data/CRF/12_11_10/%s2_N2C2highres26.det"%cfg.cls)["det"]
+    det=util.load("/users/visics/mpederso/code/git/condor-run/N3C2_highres/CRFdet/data/CRF/12_11_10/%s2_N2C2highres2_final.det"%cfg.cls)["det"]
+    #det=util.load("/users/visics/mpederso/code/git/condor-run/N3C2_highres/CRFdet/data/CRF/12_11_10/%s2_N2C2highres26.det"%cfg.cls)["det"]
     #det=util.load("/users/visics/mpederso/code/git/condor-run/N2C2_highres/CRFdet/data/CRF/12_11_01/bicycle2_N1C2highres2.det")["det"];cfg.N=1
     imgpath=cfg.dbpath+"VOC2007/VOCdevkit/VOC2007/JPEGImages/"
+    #imgpath=cfg.dbpath+"/buffy/images/"
     line=True
 
     for idl,l in enumerate(det):
         img=util.myimread(imgpath+l["idim"])
 #just for buffy
-#         try:
+#        try:
 #           img=util.myimread(imgpath+"buffy_s5e2/"+l["idim"])
 #        except:
 #            try:    
@@ -137,13 +138,13 @@ if __name__ == '__main__':
 #                try:
 #                    img=util.myimread(imgpath+"buffy_s5e4/"+l["idim"])
 #                except:
-#                    try:
-#                        img=util.myimread(imgpath+"buffy_s5e5/"+l["idim"])
-#                    except:
-#                        try:
-#                            img=util.myimread(imgpath+"buffy_s5e6/"+l["idim"])
-#                        except:
-#                            pass
+#            try:
+#                img=util.myimread(imgpath+"buffy_s5e5/"+l["idim"])
+#            except:
+#                try:
+#                    img=util.myimread(imgpath+"buffy_s5e6/"+l["idim"])
+#                except:
+#                    pass
 
         #gooddet=-1
         ovr=[]
