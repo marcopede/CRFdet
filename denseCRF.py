@@ -788,8 +788,8 @@ for it in range(cpit,cfg.posit):
         newposl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,sizereg=sizereg,valreg=cfg.valreg)
         #lposl.append(newposl)
         #add a bound on not found examples
-        boldposl=oldposl+(totPosEx-total[-2])*(1-cfg.posthr)
-        bnewposl=newposl+(totPosEx-total[-1])*(1-cfg.posthr)
+        boldposl=oldposl/float(totPosEx)+(totPosEx-total[-2])*(1-cfg.posthr)
+        bnewposl=newposl/float(totPosEx)+(totPosEx-total[-1])*(1-cfg.posthr)
         if cfg.posconvbound:
             posratio.append((boldposl-bnewposl)/boldposl)
         else:

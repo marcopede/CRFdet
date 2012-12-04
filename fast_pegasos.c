@@ -9,6 +9,7 @@
 //gcc -shared -Wl,-soname,libfast_pegasos.so -o libfast_pegasos.so  fast_pegasos.o
 
 #define ftype float
+//#define ftype double
 
 static inline ftype add(ftype *a,ftype *b,int len)
 {
@@ -20,6 +21,33 @@ static inline ftype add(ftype *a,ftype *b,int len)
 }
 
 static inline ftype mul(ftype *a,ftype b,int len)
+{
+    int c;
+    for (c=0;c<len;c++)
+    {
+        a[c]=a[c]*b;
+    }
+}
+
+static inline ftype add_d(double *a,ftype *b,int len)
+{
+    int c;
+    for (c=0;c<len;c++)
+    {
+        a[c]=a[c]+b[c];
+    }
+}
+
+static inline ftype add_d2(double *a,double *b,int len)
+{
+    int c;
+    for (c=0;c<len;c++)
+    {
+        a[c]=a[c]+b[c];
+    }
+}
+
+static inline ftype mul_d(double *a,ftype b,int len)
 {
     int c;
     for (c=0;c<len;c++)
@@ -81,10 +109,30 @@ static inline ftype addmul(ftype *a,ftype *b,ftype c,int len)
     }
 }
 
+static inline ftype addmul_d(double *a,ftype *b,double c,int len)
+{
+    int cn;
+    for (cn=0;cn<len;cn++)
+    {
+        a[cn]=a[cn]+b[cn]*c;
+    }
+}
+
 static inline ftype score(ftype *x,ftype *w,int len)
 {
     int c;
     ftype scr=0;
+    for (c=0;c<len;c++)
+    {
+        scr+=x[c]*w[c];
+    }
+    return scr;
+}
+
+static inline double score_d(ftype *x,double *w,int len)
+{
+    int c;
+    double scr=0;
     for (c=0;c<len;c++)
     {
         scr+=x[c]*w[c];
@@ -108,6 +156,22 @@ static inline ftype score2(ftype *x,ftype *w,ftype w0,int len,int sizereg)
     return scr;
 }
 
+
+static inline ftype score2_d(double *x,double *w,double w0,int len,int sizereg)
+{
+    int c;
+    double scr=0;
+    for (c=0;c<len-sizereg;c++)//normal part
+    {
+        scr+=x[c]*w[c];
+    }
+    for (c=len-sizereg;c<len;c++)//regularize at d instead of 0
+    {
+        scr+=(x[c]-w0)*(w[c]-w0);
+        //a[c]= (a[c]<0.1*d) ? 0.1*d : a[c];//limit the minimum pairwise cost
+    }
+    return scr;
+}
 
 void fast_pegasos(ftype *w,int wx,ftype *ex,int exy,ftype *label,ftype lambda,int iter,int part)
 {
@@ -293,6 +357,175 @@ void fast_pegasos_comp_parall(ftype *w,int numcomp,int *compx,int *compy,ftype *
     free(pares);
     free(pexarray);
 }
+
+double fast_obj(double *w,int numcomp,int *compx,int *compy,ftype **ptrsamplescomp,int totsamples,int *label,int *comp,ftype C,int numthr,int *sizereg,double valreg)
+{
+    int wx=0,wxtot=0,wcx;
+    #ifdef _OPENMP
+    omp_set_num_threads(numthr);
+    #endif
+    int c,cp,bcp,d,y,t,pex,pexcomp,totsz,sumszx[10],sumszy[10];//max 10 components
+    ftype *x;
+    double n,scr,norm,val,ptrc,wscr,bwscr=-1.0;
+    totsz=0;
+    sumszx[0]=0;
+    sumszy[0]=0;
+    int *pares,*pexarray,kk;
+    //pares   =malloc(sizeof(int)*k);
+    //pexarray=malloc(sizeof(int)*k);
+    for (c=0;c<numcomp;c++)
+    {
+        wxtot+=compx[c];
+        totsz+=compy[c];
+        sumszx[c+1]=wxtot;
+        sumszy[c+1]=totsz;
+    }
+    bwscr=-1.0;
+    for (cp=0;cp<numcomp;cp++)
+    {   
+        wscr=score2_d(w+sumszx[cp],w+sumszx[cp],0,compx[cp]-1,sizereg[cp]);
+        //printf("Wscore(%d)=%f\n",cp,wscr);
+        if (wscr>bwscr)
+        {
+            bwscr=wscr;
+            bcp=cp;
+        }
+    }
+    //regularization=bwscr
+    double loss=0.0;
+    for (c=0;c<totsz;c++)
+    {
+       // #pragma omp parallel for private(scr,pex,x,y,wx)
+        //for (kk=0;kk<k;kk++)
+        //{          
+        pex=c;//pexarray[kk];
+        wx=compx[comp[pex]];
+        x=ptrsamplescomp[comp[pex]]+(pex-sumszy[comp[pex]])*wx;
+        y=label[pex];
+        //printf("Y %d ",y);
+        //printf("C %d ",comp[pex]);
+        scr=score_d(x,w+sumszx[comp[pex]],wx);
+        if (scr*y<1.0)
+            loss+=-(y*scr)+1.0; 
+    }
+    //printf("N:%g t:%d\n",n,t);
+    //free(pares);
+    //free(pexarray);
+    return 0.5*bwscr+C*loss;
+}
+
+int fast_grad2(ftype *gr,ftype *w,int numcomp,int *compx,int *compy,ftype **ptrsamplescomp,int totsamples,int *label,int *comp,ftype C,int iter,int part,int k,int numthr,int *sizereg,ftype valreg,ftype lb)
+{
+    int wx=0,wxtot=0,wcx;
+    #ifdef _OPENMP
+    omp_set_num_threads(numthr);
+    #endif
+    printf("Gradient Fast\n");
+    //srand48(3+part);
+    int c,cp,bcp,d,y,t,pex,pexcomp,totsz,sumszx[10],sumszy[10];//max 10 components
+    ftype *x,n,scr,norm,val,ptrc,wscr,bwscr=-1.0;
+    totsz=0;
+    sumszx[0]=0;
+    sumszy[0]=0;
+    int *pares,*pexarray,kk;
+    //pares   =malloc(sizeof(int)*k);
+    //pexarray=malloc(sizeof(int)*k);
+    for (c=0;c<numcomp;c++)
+    {
+        wxtot+=compx[c];
+        totsz+=compy[c];
+        sumszx[c+1]=wxtot;
+        sumszy[c+1]=totsz;
+    }
+    //regularization=bwscr
+    //float loss=0.0;
+    for (c=0;c<totsz;c++)
+    {
+       // #pragma omp parallel for private(scr,pex,x,y,wx)
+        //for (kk=0;kk<k;kk++)
+        //{          
+        pex=c;//pexarray[kk];
+        wx=compx[comp[pex]];
+        x=ptrsamplescomp[comp[pex]]+(pex-sumszy[comp[pex]])*wx;
+        y=label[pex];
+        printf("c %d ",c);
+        printf("C %d ",comp[pex]);
+        scr=score(x,w+sumszx[comp[pex]],wx);
+        if (scr*y<1.0)
+            add(gr+sumszx[comp[pex]],x,wx);
+    }
+    mul(gr,C,wxtot);
+    bwscr=-1.0;
+    for (cp=0;cp<numcomp;cp++)
+    {   
+        wscr=score2(w+sumszx[cp],w+sumszx[cp],valreg,compx[cp]-1,sizereg[cp]);
+        if (wscr>bwscr)
+        {
+            bwscr=wscr;
+            bcp=cp;
+        }
+    }
+    add(gr+sumszx[bcp],w+sumszx[bcp],compx[bcp]-1);
+    //printf("N:%g t:%d\n",n,t);
+    //free(pares);
+    //free(pexarray);
+}
+
+void fast_grad3(double *gr,double *w,int numcomp,int *compx,int *compy,ftype **ptrsamplescomp,int totsamples,int *label,int *comp,ftype C,int numthr,int *sizereg,double valreg)
+{
+    int wx=0,wxtot=0,wcx;
+    #ifdef _OPENMP
+    omp_set_num_threads(numthr);
+    #endif
+    //printf("Gradient Fast\n");
+    //srand48(3+part);
+    int c,cp,bcp,d,y,t,pex,pexcomp,totsz,sumszx[10],sumszy[10];//max 10 components
+    ftype *x;
+    double n,scr,norm,val,ptrc,wscr,bwscr=-1.0;
+    totsz=0;
+    sumszx[0]=0;
+    sumszy[0]=0;
+    int *pares,*pexarray,kk;
+    //pares   =malloc(sizeof(int)*k);
+    //pexarray=malloc(sizeof(int)*k);
+    for (c=0;c<numcomp;c++)
+    {
+        wxtot+=compx[c];
+        totsz+=compy[c];
+        sumszx[c+1]=wxtot;
+        sumszy[c+1]=totsz;
+    }
+    //regularization=bwscr
+    //float loss=0.0;
+    for (c=0;c<totsz;c++)
+    {
+       // #pragma omp parallel for private(scr,pex,x,y,wx)
+        //for (kk=0;kk<k;kk++)
+        //{          
+        pex=c;//pexarray[kk];
+        wx=compx[comp[pex]];
+        x=ptrsamplescomp[comp[pex]]+(pex-sumszy[comp[pex]])*wx;
+        y=label[pex];
+        //printf("c %d ",c);
+        //printf("C %d ",comp[pex]);
+        scr=score_d(x,w+sumszx[comp[pex]],wx);
+        if (scr*y<1.0)
+            addmul_d(gr+sumszx[comp[pex]],x,-(double)y,wx);
+    }
+    mul_d(gr,C,wxtot);
+    bwscr=-1.0;
+    for (cp=0;cp<numcomp;cp++)
+    {   
+        wscr=score2_d(w+sumszx[cp],w+sumszx[cp],valreg,compx[cp]-1,sizereg[cp]);
+        if (wscr>bwscr)
+        {
+            bwscr=wscr;
+            bcp=cp;
+        }
+    }
+    add_d2(gr+sumszx[bcp],w+sumszx[bcp],compx[bcp]-1);
+}
+
 
 void fast_pegasos_comp_parall2(ftype *w,int numcomp,int *compx,int *compy,ftype **ptrsamplescomp,int totsamples,int *label,int *comp,ftype C,int iter,int part,int k,int numthr,int *sizereg,ftype valreg,ftype lb)
 {
