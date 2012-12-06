@@ -26,8 +26,8 @@ def refinePos(el):
     fx=[]
     det=[]
     for m in models:
-        fy.append(m["ww"][0].shape[0]/cfg.N)
-        fx.append(m["ww"][0].shape[1]/cfg.N)
+        fy.append(m["ww"][1].shape[0]/cfg.N)
+        fx.append(m["ww"][1].shape[1]/cfg.N)
         dratios.append(fy[-1]/float(fx[-1]))
     fy=numpy.array(fy)
     fx=numpy.array(fx)
@@ -81,14 +81,17 @@ def refinePos(el):
                 #tilex=((bbox[3]-bbox[1]))/float(numpy.max(fx[idm]))
                 tiley=((extbbox[2]-extbbox[0]))/float(numpy.max(fy[idm]))
                 tilex=((extbbox[3]-extbbox[1]))/float(numpy.max(fx[idm]))
-                #print "Tile y",tiley,(bbox[2]-bbox[0])/8,"Tile x",tilex,(bbox[3]-bbox[1])/8
+                print "Tile y",tiley,(bbox[2]-bbox[0])/8,"Tile x",tilex,(bbox[3]-bbox[1])/8
                 if tiley>8*cfg.N and tilex>8*cfg.N:
+                    #rescale=(8*cfg.N)/float(min(tiley,tilex))
                     rescale=(8*cfg.N)/float(min(tiley,tilex))
+                    print "Rescale of ",rescale
                     img=zoom(img,(rescale,rescale,1),order=1)
                     newbbox=numpy.array(newbbox)*rescale
                     extnewbbox=numpy.array(extnewbbox)*rescale
                 else:
                     print "Not Rescaling!!!!"
+            #raw_input()
             selmodels=[models[x] for x in idm] 
             #t1=time.time()
             if cfg.usebbPOS:
@@ -117,9 +120,10 @@ aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc,bbox=extnewbbox)
                 bestscr=l["scr"]
     #raw_input()
     if len(det)>0 and best!=-1:
-        print "Pos det:",[x["scr"] for x in det[:5]]
+        #print "Pos det:",[x["scr"] for x in det[:5]]
         if cfg.show:
-            visualize([det[best]],cfg.N,f,img)
+            #visualize([det[best]],cfg.N,f,img)
+            visualize(det[:10],cfg.N,f,img)
         feat,edge=getfeature([det[best]],cfg.N,f,models,cfg.trunc)
         #add image name and bbx so that each annotation is unique
         if imageflip:
@@ -304,6 +308,8 @@ def check(det,f,models,bias):
             printf("Error %f too big, there is something wrong!!!"%(numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-scr-models[idm]["rho"]))
             raw_input()
 
+import extra
+
 def getfeature(det,N,f,models,trunc=0):
     """ check if score of detections and score from features are correct"""
     lfeat=[];ledge=[]
@@ -311,7 +317,8 @@ def getfeature(det,N,f,models,trunc=0):
         scr=det[l]["scr"]
         idm=det[l]["id"]
         r=det[l]["hog"]    
-        m1=models[idm]["ww"][0]
+        m0=models[idm]["ww"][0]
+        m1=models[idm]["ww"][1]
         m2=f.hog[r]
         res=det[l]["def"]
         mcost=models[idm]["cost"].astype(numpy.float32)
@@ -319,7 +326,7 @@ def getfeature(det,N,f,models,trunc=0):
         lfeat.append(dfeat)
         ledge.append(edge)
         #print "Scr",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-models[idm]["rho"],"Error",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-scr-models[idm]["rho"]
-        if numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-scr-models[idm]["rho"]>0.0001:
+        if numpy.sum(m1*dfeat)+numpy.sum(m0*extra.lowfeat(dfeat,N))+numpy.sum(edge*mcost)-scr-models[idm]["rho"]>0.0001:
             print("Error %f too big, there is something wrong!!!"%(numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-scr-models[idm]["rho"]))
             raw_input()
     return lfeat,ledge
@@ -1002,10 +1009,10 @@ def rundetbb(img,N,models,numdet=50,interv=10,aiter=3,restart=0,trunc=0,sort=Tru
     ldet2=[]
     for idm,m in enumerate(models):
         mcost=m["cost"].astype(numpy.float32)
-        m1=m["ww"][0]
+        m1=m["ww"]#[0]
         numy=m["ww"][0].shape[0]
         numx=m["ww"][0].shape[1]
-        ldet=crf3.match_bbN(m1,f.hog,N,mcost,show=False,rot=False,numhyp=numdet,aiter=aiter,restart=restart,trunc=trunc)
+        ldet=crf3.match_bbNmulti(m1,f.hog,N,mcost,show=False,rot=False,numhyp=numdet,aiter=aiter,restart=restart,trunc=trunc)
         for l in ldet:
             r=l["scl"]
             ldet2.append({"id":m["id"],"hog":r,"scl":f.scale[r],"def":l["def"][0],"scr":l["scr"]-models[idm]["rho"]})            

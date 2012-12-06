@@ -9,6 +9,7 @@ def initmodel(fy,fx,N,useRL,lenf,CRF=False,small2=False):
     voc=[]
     dd=[]    
     lev=1
+    ww.append(numpy.zeros((fy/N,fx/N,lenf),dtype=numpy.float32))
     for l in range(lev):
         if useRL:
             lowf=numpy.zeros((fy*2**l,fx*2**l,lenf)).astype(numpy.float32)
@@ -41,13 +42,6 @@ def model2w(model,deform,usemrf,usefather,k=1,lastlev=0,usebow=False,useCRF=Fals
     for l in range(len(model["ww"])-lastlev):
         #print "here"#,item
         w=numpy.concatenate((w,model["ww"][l].flatten()))
-        if deform:
-            if usefather:
-                w=numpy.concatenate((w,model["df"][l][:,:,0].flatten()))        
-                w=numpy.concatenate((w,model["df"][l][:,:,1].flatten()))        
-            if usemrf:
-                w=numpy.concatenate((w,model["df"][l][:,:,2].flatten()))                
-                w=numpy.concatenate((w,model["df"][l][:,:,3].flatten()))   
     if usebow:
         for l in range(len(model["hist"])-lastlev):
             w=numpy.concatenate((w,model["hist"][l].flatten()))
@@ -66,6 +60,9 @@ def w2model(descr,N,rho,lev,fsz,fy=[],fx=[],bin=5,siftsize=2,deform=False,usemrf
         p=0
         occl=[0]*lev
         d=descr
+        dp=(fy/N*fx/N)*fsz
+        ww.append((d[p:p+dp].reshape((fy/N,fx/N,fsz))).astype(numpy.float32))
+        p+=dp
         for l in range(lev):
             dp=(fy*fx)*4**l*fsz
             ww.append((d[p:p+dp].reshape((fy*2**l,fx*2**l,fsz))).astype(numpy.float32))

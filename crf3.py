@@ -111,6 +111,9 @@ ff= ctypes.CDLL("libexcorr.so")
 ff.scaneigh.argtypes=[numpy.ctypeslib.ndpointer(dtype=c_float,ndim=3,flags="C_CONTIGUOUS"),c_int,c_int,numpy.ctypeslib.ndpointer(dtype=c_float,flags="C_CONTIGUOUS"),c_int,c_int,c_int,numpy.ctypeslib.ndpointer(dtype=c_int,flags="C_CONTIGUOUS"),numpy.ctypeslib.ndpointer(dtype=c_int,flags="C_CONTIGUOUS"),numpy.ctypeslib.ndpointer(dtype=c_float,flags="C_CONTIGUOUS"),numpy.ctypeslib.ndpointer(dtype=c_int,flags="C_CONTIGUOUS"),numpy.ctypeslib.ndpointer
 (dtype=c_int,flags="C_CONTIGUOUS"),c_int,c_int,c_int,c_int]
 
+ff.scaneighmulti.argtypes=[numpy.ctypeslib.ndpointer(dtype=c_float,ndim=3,flags="C_CONTIGUOUS"),c_int,c_int,numpy.ctypeslib.ndpointer(dtype=c_float,flags="C_CONTIGUOUS"),numpy.ctypeslib.ndpointer(dtype=c_float,flags="C_CONTIGUOUS"),c_int,c_int,c_int,numpy.ctypeslib.ndpointer(dtype=c_int,flags="C_CONTIGUOUS"),numpy.ctypeslib.ndpointer(dtype=c_int,flags="C_CONTIGUOUS"),numpy.ctypeslib.ndpointer(dtype=c_float,flags="C_CONTIGUOUS"),numpy.ctypeslib.ndpointer(dtype=c_int,flags="C_CONTIGUOUS"),numpy.ctypeslib.ndpointer
+(dtype=c_int,flags="C_CONTIGUOUS"),c_int,c_int,c_int,c_int]
+
 #inline ftype refineighfull(ftype *img,int imgy,int imgx,ftype *mask,int masky,int maskx,int dimz,ftype dy,ftype dx,int posy,int posx,int rady,int radx,ftype *scr,int *rdy,int *rdx,ftype *prec,int pady,int padx,int occl)
 ff.refineighfull.argtypes=[
 numpy.ctypeslib.ndpointer(dtype=c_float,ndim=3,flags="C_CONTIGUOUS"),c_int,c_int,
@@ -969,6 +972,133 @@ def match_bbN(m1,pm2,N,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0,trun
         for px in range(numx):
             for py in range(numy):
                 ff.scaneigh(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[N*py:N*(py+1),N*px:N*(px+1)]),N,N,m1.shape[2],scn[0]+N*py,scn[1]+N*px,auxdata[1,py,px],tmp[0],tmp[1],0,0,scn[0].size,trunc)
+                #print "Done ",py,px 
+        #if output:
+        #    print "time Match",time.time()-t
+        if 0:#rot:
+            #rotate +1
+            m2=numpy.ascontiguousarray(rotate(m2,shift=1))
+            for px in range(numx):
+                for py in range(numy):
+                    ff.refineighfull(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[2*py:2*(py+1),2*px:2*(px+1)]),
+                        2,2,m1.shape[2],0,0,py*2+pad,px*2+pad,movy,movx,auxdata[2,py,px],
+                        mmax,mmax,ctypes.POINTER(c_float)(),0,0,0)
+            #rotate -1
+            m2=numpy.ascontiguousarray(rotate(m2,shift=-2))
+            for px in range(numx):
+                for py in range(numy):
+                    ff.refineighfull(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[2*py:2*(py+1),2*px:2*(px+1)]),
+                        2,2,m1.shape[2],0,0,py*2+pad,px*2+pad,movy,movx,auxdata[0,py,px],
+                        mmax,mmax,ctypes.POINTER(c_float)(),0,0,0)
+
+            #print "time hog",time.time()-t
+            data=numpy.min(auxdata,0)
+            mrot=numpy.argmin(auxdata,0)
+            #print rot
+            #rdata=data.reshape((data.shape[0]*data.shape[1],-1))
+            #rrot=rot.reshape((rot.shape[0]*rot.shape[1],-1))
+        else:
+            data[-1]=auxdata[1]
+            rrdata=data[-1].reshape((data[-1].shape[0]*data[-1].shape[1],-1))
+        #estimate max and min
+        minb.append(numpy.sum(rrdata,0).max())
+        maxb.append(numpy.sum(rrdata.max(1)))
+        ##print "Lev",idm2,"Min:",minb[-1],"Max:",maxb[-1]
+        #data[-1]=-data[-1]
+        #raw_input()
+    maxb=numpy.array(maxb)
+    minb=numpy.array(minb)
+    lres=numpy.zeros(len(maxb),dtype=object)
+    #lscr=numpy.zeros(len(maxb))
+    lscr=-1000*numpy.ones(len(maxb))
+    ldet=[]
+    infer=0
+    for h in range(numhyp):
+        stop=False
+        while not(stop):
+            l=maxb.argmax()#the max bound
+            m2=-data[l]
+            #rm2=m2.reshape((data[-1].shape[0]*data[-1].shape[1],-1))
+            movy=(pm2[l].shape[0]+m1.shape[0])
+            movx=(pm2[l].shape[1]+m1.shape[1])
+            auxmin=m2.min()
+            rdata=m2-auxmin
+            auxscr=numpy.zeros(1,dtype=numpy.float32)
+            res=numpy.zeros((1,numy,numx),dtype=c_int)
+            if 0:
+                import pylab
+                pylab.figure(200)
+                pylab.clf()
+                pylab.imshow(-rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)).sum(0).reshape(movy,movx)-auxmin*numy*numx,vmin=0,vmax=3.0,interpolation="nearest")
+                pylab.draw()
+                pylab.show()
+            scr=crfgr2(numy,numx,cost,movy,movx,rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)),1,auxscr,res,aiter,restart)  
+            infer+=1
+            assert(scr==auxscr[0])
+            #print "Before",scr
+            scr=scr-auxmin*numy*numx
+            #update bounds and save detection
+            #print "Lev",l,"Old Maxb",maxb[l],"New Maxb",scr
+            #assert(scr+0.00001>=minb[l])# not always true because alpha expansion doen not give the global optimum
+            maxb[l]=scr
+            res2=numpy.zeros((1,2,res.shape[1],res.shape[2]),dtype=c_int)
+            res2[:,0]=(res/(movx))-m1.shape[0]
+            res2[:,1]=(res%(movx))-m1.shape[1]
+            lres[l]=res2
+            lscr[l]=scr
+            #assert(scr>=minb[l])
+            if lscr.max()+0.00001>=maxb.max():
+                stop=True
+                lmax=lscr.argmax()
+                #print "Found maxima Lev",lmax,"Scr",lscr[lmax],"#",len(ldet),"Infer",infer
+                infer=0
+                #raw_input()
+                ldet.append({"scl":lmax,"scr":lscr[lmax],"def":lres[lmax].copy()})
+                #update data
+                res2=lres[lmax]
+                movy=(pm2[lmax].shape[0]+m1.shape[0])
+                movx=(pm2[lmax].shape[1]+m1.shape[1])            
+                for p in range(res2.shape[2]):
+                    for px in range(res2.shape[3]):
+                        rcy=res2[0,0,py,px]+m1.shape[0]
+                        rcx=res2[0,1,py,px]+m1.shape[1]
+                        #data.reshape((data.shape[0],data.shape[1],movy,movx))[py,px,rcy,rcx]=1
+                        #data[lmax].reshape((numy,numx,movy,movx))[py,px,rcy-1:rcy+2,rcx-1:rcx+2]=-1
+                        data[lmax].reshape((numy,numx,movy,movx))[py,px,rcy-1:rcy+2,rcx-1:rcx+2]=-10 #increased to 10 to avoid repeating detections
+                #update bounds
+                minb[lmax]=numpy.max(numpy.sum(data[lmax].reshape((data[lmax].shape[0]*data[lmax].shape[1],-1)),0))
+                #maxb[lmax]=numpy.sum(numpy.max(data[l],2))
+   
+    return ldet
+
+def match_bbNmulti(m1,pm2,N,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0,trunc=0):
+    t=time.time()
+    m0=m1[0]
+    m1=m1[1]
+    assert(m1.shape[0]%N==0)
+    assert(m1.shape[1]%N==0)
+    numy=m1.shape[0]/N#p1.shape[0]
+    numx=m1.shape[1]/N#p1.shape[1]
+    #print numy,numx
+    data=[];minb=[];maxb=[]
+    for idm2,m2 in enumerate(pm2):
+        movy=(m2.shape[0]+m1.shape[0])
+        movx=(m2.shape[1]+m1.shape[1])
+        numlab=movy*movx
+        data.append(numpy.zeros((numy,numx,numlab),dtype=c_float))
+        auxdata=numpy.zeros((3,numy,numx,numlab),dtype=c_float)
+        #print "time preparation",time.time()-t
+        t=time.time()
+        mmax=numpy.zeros(2,dtype=c_int)
+        #original model
+        m2=numpy.ascontiguousarray(m2)
+        scn=numpy.mgrid[:movy,:movx].astype(numpy.int32)
+        scn[0]=scn[0]-m1.shape[0]
+        scn[1]=scn[1]-m1.shape[1]
+        tmp=scn.copy()
+        for px in range(numx):
+            for py in range(numy):
+                ff.scaneighmulti(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[N*py:N*(py+1),N*px:N*(px+1)]),numpy.ascontiguousarray(m0[py:(py+1),px:(px+1)]),N,N,m1.shape[2],scn[0]+N*py,scn[1]+N*px,auxdata[1,py,px],tmp[0],tmp[1],0,0,scn[0].size,trunc)
                 #print "Done ",py,px 
         #if output:
         #    print "time Match",time.time()-t

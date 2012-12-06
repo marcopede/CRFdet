@@ -88,6 +88,71 @@ inline ftype corr3dpad(ftype *img,int imgy,int imgx,ftype *mask,int masky,int ma
 }
 
 
+//compute 3d correlation between an image feature img and a mask 
+inline ftype corr3dpadmulti(ftype *img,int imgy,int imgx,ftype *mask,ftype *mask0,int masky,int maskx,int dimz,int posy,int posx,ftype *prec,int pady,int padx,int occl)
+{
+    int dimzfull=dimz;
+    if (occl!=0)
+        //with occl
+        dimz=dimz-occl;
+        //printf("Occl:%d Dimzfull:%d Dimz:%d",occl,dimzfull,dimz);
+    if (prec!=NULL)//memoization of the already computed locations
+    {
+        if (posy>=-pady && posy<imgy+pady && posx>=-padx && posx<imgx+padx)
+            if (prec[(posy+pady)*(imgx+2*padx)+(posx+padx)]>-INFINITY)
+            {
+                return prec[(posy+pady)*(imgx+2*padx)+(posx+padx)];
+            }
+    }    
+    ftype sum=0.0;
+    int x,y,z,posi;
+    ftype mean[dimzfull];
+    for (z=0;z<dimzfull;z++)
+        mean[z]=0.0;
+    for (x=0;x<maskx;x++)
+        for (y=0;y<masky;y++)
+        {
+            compHOG++;
+            if (((x+posx)>=0 && (x+posx<imgx)) && ((y+posy)>=0 && (y+posy<imgy)))
+            //inside the image
+            {
+                for (z=0;z<dimz;z++)
+                {   
+                    //printf("%d:%f\n",z,mask[z+x*dimzfull+y*dimzfull*maskx]);
+                    posi=z+(x+posx)*dimz+(y+posy)*dimz*imgx;
+                    sum=sum+img[posi]*mask[z+x*dimzfull+y*dimzfull*maskx];      
+                    mean[z]+=img[posi];
+                    /*posi=z+(x+posx)*dimzfull+(y+posy)*dimzfull*imgx;
+                    {
+                        sum=sum+img[posi]*mask[z+x*dimzfull+y*dimzfull*maskx];      
+                    }*/
+                }
+            }
+            else
+            //occlusion using dimz
+            {
+                for (z=dimz;z<dimzfull;z++)
+                {
+                    //printf("%d:%f\n",z,mask[z+x*dimzfull+y*dimzfull*maskx]);
+                    //posi=z+(x+posx)*dimz+(y+posy)*dimz*imgx;
+                    sum=sum+mask[z+x*dimzfull+y*dimzfull*maskx]; 
+                    mean[z]+=1;     
+                }
+            }
+        }
+    for (z=0;z<dimzfull;z++)
+        sum+=mean[z]/(masky*masky)*mask0[z];
+    if (prec!=NULL)//save computed values in the buffer
+    {
+        if (posy>=-pady && posy<imgy+pady && posx>=-padx && posx<imgx+padx)
+        {
+            prec[(posy+pady)*(imgx+2*padx)+(posx+padx)]=sum;
+        }
+    }
+    return sum;
+}
+
+
 static ftype buffer[5*5*13];//for BOW part should be smaller than 50
 static int bcode[50*50];//for BOW
 static ftype localhist[2000];
@@ -133,6 +198,30 @@ inline ftype refineigh(ftype *img,int imgy,int imgx,ftype *mask,int masky,int ma
     return maxval;
 }
 
+inline ftype refineighmulti(ftype *img,int imgy,int imgx,ftype *mask,ftype *mask0,int masky,int maskx,int dimz,int posy,int posx,int rady,int radx,int *posedy, int *posedx, ftype *prec,int occl)
+{
+    int iy,ix;  
+    ftype val,maxval=-1000;
+    for (iy=-rady;iy<=rady;iy++)
+    {
+        for (ix=-radx;ix<=radx;ix++)
+        {
+            //val=corr3dpad(img,imgy,imgx,mask,masky,maskx,dimz,posy+iy,posx+ix,prec,0,0,occl);
+            //printf("n%f ",val);
+            val=corr3dpadmulti(img,imgy,imgx,mask,mask0,masky,maskx,dimz,posy+iy,posx+ix,prec,0,0,occl);
+            //printf("m%f ",val);
+            if (val>maxval)
+            {
+                maxval=val;
+                *posedy=iy;
+                *posedx=ix;
+            }
+        }
+    }
+    return maxval;
+}
+
+
 void scaneigh(ftype *img,int imgy,int imgx,ftype *mask,int masky,int maskx,int dimz,int *posy,int *posx,ftype *val,int *posey,int *posex,int rady, int radx,int len,int occl)
 {   
     //return;
@@ -145,6 +234,20 @@ void scaneigh(ftype *img,int imgy,int imgx,ftype *mask,int masky,int maskx,int d
         val[i]=refineigh(img,imgy,imgx,mask,masky,maskx,dimz,posy[i],posx[i],rady,radx,posey++,posex++,NULL,occl);       
     }
 }
+
+void scaneighmulti(ftype *img,int imgy,int imgx,ftype *mask,ftype *mask0,int masky,int maskx,int dimz,int *posy,int *posx,ftype *val,int *posey,int *posex,int rady, int radx,int len,int occl)
+{   
+    //return;
+    int i;
+    for (i=0;i<len;i++)
+    {
+        //if (posy[i]==-1  && posx[i]==-1)
+        //    val[i]=0.0;
+        //else
+        val[i]=refineighmulti(img,imgy,imgx,mask,mask0,masky,maskx,dimz,posy[i],posx[i],rady,radx,posey++,posex++,NULL,occl);       
+    }
+}
+
 
 inline ftype refineighfull(ftype *img,int imgy,int imgx,ftype *mask,int masky,int maskx,int dimz,ftype dy,ftype dx,int posy,int posx,int rady,int radx,ftype *scr,int *rdy,int *rdx,ftype *prec,int pady,int padx,int occl)
 {

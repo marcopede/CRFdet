@@ -44,7 +44,7 @@ if cfg.checkpoint:
         os.makedirs(cfg.localdata)
     localsave=cfg.localdata+cfg.cls+("%d"%cfg.numcl)+"_"+cfg.testspec
 #cfg.useRL=False#for the moment
-cfg.show=False
+cfg.show=True
 cfg.auxdir=""
 cfg.numhyp=5
 #cfg.numneg= 10
@@ -365,9 +365,10 @@ if initial:
             imy=crop.shape[0]
             imx=crop.shape[1]
             zcim=zoom(crop,(((cfg.fy[idm]*cfg.N+2)*8/float(imy)),((cfg.fx[idm]*cfg.N+2)*8/float(imx)),1),order=1)
-            hogp[idm].append(numpy.ascontiguousarray(pyrHOG2.hog(zcim)))
-            if cfg.trunc:
-                hogp[idm][-1]=numpy.concatenate((hogp[idm][-1],numpy.zeros((hogp[idm][-1].shape[0],hogp[idm][-1].shape[1],1))),2)
+            myhog=pyrHOG2.hog(zcim,trunc=cfg.trunc)
+            hogp[idm].append(((numpy.ascontiguousarray(extra.lowfeat(myhog,cfg.N)),numpy.ascontiguousarray(myhog))))
+            #if cfg.trunc:
+            #    hogp[idm][-1]=numpy.concatenate((hogp[idm][-1],numpy.zeros((hogp[idm][-1].shape[0],hogp[idm][-1].shape[1],1))),2)
             #hogpcl.append(idm)
             annp[idm].append({"file":im["name"],"bbox":bb})
             if check:
@@ -398,7 +399,8 @@ if initial:
     #from scipy.ndimage import zoom
     for im in trNegImages: # for each image
         aim=util.myimread(im["name"])
-        for mul in range(20):
+        for mul in range(20):#standard
+        #for mul in range(5):
             for idm in range(cfg.numcl):
                 szy=(cfg.fy[idm]*cfg.N+2)
                 szx=(cfg.fx[idm]*cfg.N+2)
@@ -407,11 +409,12 @@ if initial:
                     rndx=numpy.random.randint(0,aim.shape[1]-szx*8-1)
                 #zcim=zoom(crop,(((cfg.fy[idm]*2+2)*8/float(imy)),((cfg.fx[idm]*2+2)*8/float(imx)),1),order=1)
                     zcim=aim[rndy:rndy+szy*8,rndx:rndx+szx*8]
-                    hogn[idm].append(numpy.ascontiguousarray(pyrHOG2.hog(zcim)))
+                    myhog=pyrHOG2.hog(zcim,trunc=cfg.trunc)
+                    hogn[idm].append((numpy.ascontiguousarray(extra.lowfeat(myhog,cfg.N)),numpy.ascontiguousarray(myhog)))
                 #hogncl.append(idm)
-                    if cfg.trunc:
-                        hogn[idm][-1]=numpy.concatenate((hogn[idm][-1],numpy.zeros((hogn[idm][-1].shape[0],hogn[idm][-1].shape[1],1))),2)
-                    hogn[idm][-1]=numpy.concatenate((hogn[idm][-1].flatten(),[bias]))
+                    #if cfg.trunc:
+                    #    hogn[idm][-1]=numpy.concatenate((hogn[idm][-1],numpy.zeros((hogn[idm][-1].shape[0],hogn[idm][-1].shape[1],1))),2)
+                    hogn[idm][-1]=numpy.concatenate((hogn[idm][-1][0].flatten(),hogn[idm][-1][1].flatten(),[bias]))
                     if check:
                         print "Aspcet",idm,"HOG",hogn[-1].shape
     for l in range(cfg.numcl):  
@@ -431,10 +434,10 @@ if initial:
             #    if hogpcl[c]==l:
             for idel,el in enumerate(hogp[l]):
                 if 0:#annp[l][idel]["bbox"][6]=="Left":
-                    faux=pyrHOG2.hogflip(el)
+                    faux=pyrHOG2.hogflip(el[0])
                     #mytrpos.append(pyrHOG2.hogflip(el))    
                 else:
-                    faux=el.copy()
+                    faux=el[0].copy()
                     #mytrpos.append(el)
             #laux=mytrpos[:]
             #for idel,el in enumerate(laux):
@@ -468,8 +471,12 @@ if initial:
                 else:
                     print "Variance",newvar
             print "Elements Cluster ",l,": ",len(cl1)
-            for cc in cl1:
-                trpos.append(numpy.concatenate((mytrpos[cc].flatten(),[bias])))
+            for idcc,cc in enumerate(cl1):
+                #trpos.append(numpy.concatenate((mytrpos[cc][0].flatten(),mytrpos[cc][1].flatten(),[bias])))
+                if cc%2==0:
+                    trpos.append(numpy.concatenate((hogp[l][idcc][0].flatten(),hogp[l][idcc][1].flatten(),[bias])))
+                else:
+                    trpos.append(numpy.concatenate((pyrHOG2.hogflip(hogp[l][idcc][0]).flatten(),pyrHOG2.hogflip(hogp[l][idcc][1]).flatten(),[bias])))
             #trpos+=(mytrpos[cl1]).tolist()
             #trposcl+=([l]*len(cl1))
         #flatten
@@ -490,8 +497,8 @@ if initial:
     #array with dimensions of w
     cumsize=numpy.zeros(numcl+1,dtype=numpy.int)
     for idl in range(numcl):
-        cumsize[idl+1]=cumsize[idl]+(cfg.fy[idl]*cfg.N*cfg.fx[idl]*cfg.N)*lenf+1
-
+        #cumsize[idl+1]=cumsize[idl]+(cfg.fy[idl]*cfg.N*cfg.fx[idl]*cfg.N)*lenf+1
+        cumsize[idl+1]=cumsize[idl]+(cfg.fy[idl]*cfg.fx[idl]+cfg.fy[idl]*cfg.N*cfg.fx[idl]*cfg.N)*lenf+1
     try:
         fsf
         models=util.load("%s%d.model"%(testname,0))
@@ -516,7 +523,7 @@ if initial:
         w1=numpy.array([])
         #from w to model m1
         for idm,m in enumerate(models):
-            models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],cfg.N,-w[cumsize[idm+1]-1]*bias,len(m["ww"]),lenf,m["ww"][0].shape[0],m["ww"][0].shape[1])
+            models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],cfg.N,-w[cumsize[idm+1]-1]*bias,1,lenf,m["ww"][1].shape[0],m["ww"][1].shape[1])
             #models[idm]["ra"]=w[cumsize[idm+1]-1]
             #from model to w #changing the clip...
             waux.append(model.model2w(models[idm],False,False,False))
@@ -534,9 +541,13 @@ if initial:
     it = 0
     for idm,m in enumerate(models):   
         import drawHOG
-        imm=drawHOG.drawHOG(m["ww"][0])
-        pl.figure(100+idm,figsize=(3,3))
-        pl.imshow(imm)
+        imm1=drawHOG.drawHOG(m["ww"][0])
+        imm2=drawHOG.drawHOG(m["ww"][1])
+        pl.figure(100+idm,figsize=(7,3))
+        pl.subplot(1,2,1)
+        pl.imshow(imm1)
+        pl.subplot(1,2,2)
+        pl.imshow(imm2)
         pylab.savefig("%s_hog%d_cl%d.png"%(testname,it,idm))
 
     pl.draw()
@@ -546,6 +557,10 @@ if initial:
     ######################### add CRF
     for idm,m in enumerate(models):   
         models[idm]["cost"]=cfg.initdef*numpy.ones((8,cfg.fy[idm],cfg.fx[idm]))
+        ##set a cost for occlusions to avoid to take many bbox outside the image
+        #if cfg.trunc==1:
+        #    models[idm]["ww"][0][:,:,31]=-1
+        #    models[idm]["ww"][1][:,:,31]=-1
 
 
     waux=[]
@@ -649,7 +664,7 @@ for it in range(cpit,cfg.posit):
     lg.info("Rescoring %d Positive detections"%len(lpdet))
     for idl,l in enumerate(lpdet):
         idm=l["id"]
-        lpdet[idl]["scr"]=numpy.sum(models[idm]["ww"][0]*lpfeat[idl])+numpy.sum(models[idm]["cost"]*lpedge[idl])-models[idm]["rho"]#-rr[idm]/bias
+        lpdet[idl]["scr"]=numpy.sum(models[idm]["ww"][0]*extra.lowfeat(lpfeat[idl],cfg.N))+numpy.sum(models[idm]["ww"][1]*lpfeat[idl])+numpy.sum(models[idm]["cost"]*lpedge[idl])-models[idm]["rho"]#-rr[idm]/bias
 
     if not cfg.checkpoint or not loadedchk:
         arg=[]
@@ -735,6 +750,7 @@ for it in range(cpit,cfg.posit):
                 im=extra.myzoom(im[y1:y2,x1:x2],(rescale,rescale,1),1)
                 if res[0]!=[]:
                     detectCRF.visualize2([res[0]],cfg.N,im,cbb,text)
+                    #detectCRF.visualize2(res[:10],cfg.N,im,cbb,text)
                 else:
                     detectCRF.visualize2([],cfg.N,im,cbb,text)
                 #raw_input()
@@ -771,7 +787,7 @@ for it in range(cpit,cfg.posit):
         if lpdet[idl]["id"]>=cfg.numcl:#flipped version
             efeat=pyrHOG2.hogflip(efeat)
             eedge=pyrHOG2.crfflip(eedge)
-        trpos.append(numpy.concatenate((efeat.flatten(),cfg.k*eedge.flatten(),[bias])))
+        trpos.append(numpy.concatenate((extra.lowfeat(efeat,cfg.N).flatten(),efeat.flatten(),cfg.k*eedge.flatten(),[bias])))
         trposcl.append(l["id"]%cfg.numcl)
         dscr=numpy.sum(trpos[-1]*w[cumsize[trposcl[-1]]:cumsize[trposcl[-1]+1]])
         #print "Error:",abs(dscr-l["scr"])
@@ -844,7 +860,7 @@ for it in range(cpit,cfg.posit):
             if lndet[idl]["id"]>=cfg.numcl:#flipped version
                 efeat=pyrHOG2.hogflip(efeat)
                 eedge=pyrHOG2.crfflip(eedge)
-            trneg.append(numpy.concatenate((efeat.flatten(),cfg.k*eedge.flatten(),[bias])))
+            trneg.append(numpy.concatenate((extra.lowfeat(efeat,cfg.N).flatten(),efeat.flatten(),cfg.k*eedge.flatten(),[bias])))
             trnegcl.append(lndet[idl]["id"]%cfg.numcl)
             dscr=numpy.sum(trneg[-1]*w[cumsize[trnegcl[-1]]:cumsize[trnegcl[-1]+1]])
             #print "Error:",abs(dscr-l["scr"])
@@ -859,7 +875,8 @@ for it in range(cpit,cfg.posit):
         #if no negative sample add empty negatives
         for l in range(cfg.numcl):
             if numpy.sum(numpy.array(trnegcl)==l)==0:
-                trneg.append(numpy.concatenate((numpy.zeros(models[l]["ww"][0].shape).flatten(),numpy.zeros(models[l]["cost"].shape).flatten(),[bias])))
+                #trneg.append(numpy.concatenate((numpy.zeros(models[l]["ww"][0].shape).flatten(),numpy.zeros(models[l]["cost"].shape).flatten(),[bias])))
+                trneg.append(numpy.concatenate((numpy.zeros(models[l]["ww"][0].shape).flatten(),numpy.zeros(models[l]["ww"][1].shape).flatten(),numpy.zeros(models[l]["cost"].shape).flatten(),[bias])))
                 trnegcl.append(l)
                 lg.info("No negative samples; add empty negatives")
 
@@ -911,7 +928,7 @@ for it in range(cpit,cfg.posit):
         w1=numpy.array([])
         #from w to model m1
         for idm,m in enumerate(models[:cfg.numcl]):
-            models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],cfg.N,-w[cumsize[idm+1]-1]*bias,len(m["ww"]),lenf,m["ww"][0].shape[0],m["ww"][0].shape[1],useCRF=True,k=cfg.k)
+            models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],cfg.N,-w[cumsize[idm+1]-1]*bias,1,lenf,m["ww"][1].shape[0],m["ww"][1].shape[1],useCRF=True,k=cfg.k)
             models[idm]["id"]=idm
             #models[idm]["ra"]=w[cumsize[idm+1]-1]
             #from model to w #changing the clip...
@@ -936,10 +953,14 @@ for it in range(cpit,cfg.posit):
         atrposcl=numpy.array(trposcl)
         for idm,m in enumerate(models[:cfg.numcl]):   
             import drawHOG
-            imm=drawHOG.drawHOG(m["ww"][0])
-            pl.figure(100+idm,figsize=(3,3))
+            imm1=drawHOG.drawHOG(m["ww"][0])
+            imm2=drawHOG.drawHOG(m["ww"][1])
+            pl.figure(100+idm,figsize=(7,3))
             pl.clf()
-            pl.imshow(imm)
+            pl.subplot(1,2,1)
+            pl.imshow(imm1)
+            pl.subplot(1,2,2)
+            pl.imshow(imm2)
             pl.title("b:%.3f h:%.4f d:%.4f"%(m["rho"],numpy.sum(m["ww"][0]**2),numpy.sum(m["cost"]**2)))
             pl.xlabel("#%d"%(numpy.sum(atrposcl==idm)))
             lg.info("Model %d Samples:%d bias:%f |hog|:%f |def|:%f"%(idm,numpy.sum(atrposcl==idm),m["rho"],numpy.sum(m["ww"][0]**2),numpy.sum(m["cost"]**2)))
@@ -965,7 +986,7 @@ for it in range(cpit,cfg.posit):
         lg.info("Rescoring %d Negative detections"%len(lndet))
         for idl,l in enumerate(lndet):
             idm=l["id"]
-            lndet[idl]["scr"]=numpy.sum(models[idm]["ww"][0]*lnfeat[idl])+numpy.sum(models[idm]["cost"]*lnedge[idl])-models[idm]["rho"]#-rr[idm]/bias
+            lndet[idl]["scr"]=numpy.sum(models[idm]["ww"][0]*extra.lowfeat(lnfeat[idl],cfg.N))+numpy.sum(models[idm]["ww"][1]*lnfeat[idl])+numpy.sum(models[idm]["cost"]*lnedge[idl])-models[idm]["rho"]#-rr[idm]/bias
 
         ######### filter negatives
         lg.info("############### Filtering Negative Detections ###########")

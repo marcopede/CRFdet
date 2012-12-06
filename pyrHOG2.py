@@ -353,7 +353,7 @@ def histflip(bin=6,siftsize=2):
 #    return bow,hist.astype(numpy.float32)
 
 #wrapper for the HOG computation
-def hog(img,sbin=8):
+def hog(img,sbin=8,trunc=0):
     """
     Compute the HOG descriptor of an image
     """
@@ -366,6 +366,8 @@ def hog(img,sbin=8):
     mtype=c_float
     hog=numpy.zeros((hy,hx,31),dtype=mtype,order="f")
     lhog.process(numpy.asfortranarray(img,dtype=mtype),img.shape[0],img.shape[1],sbin,hog,hy,hx,31)
+    if trunc==1:
+        hog=numpy.concatenate((hog,numpy.zeros((hog.shape[0],hog.shape[1],1),dtype=hog.dtype)),2)
     return hog;#mfeatures.mfeatures(img , sbin);
 
 def hogd(img,sbin=8):

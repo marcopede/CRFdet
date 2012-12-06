@@ -100,7 +100,7 @@ lpeg.fast_obj.restype=ctypes.c_double
 def objective(trpos,trneg,trposcl,trnegcl,clsize,w,C,sizereg=numpy.zeros(10,dtype=numpy.int32),valreg=0.01):
     print "Sizereg",sizereg
     posloss=0.0
-    total=float(len(trpos))
+    total=1#float(len(trpos))
     clsum=numpy.concatenate(([0],numpy.cumsum(clsize)))
     hardpos=0.0
     for idl,l in enumerate(trpos):
@@ -144,7 +144,7 @@ def objective(trpos,trneg,trposcl,trnegcl,clsize,w,C,sizereg=numpy.zeros(10,dtyp
 
 def objective1(w,trpos,trneg,trposcl,trnegcl,clsize,C,sizereg=numpy.zeros(10,dtype=numpy.int32),valreg=0.01):
     posloss=0.0
-    total=float(len(trpos))
+    total=1#float(len(trpos))
     clsum=numpy.concatenate(([0],numpy.cumsum(clsize)))
     hardpos=0.0
     for idl,l in enumerate(trpos):
@@ -187,7 +187,7 @@ def objective1(w,trpos,trneg,trposcl,trnegcl,clsize,C,sizereg=numpy.zeros(10,dty
 def gradient(w,trpos,trneg,trposcl,trnegcl,clsize,C,sizereg=numpy.zeros(10,dtype=numpy.int32),valreg=0.01):
     #loss
     grad=numpy.zeros(w.shape,dtype=w.dtype)
-    total=float(len(trpos))
+    total=1#float(len(trpos))
     clsum=numpy.concatenate(([0],numpy.cumsum(clsize)))
     for idl,l in enumerate(trpos):
         c=int(trposcl[idl])

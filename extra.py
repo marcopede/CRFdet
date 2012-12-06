@@ -3,6 +3,13 @@
 import numpy
 import pyrHOG2
 
+def lowfeat(d,N):
+    ld=numpy.zeros((d.shape[0]/N,d.shape[1]/N,d.shape[2]),dtype=numpy.float32)
+    for py in range(d.shape[0]/N):
+        for px in range(d.shape[1]/N):
+            ld[py,px]=numpy.mean(numpy.mean(d[py*N:(py+1)*N,px*N:(px+1)*N],0),0)
+    return ld
+
 def getfeat(a,y1,y2,x1,x2,trunc=0):
     """
         returns the hog features at the given position and 
