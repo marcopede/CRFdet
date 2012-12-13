@@ -793,7 +793,7 @@ for it in range(cpit,cfg.posit):
         if cfg.posconvbound:
             posratio.append((boldposl-bnewposl)/boldposl)
         else:
-            posratio.append((boldposl-bnewposl)/newposl)#divide without bound to be more strict!
+            posratio.append((boldposl-bnewposl)/(newposl/float(totPosEx)))#divide without bound to be more strict!
         print "Old pos loss:",oldposl,boldposl
         print "New pos loss:",newposl,bnewposl
         print "Ratio Pos loss",posratio

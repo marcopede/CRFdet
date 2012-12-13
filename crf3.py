@@ -519,6 +519,11 @@ import util
 def mask_data(m1,m2,N,bb,data=None,val=1):
     "mask the part positions that are outside the given bbox"
     ###the overlapp criteria of each part is right considering that you use a border of at least 50% the size of the bbox
+    #make the bb 10%bigger on each side
+    dy=bb[0]-bb[2]
+    dx=bb[1]-bb[3]
+    incr=0
+    bb=(bb[0]-incr*dy,bb[1]-incr*dx,bb[2]+incr*dy,bb[3]+incr*dx)
     assert(m1.shape[0]%N==0)
     assert(m1.shape[1]%N==0)
     numy=m1.shape[0]/N#p1.shape[0]
@@ -543,7 +548,7 @@ def mask_data(m1,m2,N,bb,data=None,val=1):
             impx1=impx+sf
             ovr=util.inclusion((impy,impx,impy1,impx1),bb)
             #print ovr
-            if ovr<0.7:# part is in a invalid position
+            if ovr<0.1:# part is in a invalid position
                 data[0,0,my,mx]=val
     # fill for the other parts
     for px in range(numx):
