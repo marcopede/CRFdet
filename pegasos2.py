@@ -712,7 +712,7 @@ def trainCompBFG(trpos,trneg,fname="",trposcl=None,trnegcl=None,oldw=None,dir=".
     bounds=list(bounds.T)  
     C=pc  
     import scipy.optimize as op
-    w,fmin,dd=op.fmin_l_bfgs_b(objective_fast2,w,gradient_fast2,(ncomp,arrint(*compx),arrint(*compy),arrfloat(*newtrcomp),ntimes,alabel,trcompcl,C,numthr,sizereg,numpy.float(valreg)),disp=1,m=100,factr=10000,maxfun=2000,bounds=bounds,pgtol=0.000001)
+    w,fmin,dd=op.fmin_l_bfgs_b(objective_fast2,w,gradient_fast2,(ncomp,arrint(*compx),arrint(*compy),arrfloat(*newtrcomp),ntimes,alabel,trcompcl,C,numthr,sizereg,numpy.float(valreg)),disp=1,m=100,factr=10000,maxfun=2000,bounds=bounds,pgtol=0.001)
     #w,fmin,dd=op.fmin_l_bfgs_b(objective1,w,approx_grad=True,args=(trpos,trneg,trposcl,trnegcl,compx,pc,sizereg,valreg),iprint=0,factr=1e7,maxfun=1000)
     posl,negl,reg,nobj,hpos,hneg=objective(trpos,trneg,trposcl,trnegcl,compx,w,pc,sizereg,valreg)
     print "Reg",reg,"Loss",posl+negl
