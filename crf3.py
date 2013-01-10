@@ -1055,7 +1055,7 @@ def match_bbN(m1,pm2,N,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0,trun
                 res2=lres[lmax]
                 movy=(pm2[lmax].shape[0]+m1.shape[0])
                 movx=(pm2[lmax].shape[1]+m1.shape[1])            
-                for p in range(res2.shape[2]):
+                for py in range(res2.shape[2]):
                     for px in range(res2.shape[3]):
                         rcy=res2[0,0,py,px]+m1.shape[0]
                         rcx=res2[0,1,py,px]+m1.shape[1]
