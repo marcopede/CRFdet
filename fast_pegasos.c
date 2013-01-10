@@ -11,6 +11,9 @@
 #define ftype float
 //#define ftype double
 
+#define beta 1000.0
+static double inv_beta=1.0/beta;
+
 static inline ftype add(ftype *a,ftype *b,int len)
 {
     int c;
@@ -117,6 +120,16 @@ static inline ftype addmul_d(double *a,ftype *b,double c,int len)
         a[cn]=a[cn]+b[cn]*c;
     }
 }
+
+static inline ftype addmul_d2(double *a,double *b,double c,int len)
+{
+    int cn;
+    for (cn=0;cn<len;cn++)
+    {
+        a[cn]=a[cn]+b[cn]*c;
+    }
+}
+
 
 static inline ftype score(ftype *x,ftype *w,int len)
 {
@@ -381,8 +394,19 @@ double fast_obj(double *w,int numcomp,int *compx,int *compy,ftype **ptrsamplesco
         sumszy[c+1]=totsz;
     }
     bwscr=-1.0;
+    double scrs[10],Z=0;
     for (cp=0;cp<numcomp;cp++)
     {   
+    //softmax
+        wscr=score2_d(w+sumszx[cp],w+sumszx[cp],0,compx[cp]-1,sizereg[cp]);
+        //printf("Wscore(%d)=%f\n",cp,wscr);
+        scrs[cp]=wscr;
+        if (wscr>bwscr)
+        {
+            bwscr=wscr;
+            bcp=cp;
+        }
+    /*
         wscr=score2_d(w+sumszx[cp],w+sumszx[cp],0,compx[cp]-1,sizereg[cp]);
         //printf("Wscore(%d)=%f\n",cp,wscr);
         if (wscr>bwscr)
@@ -390,7 +414,14 @@ double fast_obj(double *w,int numcomp,int *compx,int *compy,ftype **ptrsamplesco
             bwscr=wscr;
             bcp=cp;
         }
+    */
     }
+    for (cp=0;cp<numcomp;cp++)
+    {
+        double a=exp(beta*(scrs[cp]-bwscr));   
+        Z+=a;
+    }
+    bwscr=bwscr+log(Z)*inv_beta;
     //regularization=bwscr
     double loss=0.0;
     for (c=0;c<totsz;c++)
@@ -514,16 +545,26 @@ void fast_grad3(double *gr,double *w,int numcomp,int *compx,int *compy,ftype **p
     }
     mul_d(gr,C,wxtot);
     bwscr=-1.0;
+    double scrs[10],pc[10],Z=0;
     for (cp=0;cp<numcomp;cp++)
     {   
         wscr=score2_d(w+sumszx[cp],w+sumszx[cp],valreg,compx[cp]-1,sizereg[cp]);
+        scrs[cp]=wscr;
         if (wscr>bwscr)
         {
             bwscr=wscr;
             bcp=cp;
         }
     }
-    add_d2(gr+sumszx[bcp],w+sumszx[bcp],compx[bcp]-1);
+    for (cp=0;cp<numcomp;cp++)
+    {
+        double a=exp(beta*(scrs[cp]-bwscr));   
+        pc[cp]=a;
+        Z+=a;
+    }
+    for (cp=0;cp<numcomp;cp++)
+        addmul_d2(gr+sumszx[cp],w+sumszx[cp],pc[cp]/Z,compx[cp]-1);
+       //add_d2(gr+sumszx[bcp],w+sumszx[bcp],compx[bcp]-1);
 }
 
 

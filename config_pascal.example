@@ -72,37 +72,44 @@ cfg.small2=False
 cfg.hallucinate=1 #important to set to 2 otherwise small2 would not work
 
 cfg.comment    =""
-cfg.testpath="./data/CRF/12_10_06/"
+cfg.testpath="./data/condor/"
 cfg.testspec="test"
 
 mydebug=True
 if mydebug:
     #notice that i you use checkpoints, use unique testspec otherwise they will be overwritten!!!!!
-    cfg.testspec="test" 
+    cfg.testspec="force-bb" 
     cfg.posthr=-2 #to discard noise
+    cfg.svmc=0.001#0.001
     cfg.checkpoint=True
     cfg.forcescratch=False
-    cfg.multipr=4
+    cfg.multipr=8
     cfg.useclip=True
     cfg.rescale=True
     cfg.trunc=1
+    cfg.posovr=0.75
     cfg.bias=50
-    #cfg.maxpos=50#20 #maximum number of positive images
-    #cfg.maxtest=50#20 #0 #maximum number of test images
-    #cfg.maxtestfull=100
-    #cfg.maxneg=50#20 #maximum number of negative images
-    #cfg.maxnegfull=100
+    cfg.perc=0.15
+    cfg.posconvbound=False
+    #cfg.localshow=False
+    #cfg.show=True
+    #cfg.maxpos=20 #maximum number of positive images
+    #cfg.maxtest=20#20 #0 #maximum number of test images
+    #cfg.maxtestfull=50
+    #cfg.maxneg=20#20 #maximum number of negative images
+    #cfg.maxnegfull=50
     #cfg.maxexamples=10000 #maximum number of examples
     cfg.svmc=0.001
-    cfg.N=4
+    cfg.N=3
     cfg.numcl=2
-    cfg.maxHOG=120/(cfg.N**2)
+    cfg.maxHOG=250/(cfg.N**2)
     cfg.k=1.0#3:CRF#0.3:CF
     #cfg.valreg=0.01*cfg.k*cfg.N**2 #good for N=2
     #cfg.valreg=0.001*cfg.k*cfg.N**2 #good for N=4
     cfg.valreg=0
     cfg.initdef=0.01*cfg.k*cfg.N**2
-    cfg.lb=0.001/cfg.k
+    cfg.lb=0.0001/cfg.k
+    cfg.useSGD=True
 
 
 cfg.usebbTEST=True
@@ -111,8 +118,8 @@ cfg.aiterTEST=3
 cfg.restartTEST=0
 cfg.intervTEST=5
 
-cfg.usebbPOS=True #note for bb numhyp is the total number of detections while for the normal method is the number of hypotheses per scale
-cfg.numhypPOS=50
+cfg.usebbPOS=False #note for bb numhyp is the total number of detections while for the normal method is the number of hypotheses per scale
+cfg.numhypPOS=5#0
 cfg.aiterPOS=3
 cfg.restartPOS=0
 cfg.intervPOS=5

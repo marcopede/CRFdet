@@ -43,10 +43,10 @@ def refinePos(el):
     if bbox[1]<=1 and cfg.useclip:
         extbbox[1]=-bbox[3]
         extbbox[4]=1
-    if bbox[2]>=img.shape[0]-1 and cfg.useclip:
+    if bbox[2]>=img.shape[0]-2 and cfg.useclip:
         extbbox[2]=img.shape[0]+(img.shape[0]-bbox[0])
         extbbox[4]=1
-    if bbox[3]>=img.shape[1]-1 and cfg.useclip:
+    if bbox[3]>=img.shape[1]-2 and cfg.useclip:
         extbbox[3]=img.shape[1]+(img.shape[1]-bbox[1])
         extbbox[4]=1
     print "New bbox:",extbbox
@@ -68,8 +68,8 @@ def refinePos(el):
         extnewbbox=(extbbox[0]-y1,extbbox[1]-x1,extbbox[2]-y1,extbbox[3]-x1)
         cropratio= marginy/float(marginx)
         dist=abs(numpy.log(dratios)-numpy.log(cropratio))
-        #idm=numpy.where(dist<0.4)[0] #
-        idm=numpy.where(dist<0.5)[0] #
+        #idm=numpy.where(dist<0.5)[0] #
+        idm=numpy.where(dist<0.7)[0] #
         #print "                 Selected ratios",idm
         if cfg.useclip:
             if bbox[4]==1 or extbbox[4]==1:# use all models for truncated

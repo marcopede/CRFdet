@@ -100,7 +100,7 @@ lpeg.fast_obj.restype=ctypes.c_double
 def objective(trpos,trneg,trposcl,trnegcl,clsize,w,C,sizereg=numpy.zeros(10,dtype=numpy.int32),valreg=0.01):
     print "Sizereg",sizereg
     posloss=0.0
-    total=float(len(trpos))
+    total=1#float(len(trpos))
     clsum=numpy.concatenate(([0],numpy.cumsum(clsize)))
     hardpos=0.0
     for idl,l in enumerate(trpos):
@@ -144,7 +144,7 @@ def objective(trpos,trneg,trposcl,trnegcl,clsize,w,C,sizereg=numpy.zeros(10,dtyp
 
 def objective1(w,trpos,trneg,trposcl,trnegcl,clsize,C,sizereg=numpy.zeros(10,dtype=numpy.int32),valreg=0.01):
     posloss=0.0
-    total=float(len(trpos))
+    total=1#float(len(trpos))
     clsum=numpy.concatenate(([0],numpy.cumsum(clsize)))
     hardpos=0.0
     for idl,l in enumerate(trpos):
@@ -187,7 +187,7 @@ def objective1(w,trpos,trneg,trposcl,trnegcl,clsize,C,sizereg=numpy.zeros(10,dty
 def gradient(w,trpos,trneg,trposcl,trnegcl,clsize,C,sizereg=numpy.zeros(10,dtype=numpy.int32),valreg=0.01):
     #loss
     grad=numpy.zeros(w.shape,dtype=w.dtype)
-    total=float(len(trpos))
+    total=1#float(len(trpos))
     clsum=numpy.concatenate(([0],numpy.cumsum(clsize)))
     for idl,l in enumerate(trpos):
         c=int(trposcl[idl])
@@ -407,12 +407,12 @@ def objective_fast(w,trpos,trneg,trposcl,trnegcl,clsize,C,sizereg=numpy.zeros(10
         #print "OBJ slow",obj_slow,"OBJ",obj
         print "OBJslow-OBJ:",obj_slow-obj
         #raw_input()
-    print "Energy",obj
+    #print "Energy",obj
     return float(obj)
 
 def objective_fast2(w,ncomp,compx,compy,newtrcomp,ntimes,alabel,trcompcl,C,numthr,sizereg,valreg):
     obj=lpeg.fast_obj(w,ncomp,compx,compy,newtrcomp,ntimes,alabel,trcompcl,C,numthr,sizereg,valreg)
-    print "Energy",obj
+    #print "Energy",obj
     return float(obj)
 
 
@@ -634,9 +634,9 @@ def trainCompBFG(trpos,trneg,fname="",trposcl=None,trnegcl=None,oldw=None,dir=".
         ntimes=len(trpos)+len(trneg)
         fdim=numpy.sum(compx)#len(posnfeat[0])+1
         #bigm=numpy.zeros((ntimes,fdim),dtype=numpy.float32)
-        w=numpy.zeros(fdim,dtype=numpy.float64)
-        if oldw!=None:
-            w=oldw.astype(numpy.float64)
+        #w=numpy.zeros(fdim,dtype=numpy.float64)
+        #if oldw!=None:
+        #    w=oldw.astype(numpy.float64)
         for l in range(numcomp):
             trcompcl=numpy.concatenate((trcompcl,numpy.ones(compy[l],dtype=numpy.int32)*l))
             alabel=numpy.concatenate((alabel,numpy.array(label[l])))
@@ -712,7 +712,7 @@ def trainCompBFG(trpos,trneg,fname="",trposcl=None,trnegcl=None,oldw=None,dir=".
     bounds=list(bounds.T)  
     C=pc  
     import scipy.optimize as op
-    w,fmin,dd=op.fmin_l_bfgs_b(objective_fast2,w,gradient_fast2,(ncomp,arrint(*compx),arrint(*compy),arrfloat(*newtrcomp),ntimes,alabel,trcompcl,C,numthr,sizereg,numpy.float(valreg)),iprint=0,factr=0.00000001,maxfun=2000,bounds=bounds)#,pgtol=0.00001)
+    w,fmin,dd=op.fmin_l_bfgs_b(objective_fast2,w,gradient_fast2,(ncomp,arrint(*compx),arrint(*compy),arrfloat(*newtrcomp),ntimes,alabel,trcompcl,C,numthr,sizereg,numpy.float(valreg)),disp=1,m=100,factr=10000,maxfun=2000,bounds=bounds,pgtol=0.001)
     #w,fmin,dd=op.fmin_l_bfgs_b(objective1,w,approx_grad=True,args=(trpos,trneg,trposcl,trnegcl,compx,pc,sizereg,valreg),iprint=0,factr=1e7,maxfun=1000)
     posl,negl,reg,nobj,hpos,hneg=objective(trpos,trneg,trposcl,trnegcl,compx,w,pc,sizereg,valreg)
     print "Reg",reg,"Loss",posl+negl
@@ -799,7 +799,7 @@ def trainCompBFG_right(trpos,trneg,fname="",trposcl=None,trnegcl=None,oldw=None,
         pos+=compx[l]
     bounds=list(bounds.T)    
     import scipy.optimize as op
-    w,fmin,dd=op.fmin_l_bfgs_b(objective1,w,gradient,(trpos,trneg,trposcl,trnegcl,compx,pc,sizereg,valreg),iprint=0,factr=0.00000001,maxfun=1000,bounds=bounds)#,pgtol=0.00001)
+    w,fmin,dd=op.fmin_l_bfgs_b(objective1,w,gradient,(trpos,trneg,trposcl,trnegcl,compx,pc,sizereg,valreg),iprint=0,factr=10000000,maxfun=1000,bounds=bounds,pgtol=0.00001,iptrint=0)
     #w,fmin,dd=op.fmin_l_bfgs_b(objective1,w,approx_grad=True,args=(trpos,trneg,trposcl,trnegcl,compx,pc,sizereg,valreg),iprint=0,factr=1e7,maxfun=1000)
     posl,negl,reg,nobj,hpos,hneg=objective(trpos,trneg,trposcl,trnegcl,compx,w,pc,sizereg,valreg)
     print "Reg",reg,"Loss",posl+negl
