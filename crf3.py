@@ -948,7 +948,7 @@ def match_bb(m1,pm2,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0,trunc=0
    
     return ldet
 
-def match_bbN(m1,pm2,N,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0,trunc=0):
+def match_bbN(m1,pm2,N,cost,minthr=-1000,show=True,rot=False,numhyp=10,aiter=3,restart=0,trunc=0):
     t=time.time()
     assert(m1.shape[0]%N==0)
     assert(m1.shape[1]%N==0)
@@ -1070,7 +1070,10 @@ def match_bbN(m1,pm2,N,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0,trun
                 #update bounds
                 minb[lmax]=numpy.max(numpy.sum(data[lmax].reshape((data[lmax].shape[0]*data[lmax].shape[1],-1)),0))
                 #maxb[lmax]=numpy.sum(numpy.max(data[l],2))
-   
+        #print "Minthr",minthr,"Score BB",ldet[-1]["scr"]
+        if ldet[-1]["scr"]<minthr:#stop if the score is lower than a threshold
+            print "Score smaller than ",minthr,"at hypothesis",len(ldet)
+            break
     return ldet
 
 def getfeat_full(m1,pad,res2,movy=None,movx=None,mode="Quad",rot=None,trunc=0):

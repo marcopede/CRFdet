@@ -100,7 +100,7 @@ def hardNegPosCache(x):
     else:
         return detectCRF.hardNegPos(x)
 
-mypool = Pool(numcore) #keep the child processes as small as possible 
+mypool = Pool(numcore) #maxtasksperchild=10 #keep the child processes as small as possible 
 
 ########################load training and test samples
 if cfg.db=="VOC":
@@ -574,7 +574,7 @@ if initial:
             waux1.append(model.model2w(m,False,False,False,useCRF=True,k=cfg.k))
             w2=numpy.concatenate((w2,waux1[-1],-numpy.array([m["rho"]/bias])))
         #check that the model and its flip score the same 
-        assert(numpy.sum(w1)==numpy.sum(w2))#still can be wrong
+        assert(numpy.abs(numpy.sum(w1)-numpy.sum(w2))<0.0000001)#still can be wrong
 
     lndet=[] #save negative detections
     lnfeat=[] #
@@ -1046,10 +1046,11 @@ Negative in cache vectors %d
             lndetnew+=res[0]
             lnfeatnew+=res[1]
             lnedgenew+=res[2]
-            if len(lndetnew)+len(lndet)>cfg.maxexamples:
+            if len(lndetnew)+len(lndet)>cfg.maxexamples and not(cache_full):
                 #if not cache_full:
-                lastcount=idl
-                print "Examples exceeding the cache limit!"
+                lastcount=arg[ii]["idim"]
+                print "Examples exceeding the cache limit at image %d!"%lastcount
+                print "So far I have done %d/%d!"%(ii,len(arg))
                 #raw_input()
                 #mypool.terminate()
                 #mypool.join()

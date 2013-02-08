@@ -151,7 +151,7 @@ def hardNeg(el):
         img=util.myimread(imname,resize=cfg.resize)
     #imageflip=el["flip"]
     if cfg.usebbNEG:
-        [f,det]=rundetbb(img,cfg.N,models,numdet=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc)
+        [f,det]=rundetbb(img,cfg.N,models,minthr=-1.2,numdet=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc)
     else:
         [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc)
     ldet=[]
@@ -992,7 +992,7 @@ def rundetc(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,bbox=None)
     return [f,det]
 
 
-def rundetbb(img,N,models,numdet=50,interv=10,aiter=3,restart=0,trunc=0,sort=True):
+def rundetbb(img,N,models,minthr=-1000,numdet=50,interv=10,aiter=3,restart=0,trunc=0,sort=True):
     "run the CRF optimization at each level of the HOG pyramid but using branch and bound algorithm"
     #note that branch and bound sometime is generating more than once the same hipothesis
     # I do not know yet why...
@@ -1005,7 +1005,7 @@ def rundetbb(img,N,models,numdet=50,interv=10,aiter=3,restart=0,trunc=0,sort=Tru
         m1=m["ww"][0]
         numy=m["ww"][0].shape[0]
         numx=m["ww"][0].shape[1]
-        ldet=crf3.match_bbN(m1,f.hog,N,mcost,show=False,rot=False,numhyp=numdet,aiter=aiter,restart=restart,trunc=trunc)
+        ldet=crf3.match_bbN(m1,f.hog,N,mcost,minthr=minthr+models[idm]["rho"],show=False,rot=False,numhyp=numdet,aiter=aiter,restart=restart,trunc=trunc)
         for l in ldet:
             r=l["scl"]
             ldet2.append({"id":m["id"],"hog":r,"scl":f.scale[r],"def":l["def"][0],"scr":l["scr"]-models[idm]["rho"]})            
