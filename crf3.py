@@ -3,6 +3,8 @@ import numpy
 from numpy import ctypeslib
 from ctypes import c_int,c_double,c_float
 import time
+import matplotlib
+matplotlib.use("Agg") #if run outside ipython do not show any figure
 
 #compute(int width,int height,dtype *data,int *result)
 ctypes.cdll.LoadLibrary("./libcrf2.so")
@@ -559,7 +561,7 @@ def mask_data(m1,m2,N,bb,data=None,val=1):
     return data
     
 
-def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    numhyp=10,output=False,aiter=3,restart=0,trunc=0,bbox=None):
+def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    numhyp=10,output=False,aiter=3,restart=0,trunc=0,bbox=None,useFastDP=True):
     #m1 is expected to be divisible by N
     t=time.time()
     assert(m1.shape[0]%N==0)
@@ -639,7 +641,36 @@ def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    n
     #t=time.time()
     t=time.time()
     lscr=numpy.zeros(numhyp,dtype=numpy.float32)
-    scr=crfgr2(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart)  
+    scr=0
+    t=time.time()
+    #scr=crfgr2(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart)  
+    rdata1=rdata.copy()
+    if useFastDP:
+        import crf5
+        scr=crf5.crfgr2(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart)  
+    else:
+        scr=crfgr2(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart)  
+    #print "Time Alpha(%d)"%aiter,time.time()-t
+    if 0:#useFastDP:
+        import crf5
+        t=time.time()
+        if 0:
+            numpairs,pairs,unary,wcost=crf5.convert_alpha_fastDP(rdata1,cost,numy,numx,movy,movx)
+            print "Covert fastDP",time.time()-t
+            #res2=res.copy()
+            dist=numpy.zeros((1,1,1),dtype=numpy.float32)#fake argument
+            t=time.time()
+            scr1=crf5.crfgr(numy,numx,pairs.shape[0],pairs,movy,movx,unary,dist,wcost,numhyp,lscr[1:],res[1:],aiter,restart)
+
+        scr1=crf5.crfgr2(numy,numx,cost,movy,movx,rdata1,1,lscr[1:],res[1:],aiter,restart)  
+        print "Time fastDP",time.time()-t
+        print "Min",rmin
+        print "Scr Alpha",scr,"Scr FastDP",scr1-rmin*numy*numx
+        sfsd
+        #lscr[1]=scr1
+        #print numpy.sum(abs(res2-res))
+        #raw_input()
+
     #print "after",rdata.sum()
     scr=scr-rmin*numy*numx
     lscr=lscr-rmin*numy*numx
@@ -948,7 +979,7 @@ def match_bb(m1,pm2,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0,trunc=0
    
     return ldet
 
-def match_bbN(m1,pm2,N,cost,minthr=-1000,show=True,rot=False,numhyp=10,aiter=3,restart=0,trunc=0):
+def match_bbN(m1,pm2,N,cost,minthr=-1000,show=True,rot=False,numhyp=10,aiter=3,restart=0,trunc=0,useFastDP=False):
     t=time.time()
     assert(m1.shape[0]%N==0)
     assert(m1.shape[1]%N==0)
@@ -1034,9 +1065,13 @@ def match_bbN(m1,pm2,N,cost,minthr=-1000,show=True,rot=False,numhyp=10,aiter=3,r
                 pylab.imshow(-rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)).sum(0).reshape(movy,movx)-auxmin*numy*numx,vmin=0,vmax=3.0,interpolation="nearest")
                 pylab.draw()
                 pylab.show()
-            scr=crfgr2(numy,numx,cost,movy,movx,rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)),1,auxscr,res,aiter,restart)  
+            if useFastDP:
+                import crf5
+                scr=crf5.crfgr2(numy,numx,cost,movy,movx,rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)),1,auxscr,res,aiter,restart)  
+            else:
+                scr=crfgr2(numy,numx,cost,movy,movx,rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)),1,auxscr,res,aiter,restart)  
             infer+=1
-            assert(scr==auxscr[0])
+            assert(abs(scr-auxscr[0])<0.00001)
             #print "Before",scr
             scr=scr-auxmin*numy*numx
             #update bounds and save detection
@@ -1199,7 +1234,10 @@ if __name__ == "__main__":
         N=3
         trunc=0
         sort=False
-        [f,det0]=detectCRF.rundetwbb(im,N,m,numdet=nhyp,interv=5,aiter=3,restart=0,trunc=trunc,wstepy=-1,wstepx=-1,sort=sort)
+        [f,det0]=detectCRF.rundetwbb(im,N,m,numdet=nhyp,interv=5,aiter=3,restart=0,trunc=trunc,useFastDP=True)
+        import sys
+        sys.exit()
+        #[f,det0]=detectCRF.rundetwbb(im,N,m,numdet=nhyp,interv=5,aiter=3,restart=0,trunc=trunc,wstepy=-1,wstepx=-1,sort=sort)
         tswbb=time.time()-t
         print "Elapsed time for SWBB",tswbb
         t=time.time()
@@ -1259,11 +1297,11 @@ if __name__ == "__main__":
         #legend(("Global (%.1fs)"%tn,"Global %ddet(%.1fs)"%(nhyp,tnbb),"SW (%.1fs)"%tsw,"SW %ddet(%.1fs)"%(nhyp,tswbb)))
         show()
         #dsfsd
-    if 1:
+    if 0:
         from pylab import *
         import util
-        im=util.myimread("000535.jpg")[:,::-1,:]#flip
-        #im=util.myimread("000379.jpg")[:,::-1,:]#flip
+        #im=util.myimread("000535.jpg")[:,::-1,:]#flip
+        im=util.myimread("000379.jpg")[:,::-1,:]#flip
         #im=util.myimread("005467.jpg")[:,::-1,:]#flip
         #img=numpy.zeros((100,100,3))
         #subplot(1,2,1)
@@ -1300,14 +1338,15 @@ if __name__ == "__main__":
         from pylab import *
         import util
         #im=util.myimread("000125.jpg")#flip
-        im=util.myimread("000535.jpg")[:,::-1,:]#
+        im=util.myimread("000535.jpg")[:,::-1,:]#000379
+        #im=util.myimread("000379.jpg")[:,::-1,:]
         bbox=(100,250,200,450)
         #im=util.myimread("000379.jpg")[:,::-1,:]#flip
         #im=util.myimread("005467.jpg")[:,::-1,:]#flip
         #img=numpy.zeros((100,100,3))
         #subplot(1,2,1)
-        imshow(im)
-        show()
+        #imshow(im)
+        #show()
         import util
         util.box(bbox[0],bbox[1],bbox[2],bbox[3],col="b--")
         import pyrHOG2
@@ -1340,26 +1379,39 @@ if __name__ == "__main__":
         import crf3
         reload(crf3)
         N=3
-        numhyp=3
+        numhyp=1
         numy=m1.shape[0]/N
         numx=m1.shape[1]/N
         #movy=(numy*2-1)/2
         #movx=(numx*2-1)/2
-        factor=0.01#0.3
+        factor=0.01#0.01#0.3
         #mcostm=factor*model1[0]["cost"]
+        #mcostc=factor*numpy.random.random((8,numy,numx)).astype(c_float)
         mcostc=factor*numpy.ones((8,numy,numx),dtype=c_float)
+        #mcostc[0:2]=0;mcostc[4:6]=0
+        #mcostc[2:4]=0;mcostc[6:8]=0
         #mcostc=factor*mcostc*numpy.sqrt(numpy.sum(mcostm**2))/numpy.sqrt(numpy.sum(mcostc**2))
         mcost=mcostc
         t=time.time()
         remove=[]
+        import detectCRF
+        #m1["cost"]=mcostc
+        #mmodel=util.load("./bicycle2_debug_final.model")
+        #[f,det0]=detectCRF.rundetbb(im,N,mmodel,numdet=numhyp,interv=5,aiter=3,restart=0,trunc=1,useFastDP=True)
+        #print det0[0]
+        #import sys
+        #sys.exit()
         totqual=0
         col=['w','r','g','b','y','c','k','y','c','k']
-        for r in range(len(f.hog)):
+        for r in range(12,len(f.hog)):
             m2=f.hog[r]
-            lscr,fres=crf3.match_fullN(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,bbox=numpy.array(bbox)*f.scale[r])
+            #lscr,fres=crf3.match_fullN(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,bbox=numpy.array(bbox)*f.scale[r],aiter=30)
+            lscr,fres=crf3.match_fullN(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,aiter=100,useFastDP=True)
             print "Total time",time.time()-t
+            import sys
+            sys.exit()
             #print "Score",scr
-            idraw=False
+            idraw=True
             if idraw:
                 import drawHOG
                 #rec=drawHOG.drawHOG(dfeat)
@@ -1374,11 +1426,13 @@ if __name__ == "__main__":
             sf=int(8*2/f.scale[r])
             im2=numpy.zeros((im.shape[0]+sf*numy*2,im.shape[1]+sf*numx*2,im.shape[2]),dtype=im.dtype)
             im2[sf*numy:sf*numy+im.shape[0],sf*numx:sf*numx+im.shape[1]]=im
-            for hy in range(fres.shape[0]):
-                ldet2.append(lscr[hy])
+            for hy in numpy.arange(fres.shape[0])[::-1]:
+                #ldet2.append(lscr[hy])
                 res=fres[fres.shape[0]-hy-1]
                 dfeat,edge=crf3.getfeat_fullN(m2,N,res)
                 print "Scr",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost),"Error",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-lscr[fres.shape[0]-hy-1]
+                #import sys
+                #sys.exit()
                 #print "Edge Lin",numpy.sum(edge[:4]*mcost[:4]),"Error",numpy.sum(m1*dfeat)+numpy.sum(edge[:4]*mcost[:4])-lscr[fres.shape[0]-hy-1]
                 #print "Edge Quad",numpy.sum(edge[4:]*mcost[4:]),"Error",numpy.sum(m1*dfeat)+numpy.sum(edge[4:]*mcost[4:])-lscr[fres.shape[0]-hy-1]
                 myscr.append(numpy.sum(m1*dfeat)+numpy.sum(edge*mcost))
@@ -1386,7 +1440,7 @@ if __name__ == "__main__":
                 if idraw:
                     for px in range(res.shape[2]):
                         for py in range(res.shape[1]):
-                            util.box(py*N*hogpix+res[0,py,px]*hogpix,px*N*hogpix+res[1,py,px]*hogpix,py*N*hogpix+res[0,py,px]*hogpix+N*hogpix,px*N*hogpix+res[1,py,px]*hogpix+N*hogpix, col=col[fres.shape[0]-hy-1], lw=2)  
+                            util.box(py*N*hogpix+res[0,py,px]*hogpix,px*N*hogpix+res[1,py,px]*hogpix,py*N*hogpix+res[0,py,px]*hogpix+N*hogpix,px*N*hogpix+res[1,py,px]*hogpix+N*hogpix, col=col[fres.shape[0]-hy-1], lw=2*(hy+1))  
                             impy=(py)*sf+(res[0,py,px]+1)*sf/N
                             impx=(px)*sf+(res[1,py,px]+1)*sf/N
                             rcim[sf*py:sf*(py+1),sf*px:sf*(px+1)]=im2[sf*numy+impy:sf*numy+impy+sf,sf*numx+impx:sf*numx+impx+sf] 

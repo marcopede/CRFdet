@@ -632,6 +632,7 @@ dtype compute_graph2(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,
                     ilaborder[i]=i;*/
                 //((Expansion*)mrf)->setMyLabelOrder(ilaborder);
             //printf("Before(%d,%d)\n",num_lab_y,num_lab_x);
+            //printf("alpha it:%d\n",aiter);
             if (restart==0)
 		        mrf->optimize(aiter, t);
 		    else

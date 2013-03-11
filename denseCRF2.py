@@ -506,9 +506,9 @@ if initial:
             trneg+=hogn[l]
 
         if cfg.useSGD:
-            w,r,prloss=pegasos.trainCompSGD(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.005)#,notreg=notreg)
+            w,r,prloss=pegasos.trainCompSGD(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.001)#,notreg=notreg)
         else:
-            w,r,prloss=pegasos.trainCompBFG(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.005)#,notreg=notreg)
+            w,r,prloss=pegasos.trainCompBFG(trpos,trneg,"",hogpcl,hogncl,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.001)#,notreg=notreg)
             #pylab.figure();pylab.plot(w)
 
         waux=[]
@@ -575,6 +575,9 @@ if initial:
             w2=numpy.concatenate((w2,waux1[-1],-numpy.array([m["rho"]/bias])))
         #check that the model and its flip score the same 
         assert(numpy.abs(numpy.sum(w1)-numpy.sum(w2))<0.0000001)#still can be wrong
+    #########add thresholds
+    for m in models:
+        m["thr"]=-2
 
     lndet=[] #save negative detections
     lnfeat=[] #
@@ -893,9 +896,9 @@ for it in range(cpit,cfg.posit):
 
         #import pegasos   
         if cfg.useSGD:
-            w,r,prloss=pegasos.trainCompSGD(trpos,trneg,"",trposcl,trnegcl,oldw=w,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.005,sizereg=sizereg,valreg=cfg.valreg,lb=cfg.lb)#,notreg=notreg)
+            w,r,prloss=pegasos.trainCompSGD(trpos,trneg,"",trposcl,trnegcl,oldw=w,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.001,sizereg=sizereg,valreg=cfg.valreg,lb=cfg.lb)#,notreg=notreg)
         else:
-            w,r,prloss=pegasos.trainCompBFG(trpos,trneg,"",trposcl,trnegcl,oldw=w,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.005,sizereg=sizereg,valreg=cfg.valreg,lb=cfg.lb)#,notreg=notreg)
+            w,r,prloss=pegasos.trainCompBFG(trpos,trneg,"",trposcl,trnegcl,oldw=w,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.001,sizereg=sizereg,valreg=cfg.valreg,lb=cfg.lb)#,notreg=notreg)
 
         pylab.figure(300,figsize=(4,4))
         pylab.clf()
@@ -1103,10 +1106,13 @@ Negative in cache vectors %d
         lg.info("############# Insert new detections in the pool #################")
         oldpool=len(lndet)
         lg.info("Old pool size:%d"%len(lndet))
+        imid=numpy.array([x["idim"] for x in lndet])
         for newid,newdet in enumerate(lndetnew): # for each newdet
             #newdet=ldetnew[newid]
             remove=False
-            for oldid,olddet in enumerate(lndet): # check with the old
+            #for oldid,olddet in enumerate(lndet): # check with the old
+            for oldid in numpy.where(imid==newdet["idim"])[0]:
+                olddet=lndet[oldid]
                 if (newdet["idim"]==olddet["idim"]): #same image
                     if (newdet["scl"]==olddet["scl"]): #same scale
                         if (newdet["id"]==olddet["id"]): #same model
@@ -1141,6 +1147,22 @@ Negative in cache vectors %d
     ##############test
     #import denseCRFtest
     #denseCRFtest.runtest(models,tsImages,cfg,parallel=True,numcore=numcore,save="%s%d"%(testname,it),detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=localshow)
+
+    #compute thresholds positives
+    lg.info("Computing positive thresholds")
+    for m in models:
+        m["thr"]=0
+    for idl,l in enumerate(lpdet):
+        idm=l["id"]
+        lpdet[idl]["scr"]=numpy.sum(models[idm]["ww"][0]*lpfeat[idl])+numpy.sum(models[idm]["cost"]*lpedge[idl])-models[idm]["rho"]#-rr[idm]/bias
+        mid=lpdet[idl]["id"]%cfg.numcl
+        if lpdet[idl]["scr"]<models[mid]["thr"]:
+            models[mid]["thr"]=lpdet[idl]["scr"]
+            models[mid+cfg.numcl]["thr"]=lpdet[idl]["scr"]
+    #lg.info("Minimum thresholds for positives:",)
+    for idm,m in enumerate(models):
+        print "Minimum thresholds",m["thr"]
+        lg.info("Model %d:%f"%(idm,m["thr"]))
 
     lg.info("############# Run test on %d positive examples #################"%len(tsImages))
     ap=denseCRFtest.runtest(models,tsImages,cfg,parallel=parallel,numcore=numcore,save="%s%d"%(testname,it),show=localshow,pool=mypool,detfun=denseCRFtest.testINC)
