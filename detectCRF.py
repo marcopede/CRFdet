@@ -154,6 +154,13 @@ def hardNeg(el):
         [f,det]=rundetbb(img,cfg.N,models,minthr=-1.0,numdet=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc,useFastDP=cfg.useFastDP)
     else:
         [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc)
+    ####
+    #for idl,l in enumerate(det[1:]):
+    #    if abs(det[idl]["scr"]-l["scr"])<0.00000001:
+    #        print "Two same detection:"
+    #        print det[idl]["scr"],det[idl]["scr"]
+    #        raw_input()
+    #####
     ldet=[]
     lfeat=[]
     ledge=[]

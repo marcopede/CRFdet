@@ -1054,6 +1054,8 @@ Negative in cache vectors %d
                 lastcount=arg[ii]["idim"]
                 print "Examples exceeding the cache limit at image %d!"%lastcount
                 print "So far I have done %d/%d!"%(ii,len(arg))
+                lg.info("Examples exceeding the cache limit at image %d!"%lastcount)
+                lg.info("So far I have done %d/%d!"%(ii,len(arg)))
                 #raw_input()
                 #mypool.terminate()
                 #mypool.join()
@@ -1141,6 +1143,7 @@ Negative in cache vectors %d
             open(localsave+".neg.valid","w").close()
             #touch a file to be sure you have finished
             lg.info("End saving negative detections")
+        #raw_input()
                 
     #mypool.close()
     #mypool.join()

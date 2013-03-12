@@ -1068,6 +1068,7 @@ def match_bbN(m1,pm2,N,cost,minthr=-1000,show=True,rot=False,numhyp=10,aiter=3,r
             if useFastDP:
                 import crf5
                 scr=crf5.crfgr2(numy,numx,cost,movy,movx,rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)),1,auxscr,res,aiter,restart)  
+                #print "Unary sum",rdata.sum(),"Lev",l,"Scr",scr
             else:
                 scr=crfgr2(numy,numx,cost,movy,movx,rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)),1,auxscr,res,aiter,restart)  
             infer+=1
@@ -1084,26 +1085,27 @@ def match_bbN(m1,pm2,N,cost,minthr=-1000,show=True,rot=False,numhyp=10,aiter=3,r
             lres[l]=res2
             lscr[l]=scr
             #assert(scr>=minb[l])
-            if lscr.max()+0.00001>=maxb.max():
+            #if lscr.max()+0.00001>=maxb.max():
+            lmax=lscr.argmax()
+            if lmax==maxb.argmax():#lscr.max()>maxb.max():
                 stop=True
-                lmax=lscr.argmax()
+                #lmax=lscr.argmax()
                 #print "Found maxima Lev",lmax,"Scr",lscr[lmax],"#",len(ldet),"Infer",infer
                 infer=0
                 #raw_input()
                 ldet.append({"scl":lmax,"scr":lscr[lmax],"def":lres[lmax].copy()})
                 #update data
-                res2=lres[lmax]
+                resaux=lres[lmax]
                 movy=(pm2[lmax].shape[0]+m1.shape[0])
                 movx=(pm2[lmax].shape[1]+m1.shape[1])            
-                for py in range(res2.shape[2]):
-                    for px in range(res2.shape[3]):
-                        rcy=res2[0,0,py,px]+m1.shape[0]
-                        rcx=res2[0,1,py,px]+m1.shape[1]
-                        #data.reshape((data.shape[0],data.shape[1],movy,movx))[py,px,rcy,rcx]=1
-                        #data[lmax].reshape((numy,numx,movy,movx))[py,px,rcy-1:rcy+2,rcx-1:rcx+2]=-1
-                        data[lmax].reshape((numy,numx,movy,movx))[py,px,rcy-1:rcy+2,rcx-1:rcx+2]=-10 #increased to 10 to avoid repeating detections
+                vdata=data[lmax].reshape((numy,numx,movy,movx))
+                for py in range(resaux.shape[2]):
+                    for px in range(resaux.shape[3]):
+                        rcy=resaux[0,0,py,px]+m1.shape[0]
+                        rcx=resaux[0,1,py,px]+m1.shape[1]
+                        vdata[py,px,rcy-1:rcy+2,rcx-1:rcx+2]=-10 #increased to 10 to avoid repeating detections
                 #update bounds
-                minb[lmax]=numpy.max(numpy.sum(data[lmax].reshape((data[lmax].shape[0]*data[lmax].shape[1],-1)),0))
+                #minb[lmax]=numpy.max(numpy.sum(data[lmax].reshape((data[lmax].shape[0]*data[lmax].shape[1],-1)),0))
                 #maxb[lmax]=numpy.sum(numpy.max(data[l],2))
         #print "Minthr",minthr,"Score BB",ldet[-1]["scr"]
         if ldet[-1]["scr"]<minthr:#stop if the score is lower than a threshold
