@@ -84,7 +84,7 @@ def crfgr3(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart,check=Tr
             un=numpy.sum(rdata[numpy.arange(res[h].size),res[h].flatten()])
             #print "unary",un
             pc=0
-            resx=res.flatten()
+            resx=res[h].flatten()
             for l in range(numpairs):
                 l0y=resx[pairs[l][0]]/movx;l0x=resx[pairs[l][0]]%movx
                 l1y=resx[pairs[l][1]]/movx;l1x=resx[pairs[l][1]]%movx
