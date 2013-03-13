@@ -122,11 +122,12 @@ if __name__ == '__main__':
     #det=util.load("/users/visics/mpederso/code/git/condor-run/N3C2_highres/CRFdet/data/CRF/12_11_10/%s2_N2C2highres2_final.det"%cfg.cls)["det"]
     #det=util.load("/users/visics/mpederso/code/git/condor-run/N3C2_highres/CRFdet/data/CRF/12_11_10/%s2_N2C2highres26.det"%cfg.cls)["det"]
     #det=util.load("/users/visics/mpederso/code/git/condor-run/N2C2_highres/CRFdet/data/CRF/12_11_01/bicycle2_N1C2highres2.det")["det"];cfg.N=1
-    det=util.load("/users/visics/mpederso/code/git/CRFdet/data/afterCVPR/12_01_10/%s2_force-bb3.det"%cfg.cls)["det"]
+    #det=util.load("/users/visics/mpederso/code/git/CRFdet/data/afterCVPR/12_01_10/%s2_force-bb3.det"%cfg.cls)["det"]
+    det=util.load("./data/condor/%s2_condor10.det"%cfg.cls)["det"]
     imgpath=cfg.dbpath+"VOC2007/VOCdevkit/VOC2007/JPEGImages/"
     #imgpath=cfg.dbpath+"/buffy/images/"
     line=True
-
+    cfg.N=3
     for idl,l in enumerate(det):
         img=util.myimread(imgpath+l["idim"])
 #just for buffy

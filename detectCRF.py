@@ -964,11 +964,15 @@ def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-
     return [f,det]
 
 
-def rundetc(img,N,models,numhyp=5,interv=10,aiter=3,restart=0,trunc=0,bbox=None,useFastDP=False):
+def rundetc(img,N,models,numhyp=5,interv=10,minsize=-1,aiter=3,restart=0,trunc=0,bbox=None,useFastDP=False):
     "run the CRF optimization at each level of the HOG pyramid adding constraints to force the  detection to be in the bounding box"
     f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
     det=[]
     nbbox=None
+    if minsize!=-1:
+        f.hog=f.hog[interv/2:interv/2+interv*minsize]#number of octaves to really evaluate
+        f.scale=f.scale[interv/2:interv/2+interv*minsize]
+
     for idm,m in enumerate(models):
         mcost=m["cost"].astype(numpy.float32)
         m1=m["ww"][0]

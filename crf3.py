@@ -647,7 +647,8 @@ def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    n
     rdata1=rdata.copy()
     if useFastDP:
         import crf5
-        scr=crf5.crfgr2(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart)  
+        #scr=crf5.crfgr2(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart)
+        scr=crf5.crfgr3(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart)    
     else:
         scr=crfgr2(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart)  
     #print "Time Alpha(%d)"%aiter,time.time()-t
@@ -1073,7 +1074,7 @@ def match_bbN(m1,pm2,N,cost,minthr=-1000,show=True,rot=False,numhyp=10,aiter=3,r
                 scr=crfgr2(numy,numx,cost,movy,movx,rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)),1,auxscr,res,aiter,restart)  
             infer+=1
             assert(abs(scr-auxscr[0])<0.00001)
-            #print "Before",scr
+            #print scr,
             scr=scr-auxmin*numy*numx
             #update bounds and save detection
             #print "Lev",l,"Old Maxb",maxb[l],"New Maxb",scr
@@ -1085,9 +1086,9 @@ def match_bbN(m1,pm2,N,cost,minthr=-1000,show=True,rot=False,numhyp=10,aiter=3,r
             lres[l]=res2
             lscr[l]=scr
             #assert(scr>=minb[l])
-            #if lscr.max()+0.00001>=maxb.max():
-            lmax=lscr.argmax()
-            if lmax==maxb.argmax():#lscr.max()>maxb.max():
+            if lscr.max()+0.00001>=maxb.max():
+                lmax=lscr.argmax()
+            #if lmax==maxb.argmax():#lscr.max()>maxb.max():
                 stop=True
                 #lmax=lscr.argmax()
                 #print "Found maxima Lev",lmax,"Scr",lscr[lmax],"#",len(ldet),"Infer",infer
