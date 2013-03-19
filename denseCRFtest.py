@@ -236,7 +236,7 @@ if __name__ == '__main__':
     #testname="./data/bicycle2_testN36"
     #testname="./data/resultsN2/bicycle2_N2C2_final"
     #testname="./data/afterCVPR/bicycle2_force-bb_final"
-    testname="../../CRFdet/data/afterCVPR/12_01_10/car2_force-bb_final"
+    testname="../../CRFdet/data/afterCVPR/12_01_10/cat2_force-bb_final"
     cfg.trunc=1
     models=util.load("%s.model"%(testname))
     cfg.N=models[0]["N"]
