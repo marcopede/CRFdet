@@ -50,6 +50,7 @@ int numhyp,Real* lscr,int *reslab,int aiter,int restart)
     }
 
     Real bestE=pd.score(); 
+    lscr[0]=-bestE;
 	/*for (iter=0; iter<numhyp; iter++) 
     {
         bestE=10000;

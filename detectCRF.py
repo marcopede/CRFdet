@@ -234,11 +234,14 @@ def hardNegPos(el):
 
 def test(el,docluster=True,show=False,inclusion=False,onlybest=False):
     t=time.time()
+    minthr=-2
+    models=el["models"]
+    if models[0].has_key("thr"):
+        minthr="Learned"
     #[f,det]=detectCRF.detectCrop(el)
     print "----Image-%s-(%d)-----------"%(el["file"].split("/")[-1],el["idim"])
     imname=el["file"]
     bbox=el["bbox"]
-    models=el["models"]
     cfg=el["cfg"]
     imageflip=el["flip"]
     if imageflip:
@@ -250,7 +253,7 @@ def test(el,docluster=True,show=False,inclusion=False,onlybest=False):
         if cfg.useswTEST:
             [f,det]=rundetwbb(img,cfg.N,models,numdet=cfg.numhypTEST*len(models),interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc,wstepy=cfg.swstepy,wstepx=cfg.swstepx)
         else:
-            [f,det]=rundetbb(img,cfg.N,models,minthr="Learned",numdet=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc,useFastDP=cfg.useFastDP)
+            [f,det]=rundetbb(img,cfg.N,models,minthr=minthr,numdet=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc,useFastDP=cfg.useFastDP)
     else:
         if cfg.useswTEST:
             [f,det]=rundetw2(img,cfg.N,models,numhyp=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc,
@@ -968,18 +971,24 @@ def rundetc(img,N,models,numhyp=5,interv=10,minsize=-1,aiter=3,restart=0,trunc=0
     "run the CRF optimization at each level of the HOG pyramid adding constraints to force the  detection to be in the bounding box"
     f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
     det=[]
+    skip=True
     nbbox=None
     if minsize!=-1:
         f.hog=f.hog[interv/2:interv/2+interv*minsize]#number of octaves to really evaluate
         f.scale=f.scale[interv/2:interv/2+interv*minsize]
-
+    smallpyr=f.hog[interv-2:interv+interv-2]
     for idm,m in enumerate(models):
+        pyr=f.hog
+        fscl=f.scale
+        if m.has_key("big"):
+            if m["big"] and skip:
+                pyr=smallpyr
         mcost=m["cost"].astype(numpy.float32)
         m1=m["ww"][0]
         numy=m["ww"][0].shape[0]
         numx=m["ww"][0].shape[1]
-        for r in range(len(f.hog)):
-            m2=f.hog[r]
+        for r in range(len(pyr)):
+            m2=pyr[r]
             #print numy,numx
             if bbox!=None:
                 nbbox=numpy.array(bbox)*f.scale[r]
@@ -997,7 +1006,11 @@ def rundetc(img,N,models,numhyp=5,interv=10,minsize=-1,aiter=3,restart=0,trunc=0
                 pylab.subplot(1,2,2)
                 img=drawHOG.drawHOG(m2)
             for idt in range(len(lscr)):
-                det.append({"id":m["id"],"hog":r,"scl":f.scale[r],"def":fres[idt],"scr":lscr[idt]-models[idm]["rho"]})
+                shift=0
+                if m.has_key("big"):
+                    if m["big"] and skip:
+                        shift=interv-2
+                det.append({"id":m["id"],"hog":r+shift,"scl":fscl[r+shift],"def":fres[idt],"scr":lscr[idt]-models[idm]["rho"]})
     det.sort(key=lambda by: -by["scr"])
     #if cfg.show:
     #    pylab.draw()
@@ -1014,6 +1027,7 @@ def rundetbb(img,N,models,minthr=-1000,numdet=50,interv=10,aiter=3,restart=0,tru
     #print "Branc and bound"
     f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
     ldet2=[]
+    fscl=f.scale
     for idm,m in enumerate(models):
         mcost=m["cost"].astype(numpy.float32)
         m1=m["ww"][0]
@@ -1023,10 +1037,18 @@ def rundetbb(img,N,models,minthr=-1000,numdet=50,interv=10,aiter=3,restart=0,tru
             thr=m["thr"]+models[idm]["rho"]
         else:
             thr=minthr+models[idm]["rho"]
-        ldet=crf3.match_bbN(m1,f.hog,N,mcost,minthr=thr,show=False,rot=False,numhyp=numdet,aiter=aiter,restart=restart,trunc=trunc,useFastDP=useFastDP)
+        pyr=f.hog
+        if m.has_key("big"):
+            if m["big"]:
+                pyr=f.hog[interv:]
+        ldet=crf3.match_bbN(m1,pyr,N,mcost,minthr=thr,show=False,rot=False,numhyp=numdet,aiter=aiter,restart=restart,trunc=trunc,useFastDP=useFastDP)
         for l in ldet:
+            shift=0
+            if m.has_key("big"):            
+                if m["big"]:
+                    shift=interv
             r=l["scl"]
-            ldet2.append({"id":m["id"],"hog":r,"scl":f.scale[r],"def":l["def"][0],"scr":l["scr"]-models[idm]["rho"]})            
+            ldet2.append({"id":m["id"],"hog":r+shift,"scl":fscl[r+shift],"def":l["def"][0],"scr":l["scr"]-models[idm]["rho"]})            
     if sort:
         ldet2.sort(key=lambda by: -by["scr"])
     return [f,ldet2]

@@ -201,65 +201,8 @@ elif cfg.db=="imagenet":
                     usetr=True,usedf=False),cfg.maxtestfull)
 
 ########################compute aspect ratio and dector size 
-name,bb,r,a=extractInfo(trPosImages)
-trpos={"name":name,"bb":bb,"ratio":r,"area":a}
-import scipy.cluster.vq as vq
-numcl=cfg.numcl
-perc=cfg.perc#10
-minres=4#10
-minfy=2#3
-minfx=2#3
-#number of maximum number of HOG blocks (HOG cells /4) to use
-#maxArea=45#*(4-cfg.lev[0])#too high resolution very slow
-#maxArea=35#*(4-cfg.lev[0]) #the right trade-off
-#maxArea=25#*(4-cfg.lev[0]) #used in the test
-maxArea=cfg.maxHOG
-#maxArea=15#*(4-cfg.lev[0])
-usekmeans=False
-nh=cfg.N #number of hogs per part (for the moment everything works only with 2)
-
-sr=numpy.sort(r)
-spl=[]
-lfy=[];lfx=[]
-cl=numpy.zeros(r.shape)
-for l in range(numcl):
-    spl.append(sr[round(l*len(r)/float(numcl))])
-spl.append(sr[-1])
-for l in range(numcl):
-    cl[numpy.bitwise_and(r>=spl[l],r<=spl[l+1])]=l
-for l in range(numcl):
-    print "Cluster same number",l,":"
-    print "Samples:",len(a[cl==l])
-    #meanA=numpy.mean(a[cl==l])/16.0/(0.5*4**(cfg.lev[l]-1))#4.0
-    #meanA=numpy.mean(a[cl==l])/4.0/(4**(cfg.lev[l]-1))#4.0
-    meanA=numpy.mean(a[cl==l])/16.0/float(nh*nh)#(4**(cfg.lev[l]-1))#4.0
-    print "Mean Area:",meanA
-    sa=numpy.sort(a[cl==l])
-    #minA=numpy.mean(sa[len(sa)/perc])/16.0/(0.5*4**(cfg.lev[l]-1))#4.0
-    #minA=numpy.mean(sa[int(len(sa)*perc)])/4.0/(4**(cfg.lev[l]-1))#4.0
-    minA=numpy.mean(sa[int(len(sa)*perc)])/16.0/float(nh*nh)#(4**(cfg.lev[l]-1))#4.0
-    print "Min Area:",minA
-    aspt=numpy.mean(r[cl==l])
-    print "Aspect:",aspt
-    if minA>maxArea:
-        minA=maxArea
-    #minA=10#for bottle
-    if aspt>1:
-        fx=(max(minfx,numpy.sqrt(minA/aspt)))
-        fy=(fx*aspt)
-    else:
-        fy=(max(minfy,numpy.sqrt(minA*(aspt))))
-        fx=(fy/(aspt))        
-    print "Fy:%.2f"%fy,"~",round(fy),"Fx:%.2f"%fx,"~",round(fx)
-    lfy.append(round(fy))
-    lfx.append(round(fx))
-    print
-
-lg.info("Using %d models",cfg.numcl)
-for l in range(cfg.numcl):
-    lg.info("Fy:%d Fx:%d",lfy[l],lfx[l])
-
-#raw_input()
+import stats
+lfy,lfx=stats.build_components(trPosImages,cfg)
 
 cfg.fy=lfy#[7,10]#lfy
 cfg.fx=lfx#[11,7]#lfx

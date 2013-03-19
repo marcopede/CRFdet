@@ -201,59 +201,8 @@ elif cfg.db=="imagenet":
                     usetr=True,usedf=False),cfg.maxtestfull)
 
 ########################compute aspect ratio and dector size 
-name,bb,r,a=extractInfo(trPosImages)
-trpos={"name":name,"bb":bb,"ratio":r,"area":a}
-import scipy.cluster.vq as vq
-numcl=cfg.numcl
-perc=cfg.perc#10
-minres=4#10
-minfy=2#3
-minfx=2#3
-#number of maximum number of HOG blocks (HOG cells /4) to use
-#maxArea=45#*(4-cfg.lev[0])#too high resolution very slow
-#maxArea=35#*(4-cfg.lev[0]) #the right trade-off
-#maxArea=25#*(4-cfg.lev[0]) #used in the test
-maxArea=cfg.maxHOG
-#maxArea=15#*(4-cfg.lev[0])
-usekmeans=False
-nh=cfg.N #number of hogs per part (for the moment everything works only with 2)
-
-sr=numpy.sort(r)
-spl=[]
-lfy=[];lfx=[]
-cl=numpy.zeros(r.shape)
-for l in range(numcl):
-    spl.append(sr[round(l*len(r)/float(numcl))])
-spl.append(sr[-1])
-for l in range(numcl):
-    cl[numpy.bitwise_and(r>=spl[l],r<=spl[l+1])]=l
-for l in range(numcl):
-    print "Cluster same number",l,":"
-    print "Samples:",len(a[cl==l])
-    #meanA=numpy.mean(a[cl==l])/16.0/(0.5*4**(cfg.lev[l]-1))#4.0
-    #meanA=numpy.mean(a[cl==l])/4.0/(4**(cfg.lev[l]-1))#4.0
-    meanA=numpy.mean(a[cl==l])/16.0/float(nh*nh)#(4**(cfg.lev[l]-1))#4.0
-    print "Mean Area:",meanA
-    sa=numpy.sort(a[cl==l])
-    #minA=numpy.mean(sa[len(sa)/perc])/16.0/(0.5*4**(cfg.lev[l]-1))#4.0
-    #minA=numpy.mean(sa[int(len(sa)*perc)])/4.0/(4**(cfg.lev[l]-1))#4.0
-    minA=numpy.mean(sa[int(len(sa)*perc)])/16.0/float(nh*nh)#(4**(cfg.lev[l]-1))#4.0
-    print "Min Area:",minA
-    aspt=numpy.mean(r[cl==l])
-    print "Aspect:",aspt
-    if minA>maxArea:
-        minA=maxArea
-    #minA=10#for bottle
-    if aspt>1:
-        fx=(max(minfx,numpy.sqrt(minA/aspt)))
-        fy=(fx*aspt)
-    else:
-        fy=(max(minfy,numpy.sqrt(minA*(aspt))))
-        fx=(fy/(aspt))        
-    print "Fy:%.2f"%fy,"~",round(fy),"Fx:%.2f"%fx,"~",round(fx)
-    lfy.append(round(fy))
-    lfx.append(round(fx))
-    print
+import stats
+lfy,lfx,minA=stats.build_components_2(trPosImages,cfg)
 
 lg.info("Using %d models",cfg.numcl)
 for l in range(cfg.numcl):
@@ -281,6 +230,7 @@ if cfg.checkpoint and not cfg.forcescratch:
             models=util.load(testname+"%d.model"%l)
             print "Loaded model %d"%(l)
             lg.info("Loaded model %d"%(l))    
+            cfg.numcl=len(models)
         except:
             if l>0:
                 print "Model %d does not exist"%(l)
@@ -332,6 +282,7 @@ Number Negative SV:%d
         cpit=cfg.posit
         initial=False
         loadedchk=True
+        cfg.numcl=len(models)
     except:
         pass
     
@@ -343,48 +294,11 @@ if initial:
     print "Starting from scratch"
     lg.info("Starting from scratch")
     ############################ initialize positive using cropped bounidng boxes
-    check = False
-    dratios=numpy.array(cfg.fy)/numpy.array(cfg.fx)
-    hogp=[[] for x in range(cfg.numcl)]
+    hogp=stats.collec_posamples_2(minA,trPosImagesNoTrunc,cfg)
+
     hogpcl=[]
-    annp=[[] for x in range(cfg.numcl)]
-
-    #from scipy.ndimage import zoom
-    from extra import myzoom as zoom
-    for im in trPosImagesNoTrunc: # for each image
-
-        aim=util.myimread(im["name"])  
-        for bb in im["bbox"]: # for each bbox (y1,x1,y2,x2)
-            imy=bb[2]-bb[0]
-            imx=bb[3]-bb[1]
-            cropratio= imy/float(imx)
-            #select the right model based on aspect ratio
-            idm=numpy.argmin(abs(dratios-cropratio))
-            crop=aim[max(0,bb[0]-imy/cfg.fy[idm]/2):min(bb[2]+imy/cfg.fy[idm]/2,aim.shape[0]),max(0,bb[1]-imx/cfg.fx[idm]/2):min(bb[3]+imx/cfg.fx[idm]/2,aim.shape[1])]
-            #crop=extra.getfeat(aim,abb[0]-imy/(cfg.fy[idm]*2),bb[2]+imy/(cfg.fy[idm]*2),bb[1]-imx/(cfg.fx[idm]*2),bb[3]+imx/(cfg.fx[idm]*2))
-            imy=crop.shape[0]
-            imx=crop.shape[1]
-            zcim=zoom(crop,(((cfg.fy[idm]*cfg.N+2)*8/float(imy)),((cfg.fx[idm]*cfg.N+2)*8/float(imx)),1),order=1)
-            hogp[idm].append(numpy.ascontiguousarray(pyrHOG2.hog(zcim)))
-            if cfg.trunc:
-                hogp[idm][-1]=numpy.concatenate((hogp[idm][-1],numpy.zeros((hogp[idm][-1].shape[0],hogp[idm][-1].shape[1],1))),2)
-            #hogpcl.append(idm)
-            annp[idm].append({"file":im["name"],"bbox":bb})
-            if check:
-                print "Aspect:",idm,"Det Size",cfg.fy[idm]*cfg.N,cfg.fx[idm]*cfg.N,"Shape:",zcim.shape
-                pl.figure(1,figsize=(20,5))
-                pl.clf()
-                pl.subplot(1,3,1)
-                pl.imshow(aim,interpolation="nearest")            
-                pl.subplot(1,3,2)
-                pl.imshow(zcim,interpolation="nearest")
-                pl.subplot(1,3,3)
-                import drawHOG
-                imh=drawHOG.drawHOG(hogp[-1])
-                pl.imshow(imh,interpolation="nearest")
-                pl.draw()
-                pl.show()
-                raw_input()
+    cfg.numcl=cfg.numcl*2
+    numcl=cfg.numcl
     for l in range(cfg.numcl):
         print "Aspect",l,":",len(hogp[l]),"samples"
         hogpcl=hogpcl+[l]*len(hogp[l])    
@@ -514,9 +428,14 @@ if initial:
         waux=[]
         rr=[]
         w1=numpy.array([])
+       
         #from w to model m1
         for idm,m in enumerate(models):
             models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],cfg.N,-w[cumsize[idm+1]-1]*bias,len(m["ww"]),lenf,m["ww"][0].shape[0],m["ww"][0].shape[1])
+            if idm%cfg.numcl>cfg.numcl/2:#set the big models
+                models[idm]["big"]=False                        
+            else:
+                models[idm]["big"]=True            
             #models[idm]["ra"]=w[cumsize[idm+1]-1]
             #from model to w #changing the clip...
             waux.append(model.model2w(models[idm],False,False,False))
@@ -546,7 +465,10 @@ if initial:
     ######################### add CRF
     for idm,m in enumerate(models):   
         models[idm]["cost"]=cfg.initdef*numpy.ones((8,cfg.fy[idm],cfg.fx[idm]))
-
+        if idm%cfg.numcl>cfg.numcl/2:#set the big models
+            models[idm]["big"]=False                        
+        else:
+            models[idm]["big"]=True            
 
     waux=[]
     rr=[]
@@ -591,6 +513,13 @@ waux=[]
 rr=[]
 w1=numpy.array([])
 sizereg=numpy.zeros(cfg.numcl,dtype=numpy.int32)
+mult=numpy.zeros(cfg.numcl*2)
+for idm,m in enumerate(models):
+    mult[idm]=1.0/(m["ww"][0].shape[0]*m["ww"][0].shape[1])
+mult=mult/numpy.min(mult)
+for idm,m in enumerate(models):
+    models[idm]["norm"]=mult[idm]
+
 #from model m to w
 for idm,m in enumerate(models[:cfg.numcl]):
     waux.append(model.model2w(models[idm],False,False,False,useCRF=True,k=cfg.k))
@@ -768,10 +697,11 @@ for it in range(cpit,cfg.posit):
     for idl,l in enumerate(lpdet):#enumerate(lndet):
         efeat=lpfeat[idl]#.flatten()
         eedge=lpedge[idl]#.flatten()
-        if lpdet[idl]["id"]>=cfg.numcl:#flipped version
+        idm=lpdet[idl]["id"]
+        if idm>=cfg.numcl:#flipped version
             efeat=pyrHOG2.hogflip(efeat)
             eedge=pyrHOG2.crfflip(eedge)
-        trpos.append(numpy.concatenate((efeat.flatten(),cfg.k*eedge.flatten(),[bias])))
+        trpos.append(numpy.concatenate((efeat.flatten()*mult[idm],cfg.k*eedge.flatten(),[bias])))
         trposcl.append(l["id"]%cfg.numcl)
         dscr=numpy.sum(trpos[-1]*w[cumsize[trposcl[-1]]:cumsize[trposcl[-1]+1]])
         #print "Error:",abs(dscr-l["scr"])
@@ -841,10 +771,11 @@ for it in range(cpit,cfg.posit):
         for idl,l in enumerate(lndet):
             efeat=lnfeat[idl]#.flatten()
             eedge=lnedge[idl]#.flatten()
-            if lndet[idl]["id"]>=cfg.numcl:#flipped version
+            idm=lndet[idl]["id"]
+            if idm>=cfg.numcl:#flipped version
                 efeat=pyrHOG2.hogflip(efeat)
                 eedge=pyrHOG2.crfflip(eedge)
-            trneg.append(numpy.concatenate((efeat.flatten(),cfg.k*eedge.flatten(),[bias])))
+            trneg.append(numpy.concatenate((efeat.flatten()*mult[idm],cfg.k*eedge.flatten(),[bias])))
             trnegcl.append(lndet[idl]["id"]%cfg.numcl)
             dscr=numpy.sum(trneg[-1]*w[cumsize[trnegcl[-1]]:cumsize[trnegcl[-1]+1]])
             #print "Error:",abs(dscr-l["scr"])
@@ -897,7 +828,7 @@ for it in range(cpit,cfg.posit):
         else:
             w,r,prloss=pegasos.trainCompBFG(trpos,trneg,"",trposcl,trnegcl,oldw=w,pc=cfg.svmc,k=numcore*2,numthr=numcore,eps=0.005,sizereg=sizereg,valreg=cfg.valreg,lb=cfg.lb)#,notreg=notreg)
 
-        pylab.figure(300,figsize=(4,4))
+        pylab.figure(300,figsize=(16,6))
         pylab.clf()
         pylab.plot(w)
         pylab.title("dimensions of W")
@@ -911,8 +842,13 @@ for it in range(cpit,cfg.posit):
         w1=numpy.array([])
         #from w to model m1
         for idm,m in enumerate(models[:cfg.numcl]):
-            models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],cfg.N,-w[cumsize[idm+1]-1]*bias,len(m["ww"]),lenf,m["ww"][0].shape[0],m["ww"][0].shape[1],useCRF=True,k=cfg.k)
+            models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],cfg.N,-w[cumsize[idm+1]-1]*bias,len(m["ww"]),lenf,m["ww"][0].shape[0],m["ww"][0].shape[1],useCRF=True,k=cfg.k,norm=mult[idm])
+            if idm%cfg.numcl>cfg.numcl/2:#set the big models
+                models[idm]["big"]=False                        
+            else:
+                models[idm]["big"]=True            
             models[idm]["id"]=idm
+            models[idm]["norm"]=mult[idm]
             #models[idm]["ra"]=w[cumsize[idm+1]-1]
             #from model to w #changing the clip...
             waux.append(model.model2w(models[idm],False,False,False,useCRF=True,k=cfg.k))
@@ -1103,10 +1039,13 @@ Negative in cache vectors %d
         lg.info("############# Insert new detections in the pool #################")
         oldpool=len(lndet)
         lg.info("Old pool size:%d"%len(lndet))
+        imid=numpy.array([x["idim"] for x in lndet])
         for newid,newdet in enumerate(lndetnew): # for each newdet
             #newdet=ldetnew[newid]
             remove=False
-            for oldid,olddet in enumerate(lndet): # check with the old
+            #for oldid,olddet in enumerate(lndet): # check with the old
+            for oldid in numpy.where(imid==newdet["idim"])[0]:
+                olddet=lndet[oldid]
                 if (newdet["idim"]==olddet["idim"]): #same image
                     if (newdet["scl"]==olddet["scl"]): #same scale
                         if (newdet["id"]==olddet["id"]): #same model

@@ -34,20 +34,18 @@ def initmodel(fy,fx,N,useRL,lenf,CRF=False,small2=False):
         model["cost"]=cost
     if small2:
         model["small2"]=numpy.array([0.0,0.0,0.0])#2x2,4x4,not used
+    model["norm"]=(fy*fx)
     return model
 
 def model2w(model,deform,usemrf,usefather,k=1,lastlev=0,usebow=False,useCRF=False,small2=False):
     w=numpy.zeros(0,dtype=numpy.float32)
+    if model.has_key("norm"):
+        norm=model["norm"]
+    else:
+        norm=1
     for l in range(len(model["ww"])-lastlev):
         #print "here"#,item
-        w=numpy.concatenate((w,model["ww"][l].flatten()))
-        if deform:
-            if usefather:
-                w=numpy.concatenate((w,model["df"][l][:,:,0].flatten()))        
-                w=numpy.concatenate((w,model["df"][l][:,:,1].flatten()))        
-            if usemrf:
-                w=numpy.concatenate((w,model["df"][l][:,:,2].flatten()))                
-                w=numpy.concatenate((w,model["df"][l][:,:,3].flatten()))   
+        w=numpy.concatenate((w,model["ww"][l].flatten()/float(norm)))
     if usebow:
         for l in range(len(model["hist"])-lastlev):
             w=numpy.concatenate((w,model["hist"][l].flatten()))
@@ -57,7 +55,7 @@ def model2w(model,deform,usemrf,usefather,k=1,lastlev=0,usebow=False,useCRF=Fals
         w=numpy.concatenate((w,model["small2"].flatten()))
     return w
 
-def w2model(descr,N,rho,lev,fsz,fy=[],fx=[],bin=5,siftsize=2,deform=False,usemrf=False,usefather=False,k=1,mindef=0.001,useoccl=False,usebow=False,useCRF=False,small2=False):
+def w2model(descr,N,rho,lev,fsz,fy=[],fx=[],bin=5,siftsize=2,deform=False,usemrf=False,usefather=False,k=1,norm=1,mindef=0.001,useoccl=False,usebow=False,useCRF=False,small2=False):
         #does not work with occlusions
         """
         build a new model from the weights of the SVM
@@ -68,7 +66,7 @@ def w2model(descr,N,rho,lev,fsz,fy=[],fx=[],bin=5,siftsize=2,deform=False,usemrf
         d=descr
         for l in range(lev):
             dp=(fy*fx)*4**l*fsz
-            ww.append((d[p:p+dp].reshape((fy*2**l,fx*2**l,fsz))).astype(numpy.float32))
+            ww.append((norm*d[p:p+dp].reshape((fy*2**l,fx*2**l,fsz))).astype(numpy.float32))
             p+=dp
             if useoccl:
                 occl[l]=d[p]

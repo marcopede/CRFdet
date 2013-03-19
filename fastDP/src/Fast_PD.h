@@ -277,6 +277,7 @@ Real compute(int label,int l0,int l1,int i)
 			{
 				_pinfo[i].label =  0;
                 //_pinfo[i].label =  rlabels[i];
+                //_pinfo[i].label =  rand()%_numlabels;    
 				_pinfo[i].time  = -1;
 				_pinfo[i].next  = -1;
 				_pinfo[i].prev  = -2;
@@ -979,7 +980,7 @@ Real compute(int label,int l0,int l1,int i)
 			double total_t = 0, total_augm = 0;
 			init_duals_primals();
             //random ordering of the labels
-            //srand(3);
+            //srand(0);
             //int rlabels[_numlabels];
             //for (int l=0;l<_numlabels;l++)
             //    rlabels[l]=l;
@@ -995,7 +996,10 @@ Real compute(int label,int l0,int l1,int i)
 				if ( !iter )
 				{
 					for( Graph::Label l = 0; l < _numlabels; l++ )
+                    {
+                        //printf("L=%d",rlabels[l]);
 						inner_iteration( l );
+                    }
 				}
 				else 
 				{

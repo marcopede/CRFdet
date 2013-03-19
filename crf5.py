@@ -70,7 +70,13 @@ def crfgr3(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart,check=Tr
     res2=numpy.zeros((2,numy,numx),dtype=c_int)
     dist=numpy.zeros((1,1,1),dtype=numpy.float32)#fake argument
     for h in range(numhyp):
+        #if h!=0:
         scr=crfgr(numy,numx,pairs.shape[0],pairs,movy,movx,unary,dist,wcost,1,lscr[h:h+1],res[h:h+1],aiter,restart)
+        #else:
+        #import crf3
+        #rdata=unary.T.copy()
+        #scr=crf3.crfgr2(numy,numx,cost,movy,movx,rdata,1,lscr[h:h+1],res[h:h+1],aiter,restart)
+        #print "Scr",scr
         res2[0]=(res[h]/(movx))-numy
         res2[1]=(res[h]%(movx))-numx
         #update unary        
@@ -79,7 +85,13 @@ def crfgr3(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart,check=Tr
             for px in range(numx):
                 rcy=res2[0,py,px]+numy
                 rcx=res2[1,py,px]+numx
-                vdata[rcy-1:rcy+2,rcx-1:rcx+2,py,px]=-10 #increased to 10 to avoid repeating detections
+                #vdata[rcy-1:rcy+2,rcx-1:rcx+2,py,px]=10
+                vdata[max(0,rcy-1):min(rcy+2,movy),max(0,rcx-1):min(rcx+2,movx),py,px]=10 #increased to 10 to avoid repeating detections
+                if 0:
+                    import pylab
+                    pylab.imshow(numpy.sum(numpy.sum(vdata,2),2),interpolation="nearest")
+                    pylab.show()
+                    raw_input()
         if check:
             un=numpy.sum(rdata[numpy.arange(res[h].size),res[h].flatten()])
             #print "unary",un

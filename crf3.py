@@ -1304,7 +1304,7 @@ if __name__ == "__main__":
         from pylab import *
         import util
         #im=util.myimread("000535.jpg")[:,::-1,:]#flip
-        im=util.myimread("000379.jpg")[:,::-1,:]#flip
+        #im=util.myimread("000379.jpg")[:,::-1,:]#flip
         #im=util.myimread("005467.jpg")[:,::-1,:]#flip
         #img=numpy.zeros((100,100,3))
         #subplot(1,2,1)
@@ -1320,7 +1320,7 @@ if __name__ == "__main__":
         aux[:,:20,:]=model1[0]["ww"][-1]
         m1=aux
         import crf3
-        numhyp=10
+        numhyp=100
         numy=m1.shape[0]/2
         numx=m1.shape[1]/2
         factor=0.01#0.3
@@ -1382,7 +1382,7 @@ if __name__ == "__main__":
         import crf3
         reload(crf3)
         N=3
-        numhyp=1
+        numhyp=5
         numy=m1.shape[0]/N
         numx=m1.shape[1]/N
         #movy=(numy*2-1)/2
@@ -1406,15 +1406,15 @@ if __name__ == "__main__":
         #sys.exit()
         totqual=0
         col=['w','r','g','b','y','c','k','y','c','k']
-        for r in range(12,len(f.hog)):
+        for r in range(len(f.hog)):
             m2=f.hog[r]
             #lscr,fres=crf3.match_fullN(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,bbox=numpy.array(bbox)*f.scale[r],aiter=30)
-            lscr,fres=crf3.match_fullN(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,aiter=100,useFastDP=True)
+            lscr,fres=crf3.match_fullN(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,aiter=100,restart=0,useFastDP=True)
             print "Total time",time.time()-t
-            import sys
-            sys.exit()
+            #import sys
+            #sys.exit()
             #print "Score",scr
-            idraw=True
+            idraw=False
             if idraw:
                 import drawHOG
                 #rec=drawHOG.drawHOG(dfeat)
@@ -1443,7 +1443,7 @@ if __name__ == "__main__":
                 if idraw:
                     for px in range(res.shape[2]):
                         for py in range(res.shape[1]):
-                            util.box(py*N*hogpix+res[0,py,px]*hogpix,px*N*hogpix+res[1,py,px]*hogpix,py*N*hogpix+res[0,py,px]*hogpix+N*hogpix,px*N*hogpix+res[1,py,px]*hogpix+N*hogpix, col=col[fres.shape[0]-hy-1], lw=2*(hy+1))  
+                            util.box(py*N*hogpix+res[0,py,px]*hogpix,px*N*hogpix+res[1,py,px]*hogpix,py*N*hogpix+res[0,py,px]*hogpix+N*hogpix,px*N*hogpix+res[1,py,px]*hogpix+N*hogpix, col=col[fres.shape[0]-hy-1], lw=2)  
                             impy=(py)*sf+(res[0,py,px]+1)*sf/N
                             impx=(px)*sf+(res[1,py,px]+1)*sf/N
                             rcim[sf*py:sf*(py+1),sf*px:sf*(px+1)]=im2[sf*numy+impy:sf*numy+impy+sf,sf*numx+impx:sf*numx+impx+sf] 
@@ -1462,10 +1462,10 @@ if __name__ == "__main__":
                 imshow(rcim)
                 draw()
                 show()
-                print "QUALITY:",numpy.sum(numpy.array(myscr)*(numpy.arange(numhyp)+1))
+                print "QUALITY:",numpy.sum((numpy.array(myscr)[::-1])*(numpy.arange(numhyp)+1))
                 raw_input()
-            print "QUALITY:",numpy.sum(numpy.array(myscr)*(numpy.arange(numhyp)+1))
-            totqual+=numpy.sum(numpy.array(myscr)*(numpy.arange(numhyp)+1))
+            print "QUALITY:",numpy.sum(numpy.array(myscr)[::-1]*(numpy.arange(numhyp)+1))
+            totqual+=numpy.sum(numpy.array(myscr)[::-1]*(numpy.arange(numhyp)+1))
             #raw_input()
         print "Total QUALITY:",totqual
         ldet2=-numpy.sort(-numpy.array(ldet2))

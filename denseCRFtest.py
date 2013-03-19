@@ -127,11 +127,11 @@ if __name__ == '__main__':
         print "Loading defautl configuration config.py"
         from config import * #default configuration      
     cfg.cls=sys.argv[1]
-    cfg.numcl=3
+    cfg.numcl=2
     #cfg.dbpath="/home/owner/databases/"
     cfg.dbpath="/users/visics/mpederso/databases/"
-    cfg.testpath="./data/"#"./data/CRF/12_09_19/"
-    cfg.testspec="right"#"full2"
+    cfg.testpath="./data/test/"#"./data/CRF/12_09_19/"
+    cfg.testspec="force-bb"#"full2"
     cfg.db="VOC"
     #cfg.db="imagenet"
     #cfg.cls="tandem"
@@ -219,8 +219,8 @@ if __name__ == '__main__':
         cfg.intervTEST=5
 
     if 1: #personalized
-        cfg.usebbTEST=False#True
-        cfg.numhypTEST=1
+        cfg.usebbTEST=True
+        cfg.numhypTEST=50
         cfg.aiterTEST=3
         cfg.restartTEST=0
         cfg.intervTEST=5
@@ -228,13 +228,15 @@ if __name__ == '__main__':
     cfg.numcl=2
     cfg.N=3
     cfg.useclip=True
+    cfg.useFastDP=True
     #testname="./data/CRF/12_10_02_parts_full/bicycle2_testN2_final"
     #testname="./data/person1_testN2best0"#inria1_inria3"bicycle2_testN4aiter3_final
     #testname="./data/bicycle2_testN4aiter3_final"
     #testname="./data/bicycle2_testN4aiter38"
     #testname="./data/bicycle2_testN36"
     #testname="./data/resultsN2/bicycle2_N2C2_final"
-    testname="./data/afterCVPR/bicycle2_force-bb_final"
+    #testname="./data/afterCVPR/bicycle2_force-bb_final"
+    testname="../../CRFdet/data/afterCVPR/12_01_10/car2_force-bb_final"
     cfg.trunc=1
     models=util.load("%s.model"%(testname))
     cfg.N=models[0]["N"]
@@ -248,5 +250,5 @@ if __name__ == '__main__':
     ##############test
     #import itertools
     #runtest(models,tsImages,cfg,parallel=False,numcore=4,detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=True)#,save="%s%d"%(testname,it))
-    runtest(models,tsImagesFull[:1],cfg,parallel=True,numcore=4,show=True,detfun=testINC)#,save="./bestbike3C4N")
+    runtest(models,tsImagesFull,cfg,parallel=True,numcore=8,show=True,detfun=testINC)#,save="./bestbike3C4N")
 

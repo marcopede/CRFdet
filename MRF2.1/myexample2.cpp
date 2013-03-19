@@ -634,7 +634,12 @@ dtype compute_graph2(int num_parts_y,int num_parts_x,dtype *costs,int num_lab_y,
             //printf("Before(%d,%d)\n",num_lab_y,num_lab_x);
             //printf("alpha it:%d\n",aiter);
             if (restart==0)
+            {
+                //t0 = clock ();
 		        mrf->optimize(aiter, t);
+                //t1 = clock ();   
+                //printf("t0=%d t1=%d Diff %f \n",t0,t1,float(t1-t0)/CLOCKS_PER_SEC);
+            }
 		    else
 		    {
 			    //mrf->initialize();
