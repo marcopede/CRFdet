@@ -137,7 +137,7 @@ if cfg.db=="track":
         sframe=1
     trPosImagesFull=getRecord(track(select="pos",cl="%s"%cfg.cls,
                         basepath=cfg.dbpath,#"/home/databases/",
-                        usetr=True,usedf=False,initimg=sframe,double=True),10000)
+                        usetr=True,usedf=False,initimg=sframe,double=False),10000)
     #trPosImagesFull=trPosImagesFull[sframe:eframe]
     trPosImages=trPosImagesFull[0:1]#getRecord(track(select="pos",cl="%s"%cfg.cls,
                         #basepath=cfg.dbpath,#"/home/databases/",

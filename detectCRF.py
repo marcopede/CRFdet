@@ -59,17 +59,22 @@ def refinePos(el):
     maxy=numpy.max([x["ww"][0].shape[0] for x in models])    
     maxx=numpy.max([x["ww"][0].shape[1] for x in models])    
     if (bbox!=[]):
-        marginy=(bbox[2]-bbox[0])*0.5 #safe margin to be sure the border is not used
-        marginx=(bbox[3]-bbox[1])*0.5
-        y1=max(0,bbox[0]-marginy);x1=max(0,bbox[1]-marginx)
-        y2=min(bbox[2]+marginy,img.shape[0]);x2=min(bbox[3]+marginx,img.shape[1])
-        img=img[y1:y2,x1:x2]
-        newbbox=(bbox[0]-y1,bbox[1]-x1,bbox[2]-y1,bbox[3]-x1)
-        extnewbbox=(extbbox[0]-y1,extbbox[1]-x1,extbbox[2]-y1,extbbox[3]-x1)
-        cropratio= marginy/float(marginx)
-        dist=abs(numpy.log(dratios)-numpy.log(cropratio))
+        idm=range(len(models))
+        extnewbbox=extbbox
+        newbbox=bbox
+        y1=0;y2=img.shape[0];x1=0;x2=img.shape[1]
+        if 0:
+            marginy=(bbox[2]-bbox[0])*0.5 #safe margin to be sure the border is not used
+            marginx=(bbox[3]-bbox[1])*0.5
+            y1=max(0,bbox[0]-marginy);x1=max(0,bbox[1]-marginx)
+            y2=min(bbox[2]+marginy,img.shape[0]);x2=min(bbox[3]+marginx,img.shape[1])
+            img=img[y1:y2,x1:x2]
+            newbbox=(bbox[0]-y1,bbox[1]-x1,bbox[2]-y1,bbox[3]-x1)
+            extnewbbox=(extbbox[0]-y1,extbbox[1]-x1,extbbox[2]-y1,extbbox[3]-x1)
+            cropratio= marginy/float(marginx)
+            dist=abs(numpy.log(dratios)-numpy.log(cropratio))
         #idm=numpy.where(dist<0.5)[0] #
-        idm=numpy.where(dist<0.7)[0] #
+            idm=numpy.where(dist<0.7)[0] #
         #print "                 Selected ratios",idm
         if cfg.useclip:
             if bbox[4]==1 or extbbox[4]==1:# use all models for truncated

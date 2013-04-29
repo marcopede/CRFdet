@@ -659,6 +659,109 @@ class VOC07Data(VOC06Data):
                 auxb.append(b)
         return auxb
 
+class track(VOC06Data):
+    """
+    VOC07 instance (you can choose positive or negative images with the option select)
+    """
+    def __init__(self,select="all",cl="person_train.txt",
+                basepath="media/DADES-2/",
+                trainfile="videos/%s/%s_gt.txt",
+                imagepath="VOC2007/VOCdevkit/VOC2007/JPEGImages/",
+                annpath="videos/%s/imgs/",
+                local="VOC2007/VOCdevkit/local/VOC2007/",
+                usetr=False,usedf=False,mina=0,initimg=0,double=False):
+        self.cl=cl
+        self.usetr=usetr
+        self.usedf=usedf
+        self.local=basepath+local
+        self.trainfile=basepath+trainfile%(cl,cl)
+        self.imagepath=basepath+imagepath
+        self.annpath=basepath+annpath
+        self.initimg=initimg
+        fd=open(self.trainfile,"r")
+        self.trlines=fd.readlines()
+        fd.close()
+        self.double=double
+        try:
+            open(self.annpath%self.cl+"img%05d.png"%0)
+            self.img=True
+        except:
+            self.img=False
+        if select=="all":#All images
+            self.str=""
+        if select=="pos":#Positives images
+            self.str="1\n"
+        if select=="neg":#Negatives images
+            self.str="-1\n"
+        self.selines=self.__selected()
+        self.mina=mina
+        
+    def __selected(self):
+        lst=[]
+        for id,it in enumerate(self.trlines):
+            if self.str=="" or it.split(" ")[-1]==self.str:
+                lst.append(it)
+        return lst
+
+    def getDBname(self):
+        return "track"
+    
+    def getStorageDir(self):
+        return self.local#"/media/DADES-2/VOC2007/VOCdevkit/local/VOC2007/"
+        
+    def getImage(self,i):
+        try:
+            filename=self.annpath%self.cl+"img%05d.png"%(i+self.initimg)#+item.split(" ")[0]+".xml"item=self.selines[i]
+            img=myimread(filename)
+            self.img=True
+        except:
+            filename=self.annpath%self.cl+"%05d.jpg"%(i+self.initimg)
+            img=myimread(filename)
+            self.img=False
+        return img
+    
+    def getImageRaw(self,i):
+        item=self.selines[i]
+        return im.open((self.imagepath+item.split(" ")[0])+".jpg")#pil.imread((self.imagepath+item.split(" ")[0])+".jpg")    
+    
+    def getImageByName(self,name):
+        return myimread(name)
+    
+    def getImageByName2(self,name):
+        return myimread(self.imagepath+name+".jpg")
+
+    def getImageName(self,i):
+        if self.img:
+            filename=self.annpath%self.cl+"img%05d.png"%(i+self.initimg)#+item.split(" ")[0]+".xml"
+        #item=self.selines[i]
+        else:
+            filename=self.annpath%self.cl+"%05d.jpg"%(i+self.initimg)#+item.split(" ")[0]+".xml"
+        return filename#(self.imagepath+item.split(" ")[0]+".jpg")
+    
+    def getTotal(self):
+        return len(self.trlines)
+    
+#    def getBBox(self,i,cl=None,usetr=None,usedf=None):
+#        if usetr==None:
+#            usetr=self.usetr
+#        if usedf==None:
+#            usedf=self.usedf
+#        if cl==None:#use the right class
+#            cl=self.cl.split("_")[0]
+#        item=self.selines[i]
+#        filename=self.annpath+item.split(" ")[0]+".xml"
+#        return getbboxVOC07(filename,cl,usetr,usedf)
+
+    def getBBox(self,i,cl=None,usetr=None,usedf=None):
+        auxb=numpy.array(self.trlines[i].split(",")).astype(numpy.float)
+        if self.double:
+            d=numpy.array(auxb[2:4])*0.5
+        else:
+            d=[0,0]
+        auxb[2:4]=auxb[0:2]+auxb[2:4]
+        return [numpy.array([auxb[1]-d[1],auxb[0]-d[0],auxb[3]+d[1],auxb[2]+d[0],0,0])]
+
+
 class Buffy(VOC07Data):
 
     def getImageName(self,i):

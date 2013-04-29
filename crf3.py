@@ -688,6 +688,134 @@ def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    n
         return scr,res2,frot
     return lscr,res2
 
+def match_fullN_Occl(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    numhyp=10,output=False,aiter=3,restart=0,trunc=0,bbox=None,useFastDP=True):
+    #m1 is expected to be divisible by N
+    t=time.time()
+    assert(m1.shape[0]%N==0)
+    assert(m1.shape[1]%N==0)
+    numy=m1.shape[0]/N#p1.shape[0]
+    numx=m1.shape[1]/N#p1.shape[1]
+    #print numy,numx
+    movy=(m2.shape[0]+m1.shape[0])
+    movx=(m2.shape[1]+m1.shape[1])
+    numlab=movy*movx
+    data=numpy.zeros((numy,numx,numlab),dtype=c_float)
+    auxdata=numpy.zeros((3,numy,numx,numlab),dtype=c_float)
+    #print "time preparation",time.time()-t
+    t=time.time()
+    mmax=numpy.zeros(2,dtype=c_int)
+    #original model
+    m2=numpy.ascontiguousarray(m2)
+    scn=numpy.mgrid[:movy,:movx].astype(numpy.int32)
+    scn[0]=scn[0]-m1.shape[0]
+    scn[1]=scn[1]-m1.shape[1]
+    tmp=scn.copy()
+    for px in range(numx):
+        for py in range(numy):
+            ff.scaneigh(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[N*py:N*(py+1),N*px:N*(px+1)]),N,N,m1.shape[2],scn[0]+N*py,scn[1]+N*px,auxdata[1,py,px],tmp[0],tmp[1],0,0,scn[0].size,trunc)
+            #print "Done ",py,px 
+    if output:
+        print "time Match",time.time()-t
+    if rot:
+        #rotate +1
+        m2=numpy.ascontiguousarray(rotate(m2,shift=1))
+        for px in range(numx):
+            for py in range(numy):
+                ff.refineighfull(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[2*py:2*(py+1),2*px:2*(px+1)]),
+                    2,2,m1.shape[2],0,0,py*2+pad,px*2+pad,movy,movx,auxdata[2,py,px],
+                    mmax,mmax,ctypes.POINTER(c_float)(),0,0,0)
+        #rotate -1
+        m2=numpy.ascontiguousarray(rotate(m2,shift=-2))
+        for px in range(numx):
+            for py in range(numy):
+                ff.refineighfull(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[2*py:2*(py+1),2*px:2*(px+1)]),
+                    2,2,m1.shape[2],0,0,py*2+pad,px*2+pad,movy,movx,auxdata[0,py,px],
+                    mmax,mmax,ctypes.POINTER(c_float)(),0,0,0)
+
+        #print "time hog",time.time()-t
+        data=numpy.min(auxdata,0)
+        mrot=numpy.argmin(auxdata,0)
+        #print rot
+        rdata=data.reshape((data.shape[0]*data.shape[1],-1))
+        #rrot=rot.reshape((rot.shape[0]*rot.shape[1],-1))
+    else:
+        data=-auxdata[1]
+        rdata=data.reshape((data.shape[0]*data.shape[1],-1))
+
+    rmin=rdata.min()
+    rdata=rdata-rmin
+
+    if bbox!=None:
+        #mask=mask_data(m1,m2,N,bbox,data=rdata.reshape((numy,numx,movy,movx)),val=1)
+        mask=mask_data(m1,m2,N,bbox,val=-1)
+        rdata[mask.reshape((numy*numx,-1))==-1]=10
+        
+    res=numpy.zeros((numhyp,numy,numx),dtype=c_int)
+    #print "time matching",time.time()-t
+    #print "before",rdata.sum()
+    #order=numpy.arange(movy*movx,dtype=numpy.int32)
+    #order=numpy.argsort(-numpy.sum(rdata,0)).astype(numpy.int32)
+    if 0:
+        import pylab
+        pylab.figure()
+        detim=-numpy.sum(rdata,0).reshape((movy,movx))
+        pylab.imshow(detim,interpolation="nearest")
+        print "Rigid Best Value",detim.max()-rmin*numy*numx
+        print "Max Location",numpy.where(detim==detim.max())
+        #print (-rdata.reshape(data.shape[0],data.shape[1],-1)).max(2)
+        print "Unconstrained Best Value",numpy.sum((-rdata.reshape(data.shape[0],data.shape[1],-1)).max(2))-rmin*numy*numx
+
+    #t=time.time()
+    t=time.time()
+    lscr=numpy.zeros(numhyp,dtype=numpy.float32)
+    scr=0
+    t=time.time()
+    #scr=crfgr2(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart)  
+    rdata1=rdata.copy()
+    if useFastDP:
+        import crf5
+        #scr=crf5.crfgr2(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart)
+        scr=crf5.crfgr3(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart)    
+    else:
+        scr=crfgr2(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart)  
+    #print "Time Alpha(%d)"%aiter,time.time()-t
+    if 0:#useFastDP:
+        import crf5
+        t=time.time()
+        if 0:
+            numpairs,pairs,unary,wcost=crf5.convert_alpha_fastDP(rdata1,cost,numy,numx,movy,movx)
+            print "Covert fastDP",time.time()-t
+            #res2=res.copy()
+            dist=numpy.zeros((1,1,1),dtype=numpy.float32)#fake argument
+            t=time.time()
+            scr1=crf5.crfgr(numy,numx,pairs.shape[0],pairs,movy,movx,unary,dist,wcost,numhyp,lscr[1:],res[1:],aiter,restart)
+
+        scr1=crf5.crfgr2(numy,numx,cost,movy,movx,rdata1,1,lscr[1:],res[1:],aiter,restart)  
+        print "Time fastDP",time.time()-t
+        print "Min",rmin
+        print "Scr Alpha",scr,"Scr FastDP",scr1-rmin*numy*numx
+        sfsd
+        #lscr[1]=scr1
+        #print numpy.sum(abs(res2-res))
+        #raw_input()
+
+    #print "after",rdata.sum()
+    scr=scr-rmin*numy*numx
+    lscr=lscr-rmin*numy*numx
+    res2=numpy.zeros((numhyp,2,res.shape[1],res.shape[2]),dtype=c_int)
+    res2[:,0]=(res/(movx))-m1.shape[0]
+    res2[:,1]=(res%(movx))-m1.shape[1]
+    if output:
+        print "time config",time.time()-t
+    if rot:
+        frot=numpy.zeros((mrot.shape[0],mrot.shape[1]),dtype=numpy.int32)
+        for py in range(res.shape[1]):
+            for px in range(res.shape[2]):
+                frot[py,px]=mrot[py,px,res[py,px]]-1
+        return scr,res2,frot
+    return lscr,res2
+
+
 def filtering_nopad(m1,m2,N,cost,trunc=0,rot=False,bbox=None):
     #m1 is expected to be divisible by N
     t=time.time()
