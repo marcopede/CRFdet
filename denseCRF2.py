@@ -368,7 +368,7 @@ if initial:
     #trposcl=[]
     lg.info("Starting Left-Right clustering")
     if cfg.useRL:
-        for l in range(numcl):
+        for l in range(cfg.numcl):
             mytrpos=[]            
             #for c in range(len(trpos)):
             #    if hogpcl[c]==l:
@@ -431,8 +431,8 @@ if initial:
         models.append(model.initmodel(cfg.fy[c]*cfg.N,cfg.fx[c]*cfg.N,cfg.N,cfg.useRL,lenf))
 
     #array with dimensions of w
-    cumsize=numpy.zeros(numcl+1,dtype=numpy.int)
-    for idl in range(numcl):
+    cumsize=numpy.zeros(cfg.numcl+1,dtype=numpy.int)
+    for idl in range(cfg.numcl):
         cumsize[idl+1]=cumsize[idl]+(cfg.fy[idl]*cfg.N*cfg.fx[idl]*cfg.N)*lenf+1
 
     try:
