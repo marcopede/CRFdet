@@ -229,10 +229,10 @@ void process(ftype *im, int dimy, int dimx, int sbin, ftype *feat, int hy, int h
       // contrast-sensitive features
       src = hist + (x+1)*blocks[0] + (y+1);
       for (o = 0; o < 18; o++) {
-	    h1 = sqrt(min(*src * n1, 0.2));
-	    h2 = sqrt(min(*src * n2, 0.2));
-	    h3 = sqrt(min(*src * n3, 0.2));
-	    h4 = sqrt(min(*src * n4, 0.2));
+	    h1 = (min(*src * n1, 0.2));
+	    h2 = (min(*src * n2, 0.2));
+	    h3 = (min(*src * n3, 0.2));
+	    h4 = (min(*src * n4, 0.2));
 	*dst = 0.5 * (h1 + h2 + h3 + h4);
 	t1 += h1;
 	t2 += h2;
@@ -246,10 +246,10 @@ void process(ftype *im, int dimy, int dimx, int sbin, ftype *feat, int hy, int h
       src = hist + (x+1)*blocks[0] + (y+1);
       for (o = 0; o < 9; o++) {
 	ftype2 sum = *src + *(src + 9*blocks[0]*blocks[1]);
-	ftype2 h1 = sqrt(min(sum * n1, 0.2));
-	ftype2 h2 = sqrt(min(sum * n2, 0.2));
-	ftype2 h3 = sqrt(min(sum * n3, 0.2));
-	ftype2 h4 = sqrt(min(sum * n4, 0.2));
+	ftype2 h1 = (min(sum * n1, 0.2));
+	ftype2 h2 = (min(sum * n2, 0.2));
+	ftype2 h3 = (min(sum * n3, 0.2));
+	ftype2 h4 = (min(sum * n4, 0.2));
 	*dst = 0.5 * (h1 + h2 + h3 + h4);
 	dst += out[0]*out[1];
 	src += blocks[0]*blocks[1];

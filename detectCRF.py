@@ -92,11 +92,11 @@ def refinePos(el):
             selmodels=[models[x] for x in idm] 
             #t1=time.time()
             if cfg.usebbPOS:
-                [f,det]=rundetbb(img,cfg.N,selmodels,numdet=cfg.numhypPOS, interv=cfg.intervPOS,aiter=cfg.aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc,useFastDP=cfg.useFastDP)
+                [f,det]=rundetbb(img,cfg.N,selmodels,numdet=cfg.numhypPOS, interv=cfg.intervPOS,aiter=cfg.aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc,useFastDP=cfg.useFastDP,useStar=cfg.useStar)
             else:         
                 #[f,det]=rundet(img,cfg.N,selmodels,numhyp=cfg.numhypPOS,interv=cfg.intervPOS,aiter=cfg.aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc)
                 [f,det]=rundetc(img,cfg.N,selmodels,numhyp=cfg.numhypPOS,interv=cfg.intervPOS,aiter=cfg.
-aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc,bbox=extnewbbox,useFastDP=cfg.useFastDP)
+aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc,bbox=extnewbbox,useFastDP=cfg.useFastDP,useStar=cfg.useStar)
     #else: #for negatives
     #    [f,det]=rundet(img,cfg,models)
     #print "Rundet time:",time.time()-t1
@@ -120,7 +120,7 @@ aiterPOS,restart=cfg.restartPOS,trunc=cfg.trunc,bbox=extnewbbox,useFastDP=cfg.us
         print "Pos det:",[x["scr"] for x in det[:5]]
         if cfg.show:
             visualize([det[best]],cfg.N,f,img)
-        feat,edge=getfeature([det[best]],cfg.N,f,models,cfg.trunc)
+        feat,edge=getfeature([det[best]],cfg.N,f,models,cfg.trunc,cfg.useStar)
         #add image name and bbx so that each annotation is unique
         if imageflip:
             det[best]["idim"]=el["file"].split("/")[-1]+".flip"
@@ -151,9 +151,9 @@ def hardNeg(el):
         img=util.myimread(imname,resize=cfg.resize)
     #imageflip=el["flip"]
     if cfg.usebbNEG:
-        [f,det]=rundetbb(img,cfg.N,models,minthr=-1.0,numdet=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc,useFastDP=cfg.useFastDP)
+        [f,det]=rundetbb(img,cfg.N,models,minthr=-1.0,numdet=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc,useFastDP=cfg.useFastDP,useStar=cfg.useStar)
     else:
-        [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc)
+        [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc,useStar=cfg.useStar)
     ####
     #for idl,l in enumerate(det[1:]):
     #    if abs(det[idl]["scr"]-l["scr"])<0.00000001:
@@ -170,7 +170,7 @@ def hardNeg(el):
         if det[idl]["scr"]>-1:
             det[idl]["idim"]=el["file"].split("/")[-1]
             ldet.append(det[idl])
-            feat,edge=getfeature([det[idl]],cfg.N,f,models,cfg.trunc)
+            feat,edge=getfeature([det[idl]],cfg.N,f,models,cfg.trunc,cfg.useStar)
             lfeat+=feat
             ledge+=edge
     if cfg.show:
@@ -196,9 +196,9 @@ def hardNegPos(el):
         img=util.myimread(imname,resize=cfg.resize)
     #imageflip=el["flip"]
     if cfg.usebbNEG:
-        [f,det]=rundetbb(img,cfg.N,models,minthr=-1.0,numdet=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc,useFastDP=cfg.useFastDP)
+        [f,det]=rundetbb(img,cfg.N,models,minthr=-1.0,numdet=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc,useFastDP=cfg.useFastDP,useStar=cfg.useStar)
     else:
-        [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc)
+        [f,det]=rundet(img,cfg.N,models,numhyp=cfg.numhypNEG,interv=cfg.intervNEG,aiter=cfg.aiterNEG,restart=cfg.restartNEG,trunc=cfg.trunc,useStar=cfg.useStar)
     ldet=[]
     lfeat=[]
     ledge=[]
@@ -220,7 +220,7 @@ def hardNegPos(el):
             if not(skip):
                 det[idl]["idim"]=el["file"].split("/")[-1]
                 ldet.append(det[idl])
-                feat,edge=getfeature([det[idl]],cfg.N,f,models,cfg.trunc)
+                feat,edge=getfeature([det[idl]],cfg.N,f,models,cfg.trunc,cfg.useStar)
                 lfeat+=feat
                 ledge+=edge
         if len(ldet)==cfg.numneg:
@@ -253,7 +253,7 @@ def test(el,docluster=True,show=False,inclusion=False,onlybest=False):
         if cfg.useswTEST:
             [f,det]=rundetwbb(img,cfg.N,models,numdet=cfg.numhypTEST*len(models),interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc,wstepy=cfg.swstepy,wstepx=cfg.swstepx)
         else:
-            [f,det]=rundetbb(img,cfg.N,models,minthr=minthr,numdet=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc,useFastDP=cfg.useFastDP)
+            [f,det]=rundetbb(img,cfg.N,models,minthr=minthr,numdet=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc,useFastDP=cfg.useFastDP,useStar=cfg.useStar)
     else:
         if cfg.useswTEST:
             [f,det]=rundetw2(img,cfg.N,models,numhyp=cfg.numhypTEST,interv=cfg.intervTEST,aiter=cfg.aiterTEST,restart=cfg.restartTEST,trunc=cfg.trunc,
@@ -316,7 +316,7 @@ def check(det,f,models,bias):
             printf("Error %f too big, there is something wrong!!!"%(numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-scr-models[idm]["rho"]))
             raw_input()
 
-def getfeature(det,N,f,models,trunc=0):
+def getfeature(det,N,f,models,trunc=0,star=False):
     """ check if score of detections and score from features are correct"""
     lfeat=[];ledge=[]
     for l in range(len(det)):#lsort[:100]:
@@ -327,7 +327,8 @@ def getfeature(det,N,f,models,trunc=0):
         m2=f.hog[r]
         res=det[l]["def"]
         mcost=models[idm]["cost"].astype(numpy.float32)
-        dfeat,edge=crf3.getfeat_fullN(m2,N,res,trunc=trunc)
+        dfeat,edge=crf3.getfeat_fullN(m2,N,res,trunc=trunc,usestar=star)
+        #print edge
         lfeat.append(dfeat)
         ledge.append(edge)
         #print "Scr",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-models[idm]["rho"],"Error",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-scr-models[idm]["rho"]
@@ -967,7 +968,7 @@ def rundetwbb(img,N,models,numdet=5,interv=10,aiter=3,restart=0,trunc=0,wstepy=-
     return [f,det]
 
 
-def rundetc(img,N,models,numhyp=5,interv=10,minsize=-1,aiter=3,restart=0,trunc=0,bbox=None,useFastDP=False):
+def rundetc(img,N,models,numhyp=5,interv=10,minsize=-1,aiter=3,restart=0,trunc=0,bbox=None,useFastDP=False,useStar=False):
     "run the CRF optimization at each level of the HOG pyramid adding constraints to force the  detection to be in the bounding box"
     f=pyrHOG2.pyrHOG(img,interv=interv,savedir="",hallucinate=True,cformat=True)
     det=[]
@@ -992,7 +993,8 @@ def rundetc(img,N,models,numhyp=5,interv=10,minsize=-1,aiter=3,restart=0,trunc=0
             #print numy,numx
             if bbox!=None:
                 nbbox=numpy.array(bbox)*f.scale[r]
-            lscr,fres=crf3.match_fullN(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,aiter=aiter,restart=restart,trunc=trunc,bbox=nbbox,useFastDP=useFastDP)
+            #print "detc useStar=",useStar
+            lscr,fres=crf3.match_fullN(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,aiter=aiter,restart=restart,trunc=trunc,bbox=nbbox,useFastDP=useFastDP,useStar=useStar)
             #print "Total time",time.time()-t
             #print "Score",lscr
             idraw=False
@@ -1019,7 +1021,7 @@ def rundetc(img,N,models,numhyp=5,interv=10,minsize=-1,aiter=3,restart=0,trunc=0
     return [f,det]
 
 
-def rundetbb(img,N,models,minthr=-1000,numdet=50,interv=10,aiter=3,restart=0,trunc=0,sort=True,useFastDP=False):
+def rundetbb(img,N,models,minthr=-1000,numdet=50,interv=10,aiter=3,restart=0,trunc=0,sort=True,useFastDP=False,useStar=False):
     "run the CRF optimization at each level of the HOG pyramid but using branch and bound algorithm"
     #note that branch and bound sometime is generating more than once the same hipothesis
     # I do not know yet why...
@@ -1041,7 +1043,7 @@ def rundetbb(img,N,models,minthr=-1000,numdet=50,interv=10,aiter=3,restart=0,tru
         if m.has_key("big"):
             if m["big"]:
                 pyr=f.hog[interv:]
-        ldet=crf3.match_bbN(m1,pyr,N,mcost,minthr=thr,show=False,rot=False,numhyp=numdet,aiter=aiter,restart=restart,trunc=trunc,useFastDP=useFastDP)
+        ldet=crf3.match_bbN(m1,pyr,N,mcost,minthr=thr,show=False,rot=False,numhyp=numdet,aiter=aiter,restart=restart,trunc=trunc,useFastDP=useFastDP,useStar=useStar)
         for l in ldet:
             shift=0
             if m.has_key("big"):            

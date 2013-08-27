@@ -561,7 +561,7 @@ def mask_data(m1,m2,N,bb,data=None,val=1):
     return data
     
 
-def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    numhyp=10,output=False,aiter=3,restart=0,trunc=0,bbox=None,useFastDP=True):
+def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    numhyp=10,output=False,aiter=3,restart=0,trunc=0,bbox=None,useFastDP=True,useStar=False):
     #m1 is expected to be divisible by N
     t=time.time()
     assert(m1.shape[0]%N==0)
@@ -648,7 +648,7 @@ def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    n
     if useFastDP:
         import crf5
         #scr=crf5.crfgr2(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart)
-        scr=crf5.crfgr3(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart)    
+        scr=crf5.crfgr3(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart,useStar=useStar)    
     else:
         scr=crfgr2(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart)  
     #print "Time Alpha(%d)"%aiter,time.time()-t
@@ -663,7 +663,7 @@ def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    n
             t=time.time()
             scr1=crf5.crfgr(numy,numx,pairs.shape[0],pairs,movy,movx,unary,dist,wcost,numhyp,lscr[1:],res[1:],aiter,restart)
 
-        scr1=crf5.crfgr2(numy,numx,cost,movy,movx,rdata1,1,lscr[1:],res[1:],aiter,restart)  
+        scr1=crf5.crfgr2(numy,numx,cost,movy,movx,rdata1,1,lscr[1:],res[1:],aiter,restart,star=useStar)  
         print "Time fastDP",time.time()-t
         print "Min",rmin
         print "Scr Alpha",scr,"Scr FastDP",scr1-rmin*numy*numx
@@ -980,7 +980,7 @@ def match_bb(m1,pm2,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0,trunc=0
    
     return ldet
 
-def match_bbN(m1,pm2,N,cost,minthr=-1000,show=True,rot=False,numhyp=10,aiter=3,restart=0,trunc=0,useFastDP=False):
+def match_bbN(m1,pm2,N,cost,minthr=-1000,show=True,rot=False,numhyp=10,aiter=3,restart=0,trunc=0,useFastDP=False,useStar=False):
     t=time.time()
     assert(m1.shape[0]%N==0)
     assert(m1.shape[1]%N==0)
@@ -1068,7 +1068,7 @@ def match_bbN(m1,pm2,N,cost,minthr=-1000,show=True,rot=False,numhyp=10,aiter=3,r
                 pylab.show()
             if useFastDP:
                 import crf5
-                scr=crf5.crfgr2(numy,numx,cost,movy,movx,rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)),1,auxscr,res,aiter,restart)  
+                scr=crf5.crfgr2(numy,numx,cost,movy,movx,rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)),1,auxscr,res,aiter,restart,useStar=useStar)  
                 #print "Unary sum",rdata.sum(),"Lev",l,"Scr",scr
             else:
                 scr=crfgr2(numy,numx,cost,movy,movx,rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)),1,auxscr,res,aiter,restart)  
@@ -1166,7 +1166,9 @@ def getfeat_full(m1,pad,res2,movy=None,movx=None,mode="Quad",rot=None,trunc=0):
         edge[7,:,:-1]=(res2[1,:,:-1]-res2[1,:,1:])**2  
     return dfeat,-edge    
 
-def getfeat_fullN(m1,N,res2,mode="Quad",rot=None,trunc=0):
+def getfeat_fullN(m1,N,res2,mode="Quad",rot=None,trunc=0,usestar=False):
+    #usestar=False
+    #print "USE star GetFeat",usestar
     movy=m1.shape[0]
     movx=m1.shape[1]
     pady=(res2.shape[1])*N
@@ -1205,14 +1207,22 @@ def getfeat_fullN(m1,N,res2,mode="Quad",rot=None,trunc=0):
         edge[2,:,:-1]=abs(res2[0,:,:-1]-res2[0,:,1:])
         edge[3,:,:-1]=abs(res2[1,:,:-1]-res2[1,:,1:])
     elif mode=="Quad":
-        edge[0,:-1,:]=abs(res2[0,:-1,:]-res2[0,1:,:])
-        edge[1,:-1,:]=abs(res2[1,:-1,:]-res2[1,1:,:])
-        edge[2,:,:-1]=abs(res2[0,:,:-1]-res2[0,:,1:])
-        edge[3,:,:-1]=abs(res2[1,:,:-1]-res2[1,:,1:])
-        edge[4,:-1,:]=(res2[0,:-1,:]-res2[0,1:,:])**2
-        edge[5,:-1,:]=(res2[1,:-1,:]-res2[1,1:,:])**2
-        edge[6,:,:-1]=(res2[0,:,:-1]-res2[0,:,1:])**2
-        edge[7,:,:-1]=(res2[1,:,:-1]-res2[1,:,1:])**2  
+        if usestar:
+            cy=res2.shape[1]/2
+            cx=res2.shape[2]/2
+            edge[0,:,:]=abs(res2[0,cy,cx]-res2[0,:,:])
+            edge[1,:,:]=abs(res2[1,cy,cx]-res2[1,:,:])
+            edge[2,:,:]=(res2[0,cy,cx]-res2[0,:,:])**2
+            edge[3,:,:]=(res2[1,cy,cx]-res2[1,:,:])**2
+        else:
+            edge[0,:-1,:]=abs(res2[0,:-1,:]-res2[0,1:,:])
+            edge[1,:-1,:]=abs(res2[1,:-1,:]-res2[1,1:,:])
+            edge[2,:,:-1]=abs(res2[0,:,:-1]-res2[0,:,1:])
+            edge[3,:,:-1]=abs(res2[1,:,:-1]-res2[1,:,1:])
+            edge[4,:-1,:]=(res2[0,:-1,:]-res2[0,1:,:])**2
+            edge[5,:-1,:]=(res2[1,:-1,:]-res2[1,1:,:])**2
+            edge[6,:,:-1]=(res2[0,:,:-1]-res2[0,:,1:])**2
+            edge[7,:,:-1]=(res2[1,:,:-1]-res2[1,:,1:])**2  
     return dfeat,-edge    
 
 
