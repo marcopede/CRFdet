@@ -518,7 +518,7 @@ def match_full2(m1,m2,cost,movy=None,movx=None,padvalue=0,remove=[],pad=0,feat=T
     return lscr,res2
 
 import util
-def mask_data(m1,m2,N,bb,data=None,val=1):
+def mask_data(m1,m2,N,E,bb,data=None,val=1):
     "mask the part positions that are outside the given bbox"
     ###the overlapp criteria of each part is right considering that you use a border of at least 50% the size of the bbox
     #make the bb 10%bigger on each side
@@ -526,10 +526,11 @@ def mask_data(m1,m2,N,bb,data=None,val=1):
     dx=bb[1]-bb[3]
     incr=0
     bb=(bb[0]-incr*dy,bb[1]-incr*dx,bb[2]+incr*dy,bb[3]+incr*dx)
-    assert(m1.shape[0]%N==0)
-    assert(m1.shape[1]%N==0)
-    numy=m1.shape[0]/N#p1.shape[0]
-    numx=m1.shape[1]/N#p1.shape[1]
+    NE=N+2*E
+    assert(m1.shape[0]%NE==0)
+    assert(m1.shape[1]%NE==0)
+    numy=m1.shape[0]/NE#p1.shape[0]
+    numx=m1.shape[1]/NE#p1.shape[1]
     #print numy,numx
     movy=(m2.shape[0]+m1.shape[0])
     movx=(m2.shape[1]+m1.shape[1])
@@ -561,13 +562,14 @@ def mask_data(m1,m2,N,bb,data=None,val=1):
     return data
     
 
-def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    numhyp=10,output=False,aiter=3,restart=0,trunc=0,bbox=None,useFastDP=True):
+def match_fullN(m1,m2,N,E,cost,remove=[],pad=0,feat=True,show=True,rot=False,    numhyp=10,output=False,aiter=3,restart=0,trunc=0,bbox=None,useFastDP=True):
     #m1 is expected to be divisible by N
     t=time.time()
-    assert(m1.shape[0]%N==0)
-    assert(m1.shape[1]%N==0)
-    numy=m1.shape[0]/N#p1.shape[0]
-    numx=m1.shape[1]/N#p1.shape[1]
+    NE=N+2*E
+    assert(m1.shape[0]%NE==0)
+    assert(m1.shape[1]%NE==0)
+    numy=m1.shape[0]/NE#p1.shape[0]
+    numx=m1.shape[1]/NE#p1.shape[1]
     #print numy,numx
     movy=(m2.shape[0]+m1.shape[0])
     movx=(m2.shape[1]+m1.shape[1])
@@ -585,7 +587,7 @@ def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    n
     tmp=scn.copy()
     for px in range(numx):
         for py in range(numy):
-            ff.scaneigh(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[N*py:N*(py+1),N*px:N*(px+1)]),N,N,m1.shape[2],scn[0]+N*py,scn[1]+N*px,auxdata[1,py,px],tmp[0],tmp[1],0,0,scn[0].size,trunc)
+            ff.scaneigh(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[NE*py:NE*(py+1),NE*px:NE*(px+1)]),NE,NE,m1.shape[2],scn[0]+N*py-E,scn[1]+N*px-E,auxdata[1,py,px],tmp[0],tmp[1],0,0,scn[0].size,trunc)
             #print "Done ",py,px 
     if output:
         print "time Match",time.time()-t
@@ -620,7 +622,7 @@ def match_fullN(m1,m2,N,cost,remove=[],pad=0,feat=True,show=True,rot=False,    n
 
     if bbox!=None:
         #mask=mask_data(m1,m2,N,bbox,data=rdata.reshape((numy,numx,movy,movx)),val=1)
-        mask=mask_data(m1,m2,N,bbox,val=-1)
+        mask=mask_data(m1,m2,N,E,bbox,val=-1)
         rdata[mask.reshape((numy*numx,-1))==-1]=10
         
     res=numpy.zeros((numhyp,numy,numx),dtype=c_int)
@@ -980,12 +982,13 @@ def match_bb(m1,pm2,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0,trunc=0
    
     return ldet
 
-def match_bbN(m1,pm2,N,cost,minthr=-1000,show=True,rot=False,numhyp=10,aiter=3,restart=0,trunc=0,useFastDP=False):
+def match_bbN(m1,pm2,N,E,cost,minthr=-1000,show=True,rot=False,numhyp=10,aiter=3,restart=0,trunc=0,useFastDP=False):
     t=time.time()
-    assert(m1.shape[0]%N==0)
-    assert(m1.shape[1]%N==0)
-    numy=m1.shape[0]/N#p1.shape[0]
-    numx=m1.shape[1]/N#p1.shape[1]
+    NE=N+2*E
+    assert(m1.shape[0]%NE==0)
+    assert(m1.shape[1]%NE==0)
+    numy=m1.shape[0]/NE#p1.shape[0]
+    numx=m1.shape[1]/NE#p1.shape[1]
     #print numy,numx
     data=[];minb=[];maxb=[]
     for idm2,m2 in enumerate(pm2):
@@ -1005,7 +1008,7 @@ def match_bbN(m1,pm2,N,cost,minthr=-1000,show=True,rot=False,numhyp=10,aiter=3,r
         tmp=scn.copy()
         for px in range(numx):
             for py in range(numy):
-                ff.scaneigh(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[N*py:N*(py+1),N*px:N*(px+1)]),N,N,m1.shape[2],scn[0]+N*py,scn[1]+N*px,auxdata[1,py,px],tmp[0],tmp[1],0,0,scn[0].size,trunc)
+                ff.scaneigh(m2,m2.shape[0],m2.shape[1],numpy.ascontiguousarray(m1[NE*py:NE*(py+1),NE*px:NE*(px+1)]),NE,NE,m1.shape[2],scn[0]+N*py-E,scn[1]+N*px-E,auxdata[1,py,px],tmp[0],tmp[1],0,0,scn[0].size,trunc)
                 #print "Done ",py,px 
         #if output:
         #    print "time Match",time.time()-t
@@ -1166,19 +1169,20 @@ def getfeat_full(m1,pad,res2,movy=None,movx=None,mode="Quad",rot=None,trunc=0):
         edge[7,:,:-1]=(res2[1,:,:-1]-res2[1,:,1:])**2  
     return dfeat,-edge    
 
-def getfeat_fullN(m1,N,res2,mode="Quad",rot=None,trunc=0):
+def getfeat_fullN(m1,N,E,res2,mode="Quad",rot=None,trunc=0):
     movy=m1.shape[0]
     movx=m1.shape[1]
-    pady=(res2.shape[1])*N
-    padx=(res2.shape[2])*N
+    NE=N+2*E
+    pady=(2*res2.shape[1])*N+2*E
+    padx=(2*res2.shape[2])*N+2*E
     if trunc==1:
-        dfeat=numpy.zeros((res2.shape[1]*N,res2.shape[2]*N,m1.shape[2]+1),dtype=numpy.float32)
+        dfeat=numpy.zeros((res2.shape[1]*NE,res2.shape[2]*NE,m1.shape[2]+1),dtype=numpy.float32)
         m1pad=numpy.zeros((m1.shape[0]+2*pady,m1.shape[1]*2+2*padx,m1.shape[2]+1),dtype=numpy.float32)
         m1pad[:,:,-1]=1
         m1pad[pady:m1.shape[0]+pady,padx:m1.shape[1]+padx,:-1]=m1
         m1pad[pady:m1.shape[0]+pady,padx:m1.shape[1]+padx,-1]=0
     else:
-        dfeat=numpy.zeros((res2.shape[1]*N,res2.shape[2]*N,m1.shape[2]),dtype=numpy.float32)
+        dfeat=numpy.zeros((res2.shape[1]*NE,res2.shape[2]*NE,m1.shape[2]),dtype=numpy.float32)
         m1pad=numpy.zeros((m1.shape[0]+2*pady,m1.shape[1]*2+2*padx,m1.shape[2]),dtype=numpy.float32)
         m1pad[pady:m1.shape[0]+pady,padx:m1.shape[1]+padx]=m1
     for px in range(res2.shape[2]):
@@ -1187,7 +1191,7 @@ def getfeat_fullN(m1,N,res2,mode="Quad",rot=None,trunc=0):
             cpy=py*N+res2[0,py,px]+pady
             cpx=px*N+res2[1,py,px]+padx    
             if rot==None:
-                dfeat[py*N:py*N+N,px*N:px*N+N]=m1pad[cpy:cpy+N,cpx:cpx+N]
+                dfeat[py*NE:py*NE+NE,px*NE:px*NE+NE]=m1pad[cpy-E:cpy+N+E,cpx-E:cpx+N+E]
             else:
                 dfeat[py*N:py*N+N,px*N:px*N+N]=rotate(m1pad[cpy:cpy+N,cpx:cpx+N],rot[py,px])
     edge=numpy.zeros((res2.shape[0]*4,res2.shape[1],res2.shape[2]),dtype=numpy.float32)
@@ -1218,14 +1222,15 @@ def getfeat_fullN(m1,N,res2,mode="Quad",rot=None,trunc=0):
 
 if __name__ == "__main__":
 
-    if 0:#check crf_fullN_nopad
+    if 1:#check crf_fullN_nopad
         from pylab import *
         import util
         #im=util.myimread("000535.jpg")[:,::-1,:]#flip
         im=util.myimread("000379.jpg")#flip
         #im=util.myimread("005467.jpg")[:,::-1,:]#flip
         #im=util.myimread("/users/visics/mpederso/code/git/condor-run/N4C2force_parts/CRFdet/data/CRF/12_10_18/atesteroplane2_N4C2fpthr1051.png")
-        m=util.load("./data/bicycle2_testN36.model")[0:1]
+        m=util.load("./data/test/bicycle2_force-bb0.model")[0:1]
+        #m=util.load("./data/bicycle2_testN36.model")[0:1]
         #m=util.load("./data/bicycle2_N2C2_highres_final.model")
         #m=util.load("./data/bicycle2_N3C2highres6.model")
         #m=util.load("./data/bicycle2_N2C2_final.model")
@@ -1233,11 +1238,17 @@ if __name__ == "__main__":
         #    m[l]["cost"]=m[l]["cost"]*0.1
         import detectCRF
         t=time.time()
-        nhyp=300
+        nhyp=30
         N=3
-        trunc=0
+        E=1
+        trunc=1
         sort=False
-        [f,det0]=detectCRF.rundetwbb(im,N,m,numdet=nhyp,interv=5,aiter=3,restart=0,trunc=trunc,useFastDP=True)
+        import model
+        #m=model.convert(m,N,E)
+        [f,det0]=detectCRF.rundetbb(im,N,E,m,numdet=nhyp,interv=5,aiter=3,restart=0,trunc=trunc,useFastDP=True)
+        #[f,det0]=detectCRF.rundet(im,N,E,m,numhyp=nhyp,interv=5,aiter=3,restart=0,trunc=trunc)#,useFastDP=True)
+        for idl in range(len(det0)):
+            feat,edge=detectCRF.getfeature([det0[idl]],N,E,f,m,trunc)
         import sys
         sys.exit()
         #[f,det0]=detectCRF.rundetwbb(im,N,m,numdet=nhyp,interv=5,aiter=3,restart=0,trunc=trunc,wstepy=-1,wstepx=-1,sort=sort)
@@ -1341,8 +1352,8 @@ if __name__ == "__main__":
         from pylab import *
         import util
         #im=util.myimread("000125.jpg")#flip
-        im=util.myimread("000535.jpg")[:,::-1,:]#000379
-        #im=util.myimread("000379.jpg")[:,::-1,:]
+        #im=util.myimread("000535.jpg")[:,::-1,:]#000379
+        im=util.myimread("000379.jpg")[:,::-1,:]
         bbox=(100,250,200,450)
         #im=util.myimread("000379.jpg")[:,::-1,:]#flip
         #im=util.myimread("005467.jpg")[:,::-1,:]#flip
@@ -1359,12 +1370,14 @@ if __name__ == "__main__":
         #model1=util.load("./data/CRF/12_04_27/bicycle2_NoCRF9.model")
         #model2=util.load("./data/CRF/12_04_27/bicycle2_NoCRFNoDef9.model")
         #model1=util.load("./data/rigid/12_08_17/bicycle3_complete8.model")
-        model1=util.load("./data/bicycle3_bestdef14.model")
-        m1=model1[0]["ww"][2]
+        #model1=util.load("./data/bicycle3_bestdef14.model")
+        model1=util.load("./data/test/bicycle2_force-bb0.model")
+        import model
+        #m1=model1[0]["ww"][2]
         #make the model to fit for 3x3 parts
-        aux=numpy.zeros((12,21,31),dtype=numpy.float32)
-        aux[:,:20,:]=model1[0]["ww"][-1]
-        m1=aux
+        #aux=numpy.zeros((12,21,31),dtype=numpy.float32)
+        #aux[:,:20,:]=model1[0]["ww"][-1]
+        #m1=aux
         #m1=numpy.tile(m1,(3,3,1))#m1[:m1.shape[0]/2,:m1.shape[1]/2].copy()
         m2=f.hog[28]#[2:18,:24] #12x20 --> padding -> 16x24
         if 0:
@@ -1381,13 +1394,17 @@ if __name__ == "__main__":
             raw_input()
         import crf3
         reload(crf3)
-        N=3
         numhyp=5
-        numy=m1.shape[0]/N
-        numx=m1.shape[1]/N
+        N=3
+        E=1
+        NE=N+2*E
+        #model1=model.convert(model1,N,E)
+        m1=model1[0]["ww"][0]
+        numy=m1.shape[0]/NE
+        numx=m1.shape[1]/NE
         #movy=(numy*2-1)/2
         #movx=(numx*2-1)/2
-        factor=0.01#0.01#0.3
+        factor=0.0001#0.01#0.3
         #mcostm=factor*model1[0]["cost"]
         #mcostc=factor*numpy.random.random((8,numy,numx)).astype(c_float)
         mcostc=factor*numpy.ones((8,numy,numx),dtype=c_float)
@@ -1409,12 +1426,12 @@ if __name__ == "__main__":
         for r in range(len(f.hog)):
             m2=f.hog[r]
             #lscr,fres=crf3.match_fullN(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,bbox=numpy.array(bbox)*f.scale[r],aiter=30)
-            lscr,fres=crf3.match_fullN(m1,m2,N,mcost,show=False,feat=False,rot=False,numhyp=numhyp,aiter=100,restart=0,useFastDP=True)
+            lscr,fres=crf3.match_fullN(m1,m2,N,E,mcost,show=False,feat=False,rot=False,numhyp=numhyp,aiter=100,restart=0,useFastDP=True,trunc=True)
             print "Total time",time.time()-t
             #import sys
             #sys.exit()
             #print "Score",scr
-            idraw=False
+            idraw=True
             if idraw:
                 import drawHOG
                 #rec=drawHOG.drawHOG(dfeat)
@@ -1432,7 +1449,7 @@ if __name__ == "__main__":
             for hy in numpy.arange(fres.shape[0])[::-1]:
                 #ldet2.append(lscr[hy])
                 res=fres[fres.shape[0]-hy-1]
-                dfeat,edge=crf3.getfeat_fullN(m2,N,res)
+                dfeat,edge=crf3.getfeat_fullN(m2,N,E,res,trunc=True)
                 print "Scr",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost),"Error",numpy.sum(m1*dfeat)+numpy.sum(edge*mcost)-lscr[fres.shape[0]-hy-1]
                 #import sys
                 #sys.exit()

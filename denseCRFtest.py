@@ -81,6 +81,7 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
     rc,pr,ap=VOCpr.drawPrfast(tp,fp,tot)
     pylab.draw()
     pylab.show()
+    print "AP=",ap
     #save in different formats
     if type(save)==str:
         testname=save
@@ -236,9 +237,14 @@ if __name__ == '__main__':
     #testname="./data/bicycle2_testN36"
     #testname="./data/resultsN2/bicycle2_N2C2_final"
     #testname="./data/afterCVPR/bicycle2_force-bb_final"
-    testname="../../CRFdet/data/afterCVPR/12_01_10/cat2_force-bb_final"
+    #testname="../../CRFdet/data/afterCVPR/12_01_10/cat2_force-bb_final"
+    testname="data/condor2/person3_full_condor219"
     cfg.trunc=1
     models=util.load("%s.model"%(testname))
+    del models[0]
+    cfg.numcl=2
+    cfg.E=1
+    cfg.N=3
     cfg.N=models[0]["N"]
     #models=util.load("%s%d.model"%(testname,it))
     #just for the new

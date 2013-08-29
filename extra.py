@@ -62,6 +62,8 @@ def flip(m):
     for l in m["ww"]:
         ww1.append(numpy.ascontiguousarray(pyrHOG2.hogflip(l)))
     m1={"ww":ww1,"rho":m["rho"],"fy":ww1[0].shape[0],"fx":ww1[0].shape[1]}
+    if m.has_key("id"):
+        m1["id"]=m["id"]
     if m.has_key("cost"):
         m1["cost"]=pyrHOG2.crfflip(m["cost"])
     if m.has_key("big"):

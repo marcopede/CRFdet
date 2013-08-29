@@ -37,6 +37,34 @@ def initmodel(fy,fx,N,useRL,lenf,CRF=False,small2=False):
     model["norm"]=(fy*fx)
     return model
 
+def convert(simple,N,E):
+    import extra
+    extended=[]
+    for l in simple:
+        extended.append(extra.flip(extra.flip(l)))#copy.copy(simple)
+    NE=N+2*E
+    for idl,l in enumerate(simple):#for each component
+        sy=l["ww"][0].shape[0]/N
+        sx=l["ww"][0].shape[1]/N
+        extended[idl]["ww"][0]=numpy.zeros((sy*NE,sx*NE,l["ww"][0].shape[2]),dtype=numpy.float32)
+        padww=numpy.zeros((sy*N+2*E,sx*N+2*E,l["ww"][0].shape[2]),dtype=numpy.float32)
+        padww[E:padww.shape[0]-E,E:padww.shape[1]-E]=l["ww"][0]
+        for py in range(sy):
+            for px in range(sx):
+                extended[idl]["ww"][0][py*NE:(py+1)*NE,px*NE:(px+1)*NE]=padww[py*N:(py+1)*N+2*E,px*N:(px+1)*N+2*E]
+    return extended
+
+def convert2(wext,N,E):
+    NE=N+2*E
+    numy=wext.shape[0]/NE
+    numx=wext.shape[1]/NE
+    wsimple=numpy.zeros((numy*N,numx*N,wext.shape[2]),dtype=wext.dtype)
+    for py in range(numy):
+        for px in range(numx):
+            wsimple[py*N:(py+1)*N,px*N:(px+1)*N]=wext[E+py*NE:E+py*NE+N,E+px*NE:E+px*NE+N]
+    return wsimple
+
+
 def model2w(model,deform,usemrf,usefather,k=1,lastlev=0,usebow=False,useCRF=False,small2=False):
     w=numpy.zeros(0,dtype=numpy.float32)
     if model.has_key("norm"):
@@ -55,7 +83,7 @@ def model2w(model,deform,usemrf,usefather,k=1,lastlev=0,usebow=False,useCRF=Fals
         w=numpy.concatenate((w,model["small2"].flatten()))
     return w
 
-def w2model(descr,N,rho,lev,fsz,fy=[],fx=[],bin=5,siftsize=2,deform=False,usemrf=False,usefather=False,k=1,norm=1,mindef=0.001,useoccl=False,usebow=False,useCRF=False,small2=False):
+def w2model(descr,N,E,rho,lev,fsz,fy=[],fx=[],bin=5,siftsize=2,deform=False,usemrf=False,usefather=False,k=1,norm=1,mindef=0.001,useoccl=False,usebow=False,useCRF=False,small2=False):
         #does not work with occlusions
         """
         build a new model from the weights of the SVM
@@ -64,6 +92,7 @@ def w2model(descr,N,rho,lev,fsz,fy=[],fx=[],bin=5,siftsize=2,deform=False,usemrf
         p=0
         occl=[0]*lev
         d=descr
+        NE=N+2*E
         for l in range(lev):
             dp=(fy*fx)*4**l*fsz
             ww.append((norm*d[p:p+dp].reshape((fy*2**l,fx*2**l,fsz))).astype(numpy.float32))
@@ -79,12 +108,13 @@ def w2model(descr,N,rho,lev,fsz,fy=[],fx=[],bin=5,siftsize=2,deform=False,usemrf
                 p=p+bin**(siftsize**2)
         m={"ww":ww,"rho":rho,"fy":fy,"fx":fx,"occl":occl,"N":N}
         if useCRF:
-            m["cost"]=((d[p:p+8*(fy/N)*(fx/N)].reshape((8,fy/N,fx/N))*(k)))#.clip(mindef,10))
-            p=p+8*(fy/N)*(fx/N)
+            m["cost"]=((d[p:p+8*(fy/NE)*(fx/NE)].reshape((8,fy/NE,fx/NE))*(k)))#.clip(mindef,10))
+            p=p+8*(fy/NE)*(fx/NE)
             #m["cost"]=((d[p:p+4*(2*fy)*(2*fx)].reshape((4,2*fy,2*fx))/float(k)).clip(mindef,10))
             #p=p+4*(2*fy)*(2*fx)
         if small2:
             m["small2"]=d[p:]
         return m
+
 
 

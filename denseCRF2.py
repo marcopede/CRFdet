@@ -368,7 +368,7 @@ if initial:
     #trposcl=[]
     lg.info("Starting Left-Right clustering")
     if cfg.useRL:
-        for l in range(numcl):
+        for l in range(cfg.numcl):
             mytrpos=[]            
             #for c in range(len(trpos)):
             #    if hogpcl[c]==l:
@@ -431,8 +431,8 @@ if initial:
         models.append(model.initmodel(cfg.fy[c]*cfg.N,cfg.fx[c]*cfg.N,cfg.N,cfg.useRL,lenf))
 
     #array with dimensions of w
-    cumsize=numpy.zeros(numcl+1,dtype=numpy.int)
-    for idl in range(numcl):
+    cumsize=numpy.zeros(cfg.numcl+1,dtype=numpy.int)
+    for idl in range(cfg.numcl):
         cumsize[idl+1]=cumsize[idl]+(cfg.fy[idl]*cfg.N*cfg.fx[idl]*cfg.N)*lenf+1
 
     try:
@@ -459,7 +459,7 @@ if initial:
         w1=numpy.array([])
         #from w to model m1
         for idm,m in enumerate(models):
-            models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],cfg.N,-w[cumsize[idm+1]-1]*bias,len(m["ww"]),lenf,m["ww"][0].shape[0],m["ww"][0].shape[1])
+            models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],cfg.N,cfg.E,-w[cumsize[idm+1]-1]*bias,len(m["ww"]),lenf,m["ww"][0].shape[0],m["ww"][0].shape[1])
             #models[idm]["ra"]=w[cumsize[idm+1]-1]
             #from model to w #changing the clip...
             waux.append(model.model2w(models[idm],False,False,False))
@@ -531,7 +531,20 @@ if initial:
     lpfeat=[] #
     lpedge=[] #
 
+    #####################  convert to the new format
+    models=model.convert(models,cfg.N,cfg.E)
+    if 1:
+        it = 0
+        for idm,m in enumerate(models):   
+            import drawHOG
+            imm=drawHOG.drawHOG(model.convert2(m["ww"][0],cfg.N,cfg.E))
+            pl.figure(100+idm,figsize=(3,3))
+            pl.imshow(imm)
+            #pylab.savefig("%s_hog%d_cl%d.png"%(testname,it,idm))
 
+        pl.draw()
+        pl.show()    
+        #raw_input()
 ###################### rebuild w
 waux=[]
 rr=[]
@@ -721,7 +734,7 @@ for it in range(cpit,cfg.posit):
         trposcl.append(l["id"]%cfg.numcl)
         dscr=numpy.sum(trpos[-1]*w[cumsize[trposcl[-1]]:cumsize[trposcl[-1]+1]])
         #print "Error:",abs(dscr-l["scr"])
-        if (abs(dscr-l["scr"])>0.00005):
+        if (abs(dscr-l["scr"])>0.0002):
             print "Error in checking the score function"
             print "Feature score",dscr,"CRF score",l["scr"]
             lg.info("Error in checking the score function")
@@ -795,7 +808,7 @@ for it in range(cpit,cfg.posit):
             dscr=numpy.sum(trneg[-1]*w[cumsize[trnegcl[-1]]:cumsize[trnegcl[-1]+1]])
             #print "Error:",abs(dscr-l["scr"])
             if not(skipos):#do not check if loaded trneg from checkpoint
-                if (abs(dscr-l["scr"])>0.00005):
+                if (abs(dscr-l["scr"])>0.0002):
                     print "Error in checking the score function"
                     print "Feature score",dscr,"CRF score",l["scr"]
                     lg.info("Error in checking the score function")
@@ -857,14 +870,14 @@ for it in range(cpit,cfg.posit):
         w1=numpy.array([])
         #from w to model m1
         for idm,m in enumerate(models[:cfg.numcl]):
-            models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],cfg.N,-w[cumsize[idm+1]-1]*bias,len(m["ww"]),lenf,m["ww"][0].shape[0],m["ww"][0].shape[1],useCRF=True,k=cfg.k)
+            models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],cfg.N,cfg.E,-w[cumsize[idm+1]-1]*bias,len(m["ww"]),lenf,m["ww"][0].shape[0],m["ww"][0].shape[1],useCRF=True,k=cfg.k)
             models[idm]["id"]=idm
             #models[idm]["ra"]=w[cumsize[idm+1]-1]
             #from model to w #changing the clip...
             waux.append(model.model2w(models[idm],False,False,False,useCRF=True,k=cfg.k))
             #rr.append(models[idm]["rho"])
             w1=numpy.concatenate((w1,waux[-1],-numpy.array([models[idm]["rho"]])/bias))
-        assert(numpy.sum(numpy.abs(w1-w))<0.00005)
+        assert(numpy.sum(numpy.abs(w1-w))<0.0002)
         w2=w
         w=w1
 
@@ -882,7 +895,7 @@ for it in range(cpit,cfg.posit):
         atrposcl=numpy.array(trposcl)
         for idm,m in enumerate(models[:cfg.numcl]):   
             import drawHOG
-            imm=drawHOG.drawHOG(m["ww"][0])
+            imm=drawHOG.drawHOG(model.convert2(m["ww"][0],cfg.N,cfg.E))
             pl.figure(100+idm,figsize=(3,3))
             pl.clf()
             pl.imshow(imm)
@@ -1064,8 +1077,8 @@ Negative in cache vectors %d
                             if (numpy.all(newdet["def"]==olddet["def"])): #same deformation
                                 #same features
                                 print "diff:",abs(newdet["scr"]-olddet["scr"]),
-                                assert(abs(newdet["scr"]-olddet["scr"])<0.00005)
-                                assert(numpy.all(abs(lnfeatnew[newid]-lnfeat[oldid])<0.00005))
+                                assert(abs(newdet["scr"]-olddet["scr"])<0.0002)
+                                assert(numpy.all(abs(lnfeatnew[newid]-lnfeat[oldid])<0.0002))
                                 assert(numpy.all(lnedgenew[newid]==lnedge[oldid]))
                                 print "Detection",newdet["idim"],newdet["scr"],newdet["scl"],newdet["id"],"is double --> removed!"
                                 remove=True
