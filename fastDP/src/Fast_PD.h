@@ -54,6 +54,15 @@ inline void dist(int l1, int l2,int st_num_lab_x,Real *res)
     res[1]=abs(x1-x2);
     res[2]=(y1-y2)*(y1-y2);
     res[3]=(x1-x2)*(x1-x2);
+    //forbid compression
+    //res[0]=(y1-y2)<-1?1000:abs(y1-y2);    
+    //res[1]=(x1-x2)<-1?1000:abs(x1-x2);
+    //res[2]=(y1-y2)<-1?1000:(y1-y2)*(y1-y2);
+    //res[3]=(x1-x2)<-1?1000:(x1-x2)*(x1-x2);
+    res[0]=(y1-y2)>2?1000:abs(y1-y2);    
+    res[1]=(x1-x2)>2?1000:abs(x1-x2);
+    res[2]=(y1-y2)>2?1000:(y1-y2)*(y1-y2);
+    res[3]=(x1-x2)>2?1000:(x1-x2)*(x1-x2);
 }
 
 inline Real dot(Real *a,Real *b)

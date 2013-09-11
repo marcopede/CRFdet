@@ -199,10 +199,27 @@ elif cfg.db=="imagenet":
     tsImagesFull=getRecord(VOC07Data(select="all",cl="%s_test.txt"%"bicycle",
                     basepath=cfg.dbpath,
                     usetr=True,usedf=False),cfg.maxtestfull)
+elif cfg.db=="LFW":
+    tfold=0 #test fold 0 other 9 for training
+    aux=getRecord(LFW(basepath=cfg.dbpath,fold=0),cfg.maxpos)
+    trPosImages=numpy.array([],dtype=aux.dtype)
+    for l in range(10):
+        aux=getRecord(LFW(basepath=cfg.dbpath,fold=l,fake=cfg.nobbox),cfg.maxpos)
+        if l==tfold:
+            tsImages=getRecord(LFW(basepath=cfg.dbpath,fold=l),cfg.maxtest)
+        else:
+            trPosImages=numpy.concatenate((trPosImages,aux),0)
+    trPosImagesNoTrunc=trPosImages
+    trNegImages=getRecord(InriaNegData(basepath=cfg.dbpath),cfg.maxneg)#check if it works better like this
+    trNegImagesFull=getRecord(InriaNegData(basepath=cfg.dbpath),cfg.maxnegfull)
+    #test
+    #tsImages=getRecord(InriaTestFullData(basepath=cfg.dbpath),cfg.maxtest)
+    tsImagesFull=tsImages
 
 ########################compute aspect ratio and dector size 
 import stats
-lfy,lfx=stats.build_components(trPosImages,cfg)
+#lfy,lfx=stats.build_components(trPosImages,cfg)
+lfy,lfx=stats.build_components_fix(trPosImages,cfg)#should be better, but not tested yet!
 
 cfg.fy=lfy#[7,10]#lfy
 cfg.fx=lfx#[11,7]#lfx

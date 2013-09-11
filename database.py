@@ -148,17 +148,24 @@ class imageData:
         """
         print "Not implemented"
     
-def getRecord(data,total=-1,pos=True):
+def getRecord(data,total=-1,pos=True,pose=False,facial=False):
     """return all the gt data in a record"""
     if total==-1:
         total=data.getTotal()
     else:
         total=min(data.getTotal(),total)
-    arrPos=numpy.zeros(total,dtype=[("id",numpy.int32),("name",object),("bbox",list)])
+    if facial:
+        arrPos=numpy.zeros(total,dtype=[("id",numpy.int32),("name",object),("bbox",list),("facial",object)])
+    else:
+        arrPos=numpy.zeros(total,dtype=[("id",numpy.int32),("name",object),("bbox",list)])
     for i in range(total):
         arrPos[i]["id"]=i
         arrPos[i]["name"]=data.getImageName(i)
         arrPos[i]["bbox"]=data.getBBox(i)
+        if pose:
+            arrPos[i]["pose"]=data.getPose(i)
+        if facial:
+            arrPos[i]["facial"]=data.getFacial(i)
     return arrPos
 
 
@@ -561,7 +568,7 @@ class VOC06Data(imageData):
     def getTotal(self):
         return len(self.selines)
     
-import Image as im
+#import Image as im
 
 #VOCbase="/share/pascal2007/"
 
@@ -658,6 +665,118 @@ class VOC07Data(VOC06Data):
                 #print "OK!"
                 auxb.append(b)
         return auxb
+
+class LFW(VOC06Data):
+    """
+    LFW
+    """
+    def __init__(self,select="all",cl="face_train.txt",
+                basepath="media/DADES-2/",
+                trainfile="lfw/lfw_ffd_ann.txt",
+                imagepath="lfw/",
+                annpath="lfw/",
+                local="lfw/",
+                usetr=False,usedf=False,mina=0,fold=0,totalfold=10,fake=False):
+        self.fold=fold
+        self.totalfold=totalfold
+        self.usetr=usetr
+        self.usedf=usedf
+        self.local=basepath+local
+        self.trainfile=basepath+trainfile
+        self.imagepath=basepath+imagepath
+        self.annpath=basepath+annpath
+        fd=open(self.trainfile,"r")
+        self.trlines=fd.readlines()
+        fd.close()
+        self.selines=self.trlines[6:]
+        self.total=len(self.selines) #intial 5 lines of comments
+        self.mina=mina
+        self.fake=fake
+        
+    def __selected(self):
+        lst=[]
+        for id,it in enumerate(self.trlines):
+            if self.str=="" or it.split(" ")[-1]==self.str:
+                lst.append(it)
+        return lst
+
+    def getDBname(self):
+        return "VOC07"
+    
+    def getStorageDir(self):
+        return self.local#"/media/DADES-2/VOC2007/VOCdevkit/local/VOC2007/"
+        
+    def getImage(self,i):
+        i=i+int(self.total/self.totalfold)*self.fold
+        item=self.selines[i]
+        return myimread((self.imagepath+item.split(" ")[0]))
+    
+    def getImageRaw(self,i):
+        i=i+int(self.total/self.totalfold)*self.fold
+        item=self.selines[i]
+        return im.open((self.imagepath+item.split(" ")[0]))#pil.imread((self.imagepath+item.split(" ")[0])+".jpg")    
+    
+    def getImageByName(self,name):
+        return myimread(name)
+    
+    def getImageByName2(self,name):
+        return myimread(self.imagepath+name+".jpg")
+
+    def getImageName(self,i):
+        i=i+int(self.total/self.totalfold)*self.fold
+        item=self.selines[i]
+        return (self.imagepath+item.split(" ")[0])
+    
+    def getTotal(self):
+        return int(self.total/self.totalfold)
+    
+#    def getBBox(self,i,cl=None,usetr=None,usedf=None):
+#        if usetr==None:
+#            usetr=self.usetr
+#        if usedf==None:
+#            usedf=self.usedf
+#        if cl==None:#use the right class
+#            cl=self.cl.split("_")[0]
+#        item=self.selines[i]
+#        filename=self.annpath+item.split(" ")[0]+".xml"
+#        return getbboxVOC07(filename,cl,usetr,usedf)
+
+    def getBBox(self,i,cl=None,usetr=None,usedf=None):
+        if self.fake:
+            #i=i+int(self.total/self.totalfold)*self.fold
+            #item=self.selines[i]
+            #im=myimread((self.imagepath+item.split(" ")[0]))
+            im=LFW.getImage(self,i)
+            dd=50
+            bb=[[dd,dd,im.shape[0]-dd,im.shape[1]-dd,0,0]]
+            return bb
+        i=i+int(self.total/self.totalfold)*self.fold
+        item=self.selines[i]
+        aux=item.split()        
+        cx=float(aux[1]);cy=float(aux[2]);w=float(aux[3]);h=float(aux[4])
+        bb=[[cy,cx,cy+h,cx+w,0,0]]
+        auxb=[]
+        for b in bb:
+            a=abs(b[0]-b[2])*abs(b[1]-b[3])
+            #print a
+            if a>self.mina:
+                #print "OK!"
+                auxb.append(b)
+        return auxb
+
+    def getPose(self,i):
+        i=i+int(self.total/self.totalfold)*self.fold
+        item=self.selines[i]
+        aux=item.split()        
+        return int(aux[5])
+
+
+    def getFacial(self,i):
+        i=i+int(self.total/self.totalfold)*self.fold
+        item=self.selines[i]
+        aux=item.split()        
+        return (numpy.array(aux[7:7+int(aux[6])*2])).astype(numpy.float32)
+
 
 class Buffy(VOC07Data):
 

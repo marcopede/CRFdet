@@ -61,6 +61,76 @@ def build_components(trPosImages,cfg):
 
     return lfy,lfx
 
+def build_components_fix(trPosImages,cfg):
+
+    name,bb,r,a=database.extractInfo(trPosImages)
+    trpos={"name":name,"bb":bb,"ratio":r,"area":a}
+    import scipy.cluster.vq as vq
+    numcl=cfg.numcl
+    perc=cfg.perc#10
+    minres=4#10
+    minfy=2#3
+    minfx=2#3
+    #number of maximum number of HOG blocks (HOG cells /4) to use
+    #maxArea=45#*(4-cfg.lev[0])#too high resolution very slow
+    #maxArea=35#*(4-cfg.lev[0]) #the right trade-off
+    #maxArea=25#*(4-cfg.lev[0]) #used in the test
+    maxArea=cfg.maxHOG
+    #maxArea=15#*(4-cfg.lev[0])
+    usekmeans=False
+    nh=cfg.N #number of hogs per part (for the moment everything works only with 2)
+
+    sr=numpy.sort(r)
+    spl=[]
+    lfy=[];lfx=[]
+    cl=numpy.zeros(r.shape)
+    for l in range(numcl):
+        spl.append(sr[round(l*len(r)/float(numcl))])
+    spl.append(sr[-1])
+    for l in range(numcl):
+        cl[numpy.bitwise_and(r>=spl[l],r<=spl[l+1])]=l
+    for l in range(numcl):
+        print "Cluster same number",l,":"
+        print "Samples:",len(a[cl==l])
+        #meanA=numpy.mean(a[cl==l])/16.0/(0.5*4**(cfg.lev[l]-1))#4.0
+        #meanA=numpy.mean(a[cl==l])/4.0/(4**(cfg.lev[l]-1))#4.0
+        meanA=numpy.mean(a[cl==l])/16.0/float(nh*nh)#(4**(cfg.lev[l]-1))#4.0
+        print "Mean Area:",meanA
+        sa=numpy.sort(a[cl==l])
+        #minA=numpy.mean(sa[len(sa)/perc])/16.0/(0.5*4**(cfg.lev[l]-1))#4.0
+        #minA=numpy.mean(sa[int(len(sa)*perc)])/4.0/(4**(cfg.lev[l]-1))#4.0
+        minA=numpy.mean(sa[int(len(sa)*perc)])/16.0/float(nh*nh)#(4**(cfg.lev[l]-1))#4.0
+        print "Min Area:",minA
+        aspt=numpy.exp(numpy.mean(numpy.log(r[cl==l])))
+        print "Aspect:",aspt
+        if minA>maxArea:
+            minA=maxArea
+        #minA=10#for bottle
+        if aspt>1:
+            fx=(max(minfx,numpy.sqrt(minA/aspt)))
+            fy=(fx*aspt)
+        else:
+            fy=(max(minfy,numpy.sqrt(minA*(aspt))))
+            fx=(fy/(aspt))        
+        ofy=fy
+        ofx=fx
+        fy=round(fy)
+        fx=round(fx)
+        print numpy.array([float(fy)/fx,float(fy+1)/fx,float(fy)/(fx+1),float(fy-1)/fx,float(fy)/(fx-1)])
+        best=numpy.argmin(numpy.abs(numpy.array([float(fy)/fx,float(fy+1)/fx,float(fy)/(fx+1),float(fy-1)/fx,float(fy)/(fx-1)])-aspt))
+        print (numpy.array([float(fy)/fx,float(fy+1)/fx,float(fy)/(fx+1),float(fy-1)/fx,float(fy)/(fx-1)])-aspt)
+        print "Best:",best
+        if best==1: fy=fy+1
+        if best==2: fx=fx+1        
+        if best==3 and fy>minfy: fy=fy-1
+        if best==4 and fx>minfx: fx=fx-1        
+        print "Expected Ratio",aspt,"Obtained Ratio:",fy/fx,"Fy:%.2f"%ofy,"~",round(fy),"Fx:%.2f"%ofx,"~",round(fx)
+        lfy.append(round(fy))
+        lfx.append(round(fx))
+        print
+    return lfy,lfx
+
+
 def build_components_2(trPosImages,cfg):
 
     name,bb,r,a=database.extractInfo(trPosImages)
