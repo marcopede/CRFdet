@@ -106,7 +106,7 @@ def w2model(descr,N,E,rho,lev,fsz,fy=[],fx=[],bin=5,siftsize=2,deform=False,usem
                 hist.append(d[p:p+bin**(siftsize**2)].astype(numpy.float32))
                 #hist.append(numpy.zeros(625,dtype=numpy.float32))
                 p=p+bin**(siftsize**2)
-        m={"ww":ww,"rho":rho,"fy":fy,"fx":fx,"occl":occl,"N":N}
+        m={"ww":ww,"rho":rho,"fy":fy,"fx":fx,"occl":occl,"N":N,"E":E}
         if useCRF:
             m["cost"]=((d[p:p+8*(fy/NE)*(fx/NE)].reshape((8,fy/NE,fx/NE))*(k)))#.clip(mindef,10))
             p=p+8*(fy/NE)*(fx/NE)
@@ -114,6 +114,11 @@ def w2model(descr,N,E,rho,lev,fsz,fy=[],fx=[],bin=5,siftsize=2,deform=False,usem
             #p=p+4*(2*fy)*(2*fx)
         if small2:
             m["small2"]=d[p:]
+        #m["facial"]=numpy.array([0.05,0.05 ,0.05,0.95 ,0.95,0.05 ,0.95,0.95])
+        m["facial"]=numpy.array([7.5,5, 7.5,7.5, 13.5,6, 13.5,11.5, 15.0,9, 13,9, 7.5,10, 7.5,13, 11.5,7, 11.5,11 ])/20.0
+        #m["facial"]=numpy.array([6,5])/18.0 #,6,8])/18.0
+        m["facial"][::2]=m["facial"][::2]*(ww[0].shape[0]/(NE/N))
+        m["facial"][1::2]=m["facial"][1::2]*(ww[0].shape[1]/(NE/N))
         return m
 
 

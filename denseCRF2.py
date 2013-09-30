@@ -201,12 +201,12 @@ elif cfg.db=="imagenet":
                     usetr=True,usedf=False),cfg.maxtestfull)
 elif cfg.db=="LFW":
     tfold=0 #test fold 0 other 9 for training
-    aux=getRecord(LFW(basepath=cfg.dbpath,fold=0),cfg.maxpos)
+    aux=getRecord(LFW(basepath=cfg.dbpath,fold=0),cfg.maxpos,facial=True)
     trPosImages=numpy.array([],dtype=aux.dtype)
     for l in range(10):
-        aux=getRecord(LFW(basepath=cfg.dbpath,fold=l,fake=cfg.nobbox),cfg.maxpos)
+        aux=getRecord(LFW(basepath=cfg.dbpath,fold=l,fake=cfg.nobbox),cfg.maxpos,facial=True)
         if l==tfold:
-            tsImages=getRecord(LFW(basepath=cfg.dbpath,fold=l),cfg.maxtest)
+            tsImages=getRecord(LFW(basepath=cfg.dbpath,fold=l),cfg.maxtest,facial=True)
         else:
             trPosImages=numpy.concatenate((trPosImages,aux),0)
     trPosImagesNoTrunc=trPosImages
@@ -215,6 +215,15 @@ elif cfg.db=="LFW":
     #test
     #tsImages=getRecord(InriaTestFullData(basepath=cfg.dbpath),cfg.maxtest)
     tsImagesFull=tsImages
+elif cfg.db=="AFLW":
+    trPosImages=getRecord(AFLW(basepath=cfg.dbpath,fold=0),cfg.maxtest,facial=True)#cfg.useFacial)
+    trPosImagesNoTrunc=trPosImages
+    trNegImages=getRecord(InriaNegData(basepath=cfg.dbpath),cfg.maxneg)#check if it works better like this
+    trNegImagesFull=getRecord(InriaNegData(basepath=cfg.dbpath),cfg.maxnegfull)
+    #test
+    tsImages=getRecord(AFLW(basepath=cfg.dbpath,fold=0),cfg.maxtest,facial=True)#cfg.useFacial)
+    tsImagesFull=tsImages
+
 
 ########################compute aspect ratio and dector size 
 import stats
@@ -476,7 +485,8 @@ if initial:
         w1=numpy.array([])
         #from w to model m1
         for idm,m in enumerate(models):
-            models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],cfg.N,cfg.E,-w[cumsize[idm+1]-1]*bias,len(m["ww"]),lenf,m["ww"][0].shape[0],m["ww"][0].shape[1])
+            models[idm]=model.w2model(w[cumsize[idm]:cumsize[idm+1]-1],cfg.N,0,-w[cumsize[idm+1]-1]*bias,len(m["ww"]),lenf,m["ww"][0].shape[0],m["ww"][0].shape[1])
+            models[idm]["E"]=cfg.E
             #models[idm]["ra"]=w[cumsize[idm+1]-1]
             #from model to w #changing the clip...
             waux.append(model.model2w(models[idm],False,False,False))
@@ -520,6 +530,26 @@ if initial:
         sizereg[idm]=models[idm]["cost"].size
     #w2=w #old w
     w=w1
+    #print models[0]["ww"][0].shape
+    #print models[0]["facial"]
+    #raw_input()
+
+    #####################  convert to the new format
+    models=model.convert(models,cfg.N,cfg.E)
+    if 1:
+        it = 0
+        for idm,m in enumerate(models):   
+            import drawHOG
+            imm=drawHOG.drawHOG(model.convert2(m["ww"][0],cfg.N,cfg.E))
+            pl.figure(100+idm,figsize=(3,3))
+            pl.imshow(imm)
+            #pylab.savefig("%s_hog%d_cl%d.png"%(testname,it,idm))
+        pl.draw()
+        pl.show()    
+        #raw_input()
+    #print models[0]["ww"][0].shape
+    #print models[0]["facial"]
+    #raw_input()
 
     if cfg.useRL:
         #add flipped models
@@ -534,7 +564,13 @@ if initial:
             waux1.append(model.model2w(m,False,False,False,useCRF=True,k=cfg.k))
             w2=numpy.concatenate((w2,waux1[-1],-numpy.array([m["rho"]/bias])))
         #check that the model and its flip score the same 
-        assert(numpy.abs(numpy.sum(w1)-numpy.sum(w2))<0.0000001)#still can be wrong
+        #assert(numpy.abs(numpy.sum(w1)-numpy.sum(w2))<0.0000001)#still can be wrong
+    #print models[0]["ww"][0].shape
+    #print models[0]["facial"]
+    #print models[1]["ww"][0].shape
+    #print models[1]["facial"]
+    #raw_input()
+
     #########add thresholds
     for m in models:
         m["thr"]=-2
@@ -548,20 +584,6 @@ if initial:
     lpfeat=[] #
     lpedge=[] #
 
-    #####################  convert to the new format
-    models=model.convert(models,cfg.N,cfg.E)
-    if 1:
-        it = 0
-        for idm,m in enumerate(models):   
-            import drawHOG
-            imm=drawHOG.drawHOG(model.convert2(m["ww"][0],cfg.N,cfg.E))
-            pl.figure(100+idm,figsize=(3,3))
-            pl.imshow(imm)
-            #pylab.savefig("%s_hog%d_cl%d.png"%(testname,it,idm))
-
-        pl.draw()
-        pl.show()    
-        #raw_input()
 ###################### rebuild w
 waux=[]
 rr=[]
@@ -603,10 +625,10 @@ for idl,l in enumerate(trPosImages):
     bb=l["bbox"]
     for idb,b in enumerate(bb):
         if cfg.useRL:
-            arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":False})    
-            arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":True})    
+            arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"facial":l["facial"],"cfg":cfg,"flip":False})    
+            arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"facial":l["facial"],"cfg":cfg,"flip":True})    
         else:
-            arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":False})    
+            arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"facial":l["facial"],"cfg":cfg,"flip":False})    
 totPosEx=len(arg)
 
 lg.info("Starting Main loop!")
@@ -634,10 +656,10 @@ for it in range(cpit,cfg.posit):
             for idb,b in enumerate(bb):
                 #if b[4]==1:#only for truncated
                 if cfg.useRL:
-                    arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":False})    
-                    arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":True})    
+                    arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"facial":l["facial"],"cfg":cfg,"flip":False})    
+                    arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"facial":l["facial"],"cfg":cfg,"flip":True})    
                 else:
-                    arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"cfg":cfg,"flip":False})    
+                    arg.append({"idim":idl,"file":l["name"],"idbb":idb,"bbox":b,"models":models,"facial":l["facial"],"cfg":cfg,"flip":False})    
 
         totPosEx=len(arg)
         #lpdet=[];lpfeat=[];lpedge=[]
@@ -709,10 +731,50 @@ for it in range(cpit,cfg.posit):
                 cbb[2]=(cbb[2]-y1)*rescale
                 cbb[3]=(cbb[3]-x1)*rescale
                 im=extra.myzoom(im[y1:y2,x1:x2],(rescale,rescale,1),1)
+                pylab.figure(300)
+                pylab.clf()
                 if res[0]!=[]:
-                    detectCRF.visualize2([res[0]],cfg.N,im,cbb,text)
+                    detectCRF.visualize2([res[0]],cfg.N,im,cbb,text,line=True)
                 else:
                     detectCRF.visualize2([],cfg.N,im,cbb,text)
+                if cfg.useFacial:
+                    from extra import locatePoints,locatePointsInter
+                    gtfp=arg[ii]["facial"]
+                    if arg[ii]["flip"]:
+                        gtfp[0::2]=(cbb[3]-cbb[1])-gtfp[::2]
+                    pylab.plot(cbb[1]+gtfp[0::2],cbb[0]+gtfp[1::2],"or", markersize=11)
+                    if res[0]!=[]:
+                        anchor=models[res[0]["id"]]["facial"]
+                        if res[0]["id"]==1:
+                            inv=[14,15, 12,13, 6,7, 4,5, 8,9, 10,11, 2,3, 0,1, 18,19, 16,17]
+                            anchor=anchor[inv]
+                        #grid=[]
+                        #for lx in range(1,models[0]["ww"][0].shape[1]*cfg.N/(cfg.N+2*cfg.E)-1):
+                        #    for ly in range(1,models[0]["ww"][0].shape[0]*cfg.N/(cfg.N+2*cfg.E)-1):
+                        #        grid+=[ly,lx]
+                        #efp=numpy.array(locatePointsInter(res[:1],cfg.N,numpy.array(grid))[0])        
+                        #pylab.plot(efp[1::2],efp[0:-1:2],"xb",markersize=5)
+                        #pylab.draw()
+                        #pylab.show()
+                        #raw_input()
+                        efp=numpy.array(locatePoints(res[:1],cfg.N,anchor)[0])
+                        pylab.plot(efp[1::2],efp[0:-1:2],"ob",markersize=7)
+                        #auxan=anchor.copy()
+                        #auxan[::2]=auxan[::2]+1
+                        #efp=numpy.array(locatePoints(res[:1],cfg.N,auxan)[0])
+                        #pylab.plot(efp[1::2],efp[0:-1:2],"og",markersize=7)
+                        #auxan=anchor.copy()
+                        #auxan[1::2]=auxan[1::2]+1                                               
+                        #efp=numpy.array(locatePoints(res[:1],cfg.N,auxan)[0])
+                        #pylab.plot(efp[1::2],efp[0:-1:2],"om",markersize=7)
+                        #auxan=anchor.copy()
+                        #auxan=auxan+1
+                        #efp=numpy.array(locatePoints(res[:1],cfg.N,auxan)[0])
+                        #pylab.plot(efp[1::2],efp[0:-1:2],"oc",markersize=7)
+                    pylab.draw()
+                    pylab.show()
+                    #raw_input()
+
                 #raw_input()
         print "Added examples",padd
         print "Improved examples",pbetter
@@ -733,6 +795,26 @@ for it in range(cpit,cfg.posit):
         loadedchk=False
         total.append(len(lpdet))
         skipos=True
+    if cfg.statrain:
+        #save on a file and evaluate with annotations
+        detVOC=[]
+        for l in lpdet:
+            detVOC.append([l["idim"].split("/")[-1].split(".")[0],l["scr"],l["bbox"][1],l["bbox"][0],l["bbox"][3],l["bbox"][2]])
+
+        #plot AP
+        tp,fp,scr,tot=VOCpr.VOCprRecord(trPosImages,detVOC,show=False,ovr=0.5)
+        pylab.figure(15,figsize=(4,4))
+        pylab.clf()
+        rc,pr,ap=VOCpr.drawPrfast(tp,fp,tot)
+        pylab.draw()
+        pylab.show()
+        print "AP=",ap
+        #save in different formats
+        util.savedetVOC(detVOC,testname+"_trpos.txt")
+        util.save(testname+"_trpos.det",{"det":lpdet[:500]})#takes a lot of space use only first 500
+        util.savemat(testname+"_trpos.mat",{"tp":tp,"fp":fp,"scr":scr,"tot":tot,"rc":rc,"pr":pr,"ap":ap})
+        pylab.savefig(testname+"_trpos.png")
+
     
     if it>cpit:
         oldposl,negl,reg,nobj,hpos,hneg=pegasos.objective(trpos,trneg,trposcl,trnegcl,clsize,w,cfg.svmc,sizereg=sizereg,valreg=cfg.valreg)              
@@ -756,7 +838,7 @@ for it in range(cpit,cfg.posit):
             print "Feature score",dscr,"CRF score",l["scr"]
             lg.info("Error in checking the score function")
             lg.info("Feature score %f CRF score %f"%(dscr,l["scr"]))
-            raw_input()
+            #raw_input()
 
     ########### check positive convergence    
     if it>cpit:
@@ -830,7 +912,7 @@ for it in range(cpit,cfg.posit):
                     print "Feature score",dscr,"CRF score",l["scr"]
                     lg.info("Error in checking the score function")
                     lg.info("Feature score %f CRF score %f"%(dscr,l["scr"]))
-                    raw_input()
+                    #raw_input()
 
         #if no negative sample add empty negatives
         for l in range(cfg.numcl):

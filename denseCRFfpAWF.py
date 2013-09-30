@@ -54,14 +54,32 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
     totgpi=0
     totgp=0
     for ii,res in enumerate(itr):
+        reducebb=True
+        if reducebb:
+            for idd,det in enumerate(res):
+                auxbb=numpy.zeros(4)
+                w=det["bbox"][3]-det["bbox"][1]
+                h=det["bbox"][2]-det["bbox"][0]
+                if det["id"]==0:#left facing
+                    auxbb[1]=det["bbox"][1]+0.2*w
+                    auxbb[3]=det["bbox"][3]-0.1*w
+                    auxbb[0]=det["bbox"][0]+0.2*h
+                    auxbb[2]=det["bbox"][2]-0.1*h
+                else:
+                    auxbb[1]=det["bbox"][1]+0.1*w
+                    auxbb[3]=det["bbox"][3]-0.2*w
+                    auxbb[0]=det["bbox"][0]+0.2*h
+                    auxbb[2]=det["bbox"][2]-0.1*h
+                res[idd]["bbox"]=auxbb
         if show:
             im=myimread(arg[ii]["file"])
             if tsImages[ii]["bbox"]!=[]:
-                detectCRF.visualize2(res[:1],cfg.N,im,bb=tsImages[ii]["bbox"][0],line=True)
+                detectCRF.visualize2(res[:3],cfg.N,im,bb=tsImages[ii]["bbox"],line=True)
             else:
                 detectCRF.visualize2(res[:3],cfg.N,im)
             print [x["scr"] for x in res[:5]]
-        facial=True
+            raw_input()
+        facial=False
         if facial:    #evaluate facial features position
             anchor=models[res[0]["id"]]["facial"]
             if res[0]["id"]==1:
@@ -180,7 +198,7 @@ if __name__ == '__main__':
     cfg.dbpath="/users/visics/mpederso/databases/"
     cfg.testpath="./data/test/"#"./data/CRF/12_09_19/"
     cfg.testspec="force-bb"#"full2"
-    cfg.db="LFW"
+    cfg.db="AFW"
     #cfg.db="imagenet"
     #cfg.cls="tandem"
     #cfg.N=
@@ -254,6 +272,10 @@ if __name__ == '__main__':
         #test
         #tsImages=getRecord(InriaTestFullData(basepath=cfg.dbpath),cfg.maxtest)
         tsImagesFull=tsImages
+    elif cfg.db=="AFW":
+        tsImages=getRecord(AFW(basepath=cfg.dbpath),cfg.maxpos)
+        tsImagesFull=tsImages
+
     ##############load model
     for l in range(cfg.posit):
         try:
@@ -307,18 +329,26 @@ if __name__ == '__main__':
     #testname="data/test/face1_lfw_sbin4_high3"
     #testname="data/lfw/face1_nobbox2_final"
     #testname="data/test/face1_facial9_final"
-    #testname="data/test2/face1_interp3_final"
-    #testname="data/test2/face1_interp4_final"
-    testname="data/test2/face1_nopoints_final"
+    #testname="data/test2/face1_interp32"
+    #testname="data/test2/face1_nopoints_final"
+    #testname="data/test2/face2_2mixt_final"
+    #testname="data/test2/face2_pose_final"
+    testname="data/full/face2_pose_full9"
+    #testname="/users/visics/mpederso/code/git/bigger/CRFdet/data/test/face1_lfw_highres_final"
     cfg.trunc=1
     models=util.load("%s.model"%(testname))
-    cfg.numhypTEST=10
+    #cfg.numhypTEST=100
     #del models[0]
-    cfg.numcl=1
+    cfg.numcl=2
     cfg.E=1
-    cfg.N=2
+    #cfg.N=2
     #cfg.sbin=4
-    #cfg.N=models[0]["N"]
+    cfg.N=models[0]["N"]
+    cfg.hallucinate=0
+    #del models[0]["thr"]
+    #del models[1]["thr"]
+    #del models[2]["thr"]
+    #del models[3]["thr"]
     #models=util.load("%s%d.model"%(testname,it))
     #just for the new
     #for idm,m in enumerate(models):
@@ -329,5 +359,5 @@ if __name__ == '__main__':
     ##############test
     #import itertools
     #runtest(models,tsImages,cfg,parallel=False,numcore=4,detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=True)#,save="%s%d"%(testname,it))
-    runtest(models,tsImagesFull,cfg,parallel=False,numcore=8,show=True,detfun=testINC)#,save="./bestbike3C4N")
+    runtest(models,tsImagesFull,cfg,parallel=True,numcore=8,show=True,detfun=testINC,save="./AWFpose")
 

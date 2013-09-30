@@ -305,10 +305,10 @@ def overlap(rect1,rect2):
     """
         Calculate the overlapping percentage between two rectangles
     """
-    dy1=abs(rect1[0]-rect1[2])+1
-    dx1=abs(rect1[1]-rect1[3])+1
-    dy2=abs(rect2[0]-rect2[2])+1
-    dx2=abs(rect2[1]-rect2[3])+1
+    dy1=abs(float(rect1[0])-float(rect1[2]))+1
+    dx1=abs(float(rect1[1])-float(rect1[3]))+1
+    dy2=abs(float(rect2[0])-float(rect2[2]))+1
+    dx2=abs(float(rect2[1])-float(rect2[3]))+1
     a1=dx1*dy1
     a2=dx2*dy2
     ia=0

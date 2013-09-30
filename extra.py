@@ -70,7 +70,68 @@ def flip(m):
         m1["big"]=m["big"]
     if m.has_key("norm"):
         m1["norm"]=m["norm"]
+    if m.has_key("N"):
+        m1["N"]=m["N"]
+    if m.has_key("E"):
+        m1["E"]=m["E"]
+    if m.has_key("facial"):
+        m1["facial"]=m["facial"].copy()
+        m1["facial"][1::2]=(m1["ww"][0].shape[1]*(m["N"]/float(m["N"]+2*m["E"])))-m["facial"][1::2]
+        #m1["facial"][1::2]=(m1["ww"][0].shape[1])-m["facial"][1::2]
     return m1    
+
+def locatePoints(det,N,points,sbin=8):
+    """visualize a detection and the corresponding featues"""
+    fp=[]
+    for l in range(len(det)):#lsort[:100]:
+        fp.append([])
+        res=det[l]["def"]
+        for pp in range(len(points)/2):
+            py=points[pp*2]/N
+            px=points[pp*2+1]/N
+            ppy=float(points[pp*2])/N
+            ppx=float(points[pp*2+1])/N
+            scl=det[l]["scl"]
+            sf=float(sbin*N/scl)
+            impy=int((ppy)*sf+(res[0,py,px]+1)*sf/N)
+            impx=int((ppx)*sf+(res[1,py,px]+1)*sf/N)
+            fp[-1]+=[impy,impx]
+    return fp
+
+def locatePointsInter(det,N,points):
+    """visualize a detection and the corresponding featues"""
+    fp=[]
+    for l in range(len(det)):#lsort[:100]:
+        fp.append([])
+        res=det[l]["def"]
+        for pp in range(len(points)/2):
+            py=float(points[pp*2])/N
+            px=float(points[pp*2+1])/N
+            #ppy=float(py)
+            #ppx=float(px)
+            ipy=int(float(points[pp*2])/N-N/2)#this is wrong, should be 0.5 and not N/2
+            ipx=int(float(points[pp*2+1])/N-N/2)
+            dy=float((points[pp*2]-N/2)%N)/N
+            dx=float((points[pp*2+1]-N/2)%N)/N
+            scl=det[l]["scl"]
+            sf=float(8*N/scl)
+            impy0=int((py)*sf+(res[0,ipy,ipx]+1)*sf/N)
+            impx0=int((px)*sf+(res[1,ipy,ipx]+1)*sf/N)
+            impy1=int((py)*sf+(res[0,ipy,ipx+1]+1)*sf/N)
+            impx1=int((px)*sf+(res[1,ipy,ipx+1]+1)*sf/N)
+            impy2=int((py)*sf+(res[0,ipy+1,ipx]+1)*sf/N)
+            impx2=int((px)*sf+(res[1,ipy+1,ipx]+1)*sf/N)
+            impy3=int((py)*sf+(res[0,ipy+1,ipx+1]+1)*sf/N)
+            impx3=int((px)*sf+(res[1,ipy+1,ipx+1]+1)*sf/N)           
+            #impy=(impy0+impy1+impy2+impy3)/4.0
+            impx=(impx0+impx1+impx2+impx3)/4.0
+            impy=(impy0*dy+impy1*dy+impy2*(1-dy)+impy3*(1-dy))/2.0
+            impx=(impx0*dx+impx1*(1-dx)+impx2*dx+impx3*(1-dx))/2.0
+            if pp==1:
+                print dy,dx
+            fp[-1]+=[impy,impx]
+    return fp
+
 
 
 import pylab

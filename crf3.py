@@ -518,7 +518,7 @@ def match_full2(m1,m2,cost,movy=None,movx=None,padvalue=0,remove=[],pad=0,feat=T
     return lscr,res2
 
 import util
-def mask_data(m1,m2,N,E,bb,data=None,val=1):
+def mask_data(m1,m2,N,E,bb,data=None,val=1,sbin=8):
     "mask the part positions that are outside the given bbox"
     ###the overlapp criteria of each part is right considering that you use a border of at least 50% the size of the bbox
     #make the bb 10%bigger on each side
@@ -540,7 +540,7 @@ def mask_data(m1,m2,N,E,bb,data=None,val=1):
     #scan over positions for one part
     py=0
     px=0
-    sf=8*N#/f.scale[r])
+    sf=sbin*N#/f.scale[r])
     mody=m1.shape[0]
     modx=m1.shape[1]    
     for mx in range(movx):
@@ -560,9 +560,116 @@ def mask_data(m1,m2,N,E,bb,data=None,val=1):
             data[py,px,movy-py*N:]=val
             data[py,px,:,movx-px*N:]=val
     return data
-    
 
-def match_fullN(m1,m2,N,E,cost,remove=[],pad=0,feat=True,show=True,rot=False,    numhyp=10,output=False,aiter=3,restart=0,trunc=0,bbox=None,useFastDP=True):
+def mask_facial(m1,m2,N,E,facialmodel,facialgt,data=None,val=1,dy=30,dx=30,sbin=8):
+    "mask the part positions that are far from annnotations"
+    ###the overlapp criteria of each part is right considering that you use a border of at least 50% the size of the bbox
+    #make the bb 10%bigger on each side
+    points=facialmodel
+    gtpoints=facialgt
+    NE=N+2*E
+    assert(m1.shape[0]%NE==0)
+    assert(m1.shape[1]%NE==0)
+    numy=m1.shape[0]/NE#p1.shape[0]
+    numx=m1.shape[1]/NE#p1.shape[1]
+    #print numy,numx
+    movy=(m2.shape[0]+m1.shape[0])
+    movx=(m2.shape[1]+m1.shape[1])
+    numlab=movy*movx
+    if data==None:
+        data=numpy.zeros((numy,numx,movy,movx),dtype=c_float)
+    #scan over positions for each involved part
+    py=0
+    px=0
+    sf=sbin*N#/f.scale[r])
+    mody=m1.shape[0]
+    modx=m1.shape[1]    
+    radius=dx*dx+dy*dy
+    for pp in range(len(facialmodel)/2):
+        py=points[pp*2]/N
+        px=points[pp*2+1]/N
+        #pdy=points[pp*2]%N
+        #pdx=points[pp*2+1]%N
+        #model point location
+        ppy=float(points[pp*2])/N
+        ppx=float(points[pp*2+1])/N
+        #scroll over locations
+        for mx in range(movx):
+            for my in range(movy):
+                impy=(ppy)*sf+(my-mody+1)*sf/N
+                impx=(ppx)*sf+(mx-modx+1)*sf/N
+                if (impy-gtpoints[pp*2])**2+(impx-gtpoints[pp*2+1])**2>radius:  #part is in an invalid position
+                    data[py,px,my,mx]=val
+    return data
+
+def mask_facial_inter(m1,m2,N,E,facialmodel,facialgt,data=None,val=1,dy=30,dx=30,sbin=8):
+    "mask the part positions that are far from annnotations"
+    ###the overlapp criteria of each part is right considering that you use a border of at least 50% the size of the bbox
+    #make the bb 10%bigger on each side
+    points=facialmodel
+    gtpoints=facialgt
+    NE=N+2*E
+    assert(m1.shape[0]%NE==0)
+    assert(m1.shape[1]%NE==0)
+    numy=m1.shape[0]/NE#p1.shape[0]
+    numx=m1.shape[1]/NE#p1.shape[1]
+    #print numy,numx
+    movy=(m2.shape[0]+m1.shape[0])
+    movx=(m2.shape[1]+m1.shape[1])
+    numlab=movy*movx
+    if data==None:
+        data=numpy.zeros((numy,numx,movy,movx),dtype=c_float)
+    #scan over positions for each involved part
+    py=0
+    px=0
+    sf=sbin*N#/f.scale[r])
+    mody=m1.shape[0]
+    modx=m1.shape[1]    
+    radius=dx*dx+dy*dy
+    for pp in range(len(facialmodel)/2):
+        ipy=(points[pp*2]-N/2)/N
+        ipx=(points[pp*2+1]-N/2)/N
+        for mx in range(movx):
+            for my in range(movy):
+                data[ipy,ipx,my,mx]=val   
+                data[ipy,ipx+1,my,mx]=val   
+                data[ipy+1,ipx,my,mx]=val   
+                data[ipy+1,ipx+1,my,mx]=val   
+
+    for pp in range(len(facialmodel)/2):
+        ipy=(points[pp*2]-N/2)/N
+        ipx=(points[pp*2+1]-N/2)/N
+        dy=float((points[pp*2]-N/2)%N)/N
+        dx=float((points[pp*2+1]-N/2)%N)/N
+        for mx in range(movx):
+            for my in range(movy):
+                impy0=(ipy+dy+0.5)*sf+(my-mody+1)*sf/N
+                impx0=(ipx+dx+0.5)*sf+(mx-modx+1)*sf/N
+                impy1=(ipy+dy-1)*sf+(my-mody+1)*sf/N
+                impx1=(ipx+dx+0.5)*sf+(mx-modx+1)*sf/N
+                impy2=(ipy+dy+0.5)*sf+(my-mody+1)*sf/N
+                impx2=(ipx+dx-1)*sf+(mx-modx+1)*sf/N
+                impy3=(ipy+dy-1)*sf+(my-mody+1)*sf/N
+                impx3=(ipx+dx-1)*sf+(mx-modx+1)*sf/N
+                #print (impy0-gtpoints[pp*2])**2+(impx0-gtpoints[pp*2+1])**2, 
+                if (impy0-gtpoints[pp*2])**2+(impx0-gtpoints[pp*2+1])**2<radius:  #part is in an invalid position
+                    data[ipy,ipx,my,mx]=0
+                if (impy1-gtpoints[pp*2])**2+(impx1-gtpoints[pp*2+1])**2<radius:  #part is in an invalid position
+                    data[ipy+1,ipx,my,mx]=0
+                if (impy2-gtpoints[pp*2])**2+(impx2-gtpoints[pp*2+1])**2<radius:  #part is in an invalid position
+                    data[ipy,ipx+1,my,mx]=0
+                if (impy3-gtpoints[pp*2])**2+(impx3-gtpoints[pp*2+1])**2<radius:  #part is in an invalid position
+                    data[ipy+1,ipx+1,my,mx]=0   
+        if 0:
+            import pylab
+            pylab.figure()
+            pylab.imshow(data[ipy,ipx])
+            pylab.show()
+            raw_input()
+                
+    return data    
+
+def match_fullN(m1,m2,N,E,cost,remove=[],pad=0,feat=True,show=True,rot=False,    numhyp=10,output=False,aiter=3,restart=0,trunc=0,bbox=None,useFastDP=True,facial=None,sbin=8):
     #m1 is expected to be divisible by N
     t=time.time()
     NE=N+2*E
@@ -623,6 +730,13 @@ def match_fullN(m1,m2,N,E,cost,remove=[],pad=0,feat=True,show=True,rot=False,   
     if bbox!=None:
         #mask=mask_data(m1,m2,N,bbox,data=rdata.reshape((numy,numx,movy,movx)),val=1)
         mask=mask_data(m1,m2,N,E,bbox,val=-1)
+        rdata[mask.reshape((numy*numx,-1))==-1]=10
+
+    #facial=[[1,1,5,10],[100,100,50,100]]
+    if facial!=None:
+        facialmodel=facial[0];facialgt=facial[1]#[50,50,200,200]#facial[1]
+        mask=mask_facial(m1,m2,N,E,facialmodel,facialgt,val=-1,dy=10,dx=10)
+        #mask=mask_facial_inter(m1,m2,N,E,facialmodel,facialgt,val=-1,dy=10,dx=10)
         rdata[mask.reshape((numy*numx,-1))==-1]=10
         
     res=numpy.zeros((numhyp,numy,numx),dtype=c_int)
@@ -1076,7 +1190,8 @@ def match_bbN(m1,pm2,N,E,cost,minthr=-1000,show=True,rot=False,numhyp=10,aiter=3
             else:
                 scr=crfgr2(numy,numx,cost,movy,movx,rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)),1,auxscr,res,aiter,restart)  
             infer+=1
-            assert(abs(scr-auxscr[0])<0.00001)
+            assert(abs(scr-auxscr[0])<0.0001)
+            #assert(abs(scr-auxscr[0])<0.00001)
             #print scr,
             scr=scr-auxmin*numy*numx
             #update bounds and save detection

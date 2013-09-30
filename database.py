@@ -156,6 +156,8 @@ def getRecord(data,total=-1,pos=True,pose=False,facial=False):
         total=min(data.getTotal(),total)
     if facial:
         arrPos=numpy.zeros(total,dtype=[("id",numpy.int32),("name",object),("bbox",list),("facial",object)])
+        if pose:
+            arrPos=numpy.zeros(total,dtype=[("id",numpy.int32),("name",object),("bbox",list),("facial",object),("pose",numpy.int32)])
     else:
         arrPos=numpy.zeros(total,dtype=[("id",numpy.int32),("name",object),("bbox",list)])
     for i in range(total):
@@ -757,7 +759,7 @@ class LFW(VOC06Data):
         bb=[[cy,cx,cy+h,cx+w,0,0]]
         auxb=[]
         for b in bb:
-            a=abs(b[0]-b[2])*abs(b[1]-b[3])
+            a=abs(float(b[0])-float(b[2]))*abs(float(b[1])-float(b[3]))
             #print a
             if a>self.mina:
                 #print "OK!"
@@ -776,6 +778,210 @@ class LFW(VOC06Data):
         item=self.selines[i]
         aux=item.split()        
         return (numpy.array(aux[7:7+int(aux[6])*2])).astype(numpy.float32)
+
+class AFW(VOC06Data):
+    """
+    AFW
+    """
+    def __init__(self,select="all",cl="face_train.txt",
+                basepath="media/DADES-2/",
+                trainfile="afw/testimages/anno2.mat",
+                imagepath="afw/testimages/",
+                annpath="afw/testimages/",
+                local="afw/",
+                usetr=False,usedf=False,mina=0):
+        self.usetr=usetr
+        self.usedf=usedf
+        self.local=basepath+local
+        self.trainfile=basepath+trainfile
+        self.imagepath=basepath+imagepath
+        self.annpath=basepath+annpath
+        import util
+        self.ann=util.loadmat(self.trainfile)["anno"]
+        #cnt=0
+        #for l in self.ann:
+        #    cnt+=l[1].shape[1]
+        self.total=len(self.ann)#cnt #intial 5 lines of comments
+        self.mina=mina
+        
+    def getDBname(self):
+        return "AFW"
+    
+    def getStorageDir(self):
+        return self.local#"/media/DADES-2/VOC2007/VOCdevkit/local/VOC2007/"
+        
+    def getImage(self,i):
+        item=self.ann[i][0][0]
+        return myimread((self.imagepath+item))
+    
+    def getImageRaw(self,i):
+        item=self.ann[i][0][0]
+        return im.open((self.imagepath+item))#pil.imread((self.imagepath+item.split(" ")[0])+".jpg")    
+    
+    def getImageByName(self,name):
+        return myimread(name)
+    
+    def getImageByName2(self,name):
+        return myimread(self.imagepath+name+".jpg")
+
+    def getImageName(self,i):
+        item=self.ann[i][0][0]
+        return (self.imagepath+item)
+    
+    def getTotal(self):
+        return self.total
+    
+#    def getBBox(self,i,cl=None,usetr=None,usedf=None):
+#        if usetr==None:
+#            usetr=self.usetr
+#        if usedf==None:
+#            usedf=self.usedf
+#        if cl==None:#use the right class
+#            cl=self.cl.split("_")[0]
+#        item=self.selines[i]
+#        filename=self.annpath+item.split(" ")[0]+".xml"
+#        return getbboxVOC07(filename,cl,usetr,usedf)
+
+    def getBBox(self,i,cl=None,usetr=None,usedf=None):
+        item=self.ann[i][1]
+        bb=[]
+        for l in range(item.shape[1]):
+            it=item[0,l].flatten()
+            bb.append([it[1],it[0],it[3],it[2],0,0])
+        auxb=[]
+        for b in bb:
+            a=abs(float(b[0])-float(b[2]))*abs(float(b[1])-float(b[3]))
+            #print a
+            if a>self.mina:
+                #print "OK!"
+                auxb.append(b)
+        return auxb
+
+    def getPose(self,i):
+        i=i+int(self.total/self.totalfold)*self.fold
+        item=self.selines[i]
+        aux=item.split()        
+        return int(aux[5])
+
+
+    def getFacial(self,i):
+        i=i+int(self.total/self.totalfold)*self.fold
+        item=self.selines[i]
+        aux=item.split()        
+        return (numpy.array(aux[7:7+int(aux[6])*2])).astype(numpy.float32)
+
+class AFLW(VOC06Data):
+    """
+    AFLW
+    """
+    def __init__(self,select="all",cl="face_train.txt",
+                basepath="media/DADES-2/",
+                trainfile="aflw/data/aflw.sqlite",
+                imagepath="aflw/data/flickr/",
+                annpath="aflw/",
+                local="aflw/",
+                usetr=False,usedf=False,mina=0,fold=0):
+        self.usetr=usetr
+        self.usedf=usedf
+        self.local=basepath+local
+        self.trainfile=basepath+trainfile
+        self.imagepath=basepath+imagepath
+        self.annpath=basepath+annpath
+        import sqlite3 as lite
+        #import util
+        #self.ann=util.loadmat(self.trainfile)["anno"]
+        #cnt=0
+        #for l in self.ann:
+        #    cnt+=l[1].shape[1]
+        #self.total=len(self.ann)#cnt #intial 5 lines of comments
+        self.mina=mina
+        con = lite.connect(self.trainfile)
+        self.cur = con.cursor() 
+        #self.cur.execute("SELECT face_id FROM Faces")
+        self.cur.execute("SELECT file_id FROM Faces")
+        self.items=numpy.unique(self.cur.fetchall())
+        self.total=len(self.items)
+        
+    def getDBname(self):
+        return "AFLW"
+    
+    def getStorageDir(self):
+        return self.local#"/media/DADES-2/VOC2007/VOCdevkit/local/VOC2007/"
+        
+    def getImage(self,i):
+        #item=self.ann[i][0][0]
+        #'SELECT db_id,filepath,width,height FROM FaceImages WHERE file_id =
+        #self.cur.execute("SELECT file_id FROM Faces Where face_id = %d",items[i])
+        #fileid=self.cur.fetchall()
+        self.cur.execute("SELECT filepath FROM FaceImages WHERE file_id = '%s'"%self.items[i][0])
+        impath=self.cur.fetchall()
+        return myimread((impath))
+    
+    def getImageRaw(self,i):
+        item=self.ann[i][0][0]
+        return im.open((self.imagepath+item))#pil.imread((self.imagepath+item.split(" ")[0])+".jpg")    
+    
+    def getImageByName(self,name):
+        return myimread(name)
+    
+    def getImageByName2(self,name):
+        return myimread(self.imagepath+name+".jpg")
+
+    def getImageName(self,i):
+        #self.cur.execute("SELECT file_id FROM Faces Where face_id = %d"%self.items[i])
+        #fileid=self.cur.fetchall()
+        self.cur.execute("SELECT filepath FROM FaceImages WHERE file_id = '%s'"%self.items[i][0])
+        impath=self.imagepath+self.cur.fetchall()[0][0]
+        return (impath)
+    
+    def getTotal(self):
+        return self.total
+    
+#    def getBBox(self,i,cl=None,usetr=None,usedf=None):
+#        if usetr==None:
+#            usetr=self.usetr
+#        if usedf==None:
+#            usedf=self.usedf
+#        if cl==None:#use the right class
+#            cl=self.cl.split("_")[0]
+#        item=self.selines[i]
+#        filename=self.annpath+item.split(" ")[0]+".xml"
+#        return getbboxVOC07(filename,cl,usetr,usedf)
+
+    def getBBox(self,i,cl=None,usetr=None,usedf=None):
+        #SELECT x,y,w,h,annot_type_id FROM FaceRect WHERE face_id = 
+        self.cur.execute("SELECT face_id FROM Faces WHERE file_id = '%s'"%self.items[i][0])
+        faceid=self.cur.fetchall()
+        bb=[]
+        for l in faceid:   
+            self.cur.execute("SELECT x,y,w,h,annot_type_id FROM FaceRect WHERE face_id = %d"%l)
+            bb+=self.cur.fetchall()
+        #bb.append([it[1],it[0],it[3],it[2],0,0])
+        #print bb
+        #raw_input()
+        auxb=[]
+        for b in bb:
+            a=abs(float(b[0])-float(b[2]))*abs(float(b[1])-float(b[3]))
+            #print a
+            if a>self.mina:
+                #print "OK!"
+                auxb.append([b[1],b[0],b[1]+b[3],b[0]+b[2],0,0])
+        return auxb
+
+    def getPose(self,i):
+        i=i+int(self.total/self.totalfold)*self.fold
+        item=self.selines[i]
+        aux=item.split()        
+        return int(aux[5])
+
+
+    def getFacial(self,i):
+        self.cur.execute("SELECT face_id FROM Faces WHERE file_id = '%s'"%self.items[i][0])
+        faceid=self.cur.fetchall()
+        self.cur.execute("SELECT descr,FeatureCoords.x,FeatureCoords.y FROM FeatureCoords,FeatureCoordTypes WHERE face_id = '%s'"%faceid)
+        facial=self.cur.fetchall()
+        return facial
+
 
 
 class Buffy(VOC07Data):
@@ -976,455 +1182,6 @@ class CVC02test(VOC06Data):
                 difficult=1
             ll.append([int(prs[1])-int(prs[3])/2,int(prs[0])-int(prs[2])/2,int(prs[1])+int(prs[3])/2,int(prs[0])+int(prs[2])/2,0,difficult])    
         return ll
-
-
-#class VOC07Parts(VOC06Data):
-#    """
-#    VOC07 instance (you can choose positive or negative images with the option select)
-#    """
-#    def __init__(self,numparts,select="all",cl="person_train.txt",
-#                basepath="media/DADES-2/",
-#                trainfile="VOC2007/VOCdevkit/VOC2007/ImageSets/Main/",
-#                imagepath="VOC2007/VOCdevkit/VOC2007/JPEGImages/",
-#                annpath="VOC2007/VOCdevkit/VOC2007/Annotations/",
-#                local="VOC2007/VOCdevkit/local/VOC2007/",
-#                usetr=False,usedf=False):
-#        self.cl=cl
-#        self.usetr=usetr
-#        self.usedf=usedf
-#        self.local=basepath+local
-#        self.trainfile=basepath+trainfile+cl
-#        self.imagepath=basepath+imagepath
-#        self.annpath=basepath+annpath
-#        fd=open(self.trainfile,"r")
-#        self.trlines=fd.readlines()
-#        fd.close()
-#        if select=="all":#All images
-#            self.str=""
-#        if select=="pos":#Positives images
-#            self.str="1\n"
-#        if select=="neg":#Negatives images
-#            self.str="-1\n"
-#        self.selines=self.__selected()
-#        self.listparts=[]
-#        dl=len(self.selines)/numparts
-#        for l in range(numparts):
-#            self.listparts.append(self.selines[l*dl:(l+1)*dl])
-#        self.listparts[-1]=self.selines[l*dl:]        
-#        self.part=0
-
-#    def __selected(self):
-#        lst=[]
-#        for id,it in enumerate(self.trlines):
-#            if self.str=="" or it.split(" ")[-1]==self.str:
-#                lst.append(it)
-#        return lst
-#        
-#    def setPart(self,n):
-#        self.part=n
-
-#    def getParts(self):
-#        return len(self.listparts)
-
-#    def getDBname(self):
-#        return "VOC07"
-#    
-#    def getStorageDir(self):
-#        return self.local#"/media/DADES-2/VOC2007/VOCdevkit/local/VOC2007/"
-#        
-#    def getImage(self,i,part=-1):
-#        #item=self.selines[i]
-#        if part==-1:
-#            part=self.part
-#        item=self.listparts[part][i]
-#        return myimread((self.imagepath+item.split(" ")[0])+".jpg")
-#    
-#    def getImageRaw(self,i,part=-1):
-#        #item=self.selines[i]
-#        if part==-1:
-#            part=self.part
-#        item=self.listparts[part][i]
-#        return im.open((self.imagepath+item.split(" ")[0])+".jpg")#pil.imread((self.imagepath+item.split(" ")[0])+".jpg")    
-#    
-#    def getImageByName(self,name):
-#        return myimread(name)
-#    
-#    def getImageName(self,i,part=-1):
-#        #item=self.selines[i]
-#        if part==-1:
-#            part=self.part
-#        item=self.listparts[part][i]
-#        return (self.imagepath+item.split(" ")[0]+".jpg")
-#    
-#    def getTotal(self,part=-1):
-#        #return len(self.selines)
-#        if part==-1:
-#            part=self.part
-#        return len(self.listparts[part])
-#    
-#    def getBBox(self,i,part=-1,cl=None,usetr=None,usedf=None):
-#        if usetr==None:
-#            usetr=self.usetr
-#        if usedf==None:
-#            usedf=self.usedf
-#        if cl==None:#use the right class
-#            cl=self.cl.split("_")[0]
-#        #item=self.selines[i]
-#        if part==-1:
-#            part=self.part
-#        item=self.listparts[part][i]
-#        filename=self.annpath+item.split(" ")[0]+".xml"
-#        return getbboxVOC07(filename,cl,usetr,usedf)
-
-#class VOC07Parts2(VOC06Data):
-#    """
-#    VOC07 instance (you can choose positive or negative images with the option select)
-#    """
-#    def __init__(self,numparts,part,select="all",cl="person_train.txt",
-#                basepath="media/DADES-2/",
-#                trainfile="VOC2007/VOCdevkit/VOC2007/ImageSets/Main/",
-#                imagepath="VOC2007/VOCdevkit/VOC2007/JPEGImages/",
-#                annpath="VOC2007/VOCdevkit/VOC2007/Annotations/",
-#                local="VOC2007/VOCdevkit/local/VOC2007/",
-#                usetr=False,usedf=False):
-#        self.cl=cl
-#        self.usetr=usetr
-#        self.usedf=usedf
-#        self.local=basepath+local
-#        self.trainfile=basepath+trainfile+cl
-#        self.imagepath=basepath+imagepath
-#        self.annpath=basepath+annpath
-#        fd=open(self.trainfile,"r")
-#        self.trlines=fd.readlines()
-#        fd.close()
-#        if select=="all":#All images
-#            self.str=""
-#        if select=="pos":#Positives images
-#            self.str="1\n"
-#        if select=="neg":#Negatives images
-#            self.str="-1\n"
-#        self.selines=self.__selected()
-#        self.listparts=[]
-#        dl=len(self.selines)/numparts
-#        l=part
-#        self.listparts=self.selines[l*dl:(l+1)*dl]
-#        if l==numparts-1:
-#            self.listparts=self.selines[l*dl:]        
-#        self.part=part
-
-#    def __selected(self):
-#        lst=[]
-#        for id,it in enumerate(self.trlines):
-#            if self.str=="" or it.split(" ")[-1]==self.str:
-#                lst.append(it)
-#        return lst
-#        
-#    def getDBname(self):
-#        return "VOC07"
-#    
-#    def getStorageDir(self):
-#        return self.local#"/media/DADES-2/VOC2007/VOCdevkit/local/VOC2007/"
-#        
-#    def getImage(self,i):
-#        #item=self.selines[i]
-#        item=self.listparts[i]
-#        return myimread((self.imagepath+item.split(" ")[0])+".jpg")
-#    
-#    def getImageRaw(self,i):
-#        #item=self.selines[i]
-#        item=self.listparts[i]
-#        return im.open((self.imagepath+item.split(" ")[0])+".jpg")#pil.imread((self.imagepath+item.split(" ")[0])+".jpg")    
-#    
-#    def getImageByName(self,name):
-#        return myimread(name)
-#    
-#    def getImageName(self,i):
-#        #item=self.selines[i]
-#        item=self.listparts[i]
-#        return (self.imagepath+item.split(" ")[0]+".jpg")
-#    
-#    def getTotal(self):
-#        #return len(self.selines)
-#        return len(self.listparts)
-#    
-#    def getBBox(self,i,part=-1,cl=None,usetr=None,usedf=None):
-#        if usetr==None:
-#            usetr=self.usetr
-#        if usedf==None:
-#            usedf=self.usedf
-#        if cl==None:#use the right class
-#            cl=self.cl.split("_")[0]
-#        #item=self.selines[i]
-#        item=self.listparts[i]
-#        filename=self.annpath+item.split(" ")[0]+".xml"
-#        return getbboxVOC07(filename,cl,usetr,usedf)
-
-#class VOC07Parts3(VOC06Data):
-#    """
-#    VOC07 instance (you can choose positive or negative images with the option select)
-#    """
-#    def __init__(self,numparts,part,select="all",cl="person_train.txt",
-#                basepath="media/DADES-2/",
-#                trainfile="%s/VOCdevkit/%s/ImageSets/",
-#                imagepath="%s/VOCdevkit/%s/",
-#                annpath="%s/VOCdevkit/%s/Annotations/",
-#                local="%s/VOCdevkit/local/%s/",
-#                usetr=False,usedf=False,db="VOC2007"):
-#        self.cl=cl
-#        self.usetr=usetr
-#        self.usedf=usedf
-#        self.local=basepath+(local%(db,db))
-#        if db=="VOC2006":
-#            self.trainfile=basepath+(trainfile%(db,db))+cl
-#            self.imagepath=basepath+(imagepath%(db,db))+"PNGImages/"
-#            self.ext=".png"        
-#        if db=="VOC2007":
-#            self.trainfile=basepath+(trainfile%(db,db))+"Main/"+cl
-#            self.imagepath=basepath+(imagepath%(db,db))+"JPEGImages/"        
-#            self.ext=".jpg"        
-#        self.annpath=basepath+(annpath%(db,db))
-#        fd=open(self.trainfile,"r")
-#        self.trlines=fd.readlines()
-#        fd.close()
-#        if select=="all":#All images
-#            self.str=""
-#        if select=="pos":#Positives images
-#            self.str="1\n"
-#        if select=="neg":#Negatives images
-#            self.str="-1\n"
-#        self.selines=self.__selected()
-#        self.listparts=[]
-#        l=part
-#        self.listparts=self.selines[l::numparts]
-#        self.part=part
-#        self.db=db
-#        
-#    def __selected(self):
-#        lst=[]
-#        for id,it in enumerate(self.trlines):
-#            if self.str=="" or it.split(" ")[-1]==self.str:
-#                lst.append(it)
-#        return lst
-
-#    def getDBname(self):
-#        return "VOC07"
-#    
-#    def getStorageDir(self):
-#        return self.local#"/media/DADES-2/VOC2007/VOCdevkit/local/VOC2007/"
-#        
-#    def getImage(self,i):
-#        #item=self.selines[i]
-#        item=self.listparts[i]
-#        return myimread((self.imagepath+item.split(" ")[0])+self.ext)
-#    
-#    def getImageRaw(self,i):
-#        #item=self.selines[i]
-#        item=self.listparts[i]
-#        return im.open((self.imagepath+item.split(" ")[0])+self.ext)#pil.imread((self.imagepath+item.split(" ")[0])+".jpg")    
-#    
-#    def getImageByName(self,name):
-#        return myimread(name)
-#    
-#    def getImageName(self,i):
-#        #item=self.selines[i]
-#        item=self.listparts[i]
-#        return (self.imagepath+item.split(" ")[0]+self.ext)
-#    
-#    def getTotal(self):
-#        #return len(self.selines)
-#        return len(self.listparts)
-#    
-#    def getBBox(self,i,part=-1,cl=None,usetr=None,usedf=None):
-#        if usetr==None:
-#            usetr=self.usetr
-#        if usedf==None:
-#            usedf=self.usedf
-#        if cl==None:#use the right class
-#            cl=self.cl.split("_")[0]
-#        #item=self.selines[i]
-#        item=self.listparts[i]
-#        if self.db=="VOC2007":
-#            filename=self.annpath+item.split(" ")[0]+".xml"
-#            bbx=getbboxVOC07(filename,cl,usetr,usedf)
-#        if self.db=="VOC2006":
-#            filename=self.annpath+item.split(" ")[0]+".txt"
-#            bbx=getbboxVOC06(filename,cl,usetr,usedf)
-#        return bbx
-
-
-#class VOC07Joinold(VOC06Data):
-#    """
-#    VOC07 instance (you can choose positive or negative images with the option select)
-#    """
-#    def __init__(self,numparts,part,select="all",cl="person_train.txt",
-#                basepath="media/DADES-2/",
-#                trainfile="VOCdevkit/VOC2007/ImageSets/Main/",
-#                imagepath="VOCdevkit/VOC2007/JPEGImages/",
-#                annpath="VOCdevkit/VOC2007/Annotations/",
-#                local="VOCdevkit/local/VOC2007/",
-#                usetr=False,usedf=False):
-#        self.cl=cl
-#        self.usetr=usetr
-#        self.usedf=usedf
-#        self.local=basepath+local
-#        self.trainfile=basepath+trainfile+cl
-#        self.imagepath=basepath+imagepath
-#        self.annpath=basepath+annpath
-#        fd=open(self.trainfile,"r")
-#        self.trlines=fd.readlines()
-#        fd.close()
-#        if select=="all":#All images
-#            self.str=""
-#        if select=="pos":#Positives images
-#            self.str="1\n"
-#        if select=="neg":#Negatives images
-#            self.str="-1\n"
-#        self.selines=self.__selected()
-#        self.listparts=[]
-#        dl=len(self.selines)/numparts
-#        l=part
-#        self.listparts=self.selines[:(l+1)*dl]
-#        if l==numparts-1:
-#            self.listparts=self.selines[:]        
-#        self.part=part
-
-#    def __selected(self):
-#        lst=[]
-#        for id,it in enumerate(self.trlines):
-#            if self.str=="" or it.split(" ")[-1]==self.str:
-#                lst.append(it)
-#        return lst
-#        
-#    def getDBname(self):
-#        return "VOC07"
-#    
-#    def getStorageDir(self):
-#        return self.local#"/media/DADES-2/VOC2007/VOCdevkit/local/VOC2007/"
-#        
-#    def getImage(self,i):
-#        #item=self.selines[i]
-#        item=self.listparts[i]
-#        return myimread((self.imagepath+item.split(" ")[0])+".jpg")
-#    
-#    def getImageRaw(self,i):
-#        #item=self.selines[i]
-#        item=self.listparts[i]
-#        return im.open((self.imagepath+item.split(" ")[0])+".jpg")#pil.imread((self.imagepath+item.split(" ")[0])+".jpg")    
-#    
-#    def getImageByName(self,name):
-#        return myimread(name)
-
-#    def getImageByName2(self,name):
-#        return myimread(self.imagepath+name+".jpg")
-#    
-#    def getImageName(self,i):
-#        #item=self.selines[i]
-#        item=self.listparts[i]
-#        return (self.imagepath+item.split(" ")[0]+".jpg")
-#    
-#    def getTotal(self):
-#        #return len(self.selines)
-#        return len(self.listparts)
-#    
-#    def getBBox(self,i,part=-1,cl=None,usetr=None,usedf=None):
-#        if usetr==None:
-#            usetr=self.usetr
-#        if usedf==None:
-#            usedf=self.usedf
-#        if cl==None:#use the right class
-#            cl=self.cl.split("_")[0]
-#        #item=self.selines[i]
-#        item=self.listparts[i]
-#        filename=self.annpath+item.split(" ")[0]+".xml"
-#        return getbboxVOC07(filename,cl,usetr,usedf)
-
-#class VOC07Join(VOC06Data):
-#    """
-#    VOC07 instance (you can choose positive or negative images with the option select)
-#    """
-#    def __init__(self,numparts,part1,part2,select="all",cl="person_train.txt",
-#                basepath="media/DADES-2/",
-#                trainfile="VOCdevkit/VOC2007/ImageSets/Main/",
-#                imagepath="VOCdevkit/VOC2007/JPEGImages/",
-#                annpath="VOCdevkit/VOC2007/Annotations/",
-#                local="VOCdevkit/local/VOC2007/",
-#                usetr=False,usedf=False):
-#        self.cl=cl
-#        self.usetr=usetr
-#        self.usedf=usedf
-#        self.local=basepath+local
-#        self.trainfile=basepath+trainfile+cl
-#        self.imagepath=basepath+imagepath
-#        self.annpath=basepath+annpath
-#        fd=open(self.trainfile,"r")
-#        self.trlines=fd.readlines()
-#        fd.close()
-#        if select=="all":#All images
-#            self.str=""
-#        if select=="pos":#Positives images
-#            self.str="1\n"
-#        if select=="neg":#Negatives images
-#            self.str="-1\n"
-#        self.selines=self.__selected()
-#        self.listparts=[]
-#        dl=len(self.selines)/numparts
-#        lstart=part1
-#        lend=part2
-#        self.listparts=self.selines[(lstart)*dl:(lend+1)*dl]
-#        if lend==numparts:
-#            self.listparts=self.selines[(lstart)*dl:]        
-#        self.part=part2-part1
-
-#    def __selected(self):
-#        lst=[]
-#        for id,it in enumerate(self.trlines):
-#            if self.str=="" or it.split(" ")[-1]==self.str:
-#                lst.append(it)
-#        return lst
-#        
-#    def getDBname(self):
-#        return "VOC07"
-#    
-#    def getStorageDir(self):
-#        return self.local#"/media/DADES-2/VOC2007/VOCdevkit/local/VOC2007/"
-#        
-#    def getImage(self,i):
-#        #item=self.selines[i]
-#        item=self.listparts[i]
-#        return myimread((self.imagepath+item.split(" ")[0])+".jpg")
-#    
-#    def getImageRaw(self,i):
-#        #item=self.selines[i]
-#        item=self.listparts[i]
-#        return im.open((self.imagepath+item.split(" ")[0])+".jpg")#pil.imread((self.imagepath+item.split(" ")[0])+".jpg")    
-#    
-#    def getImageByName(self,name):
-#        return myimread(name)
-#    
-#    def getImageByName2(self,name):
-#        return myimread(self.imagepath+name+".jpg")
-
-#    def getImageName(self,i):
-#        #item=self.selines[i]
-#        item=self.listparts[i]
-#        return (self.imagepath+item.split(" ")[0]+".jpg")
-#    
-#    def getTotal(self):
-#        #return len(self.selines)
-#        return len(self.listparts)
-#    
-#    def getBBox(self,i,part=-1,cl=None,usetr=None,usedf=None):
-#        if usetr==None:
-#            usetr=self.usetr
-#        if usedf==None:
-#            usedf=self.usedf
-#        if cl==None:#use the right class
-#            cl=self.cl.split("_")[0]
-#        #item=self.selines[i]
-#        item=self.listparts[i]
-#        filename=self.annpath+item.split(" ")[0]+".xml"
-#        return getbboxVOC07(filename,cl,usetr,usedf)
-
 
 class DirImages(VOC06Data):
     """
@@ -1840,8 +1597,8 @@ def extractInfo(trPosImages,maxnum=-1,usetr=True,usedf=False):
             cnt+=1
         #img=pylab.imread("circle.png")
         util.pdone(idx,tot)
-    ratio=(bb[:,2]-bb[:,0])/(bb[:,3]-bb[:,1])
-    area=(bb[:,2]-bb[:,0])*(bb[:,3]-bb[:,1])
+    ratio=((bb[:,2])-(bb[:,0]))/((bb[:,3])-(bb[:,1]))
+    area=((bb[:,2])-(bb[:,0]))*((bb[:,3])-(bb[:,1]))
     return name,bb[:cnt,:],ratio[:cnt],area[:cnt]
 
 
