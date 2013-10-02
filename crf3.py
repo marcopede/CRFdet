@@ -1061,7 +1061,7 @@ def match_bb(m1,pm2,cost,show=True,rot=False,numhyp=10,aiter=3,restart=0,trunc=0
                 pylab.draw()
                 pylab.show()
             scr=crfgr2(numy,numx,cost,movy,movx,rdata.reshape((rdata.shape[0]*rdata.shape[1],-1)),1,auxscr,res,aiter,restart)  
-            assert(scr==auxscr[0])
+            #assert(scr==auxscr[0])
             #print "Before",scr
             scr=scr-auxmin*numy*numx
             #update bounds and save detection

@@ -130,7 +130,8 @@ if __name__ == '__main__':
     #det=util.load("./data/debug2/%s2_higherlimit2.det"%cfg.cls)["det"]
     #det=util.load("./data/condor_lowres/%s2_morerigid_final.det"%cfg.cls)["det"]
     #det=util.load("data/AFW/AWF4.det")["det"]
-    det=util.load("AWFpose.det")["det"]    
+    #det=util.load("AWFpose.det")["det"]    
+    det=util.load("AFLWfull1.det")["det"]    
     imgpath=cfg.dbpath+"afw/testimages/"
     #imgpath=cfg.dbpath+"VOC2007/VOCdevkit/VOC2007/JPEGImages/"
     #imgpath=cfg.dbpath+"/buffy/images/"

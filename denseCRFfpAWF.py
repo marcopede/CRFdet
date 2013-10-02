@@ -60,13 +60,37 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
                 auxbb=numpy.zeros(4)
                 w=det["bbox"][3]-det["bbox"][1]
                 h=det["bbox"][2]-det["bbox"][0]
+                #for AWF
+                #if det["id"]==0:#left facing
+                #    auxbb[1]=det["bbox"][1]+0.2*w
+                #    auxbb[3]=det["bbox"][3]-0.1*w
+                #    auxbb[0]=det["bbox"][0]+0.2*h
+                #    auxbb[2]=det["bbox"][2]-0.1*h
+                #else:
+                #    auxbb[1]=det["bbox"][1]+0.1*w
+                #    auxbb[3]=det["bbox"][3]-0.2*w
+                #    auxbb[0]=det["bbox"][0]+0.2*h
+                #    auxbb[2]=det["bbox"][2]-0.1*h
+                #for aflw
+                #frontal
                 if det["id"]==0:#left facing
                     auxbb[1]=det["bbox"][1]+0.2*w
                     auxbb[3]=det["bbox"][3]-0.1*w
                     auxbb[0]=det["bbox"][0]+0.2*h
                     auxbb[2]=det["bbox"][2]-0.1*h
-                else:
+                elif det["id"]==2:#right facing
                     auxbb[1]=det["bbox"][1]+0.1*w
+                    auxbb[3]=det["bbox"][3]-0.2*w
+                    auxbb[0]=det["bbox"][0]+0.1*h
+                    auxbb[2]=det["bbox"][2]-0.1*h
+                #lateral
+                elif det["id"]==1:#left facing
+                    auxbb[1]=det["bbox"][1]+0.2*w
+                    auxbb[3]=det["bbox"][3]#-0.2*w
+                    auxbb[0]=det["bbox"][0]+0.2*h
+                    auxbb[2]=det["bbox"][2]-0.1*h
+                elif det["id"]==3:#right facing
+                    auxbb[1]=det["bbox"][1]#+0.1*w
                     auxbb[3]=det["bbox"][3]-0.2*w
                     auxbb[0]=det["bbox"][0]+0.2*h
                     auxbb[2]=det["bbox"][2]-0.1*h
@@ -78,7 +102,7 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
             else:
                 detectCRF.visualize2(res[:3],cfg.N,im)
             print [x["scr"] for x in res[:5]]
-            raw_input()
+            #raw_input()
         facial=False
         if facial:    #evaluate facial features position
             anchor=models[res[0]["id"]]["facial"]
@@ -333,7 +357,9 @@ if __name__ == '__main__':
     #testname="data/test2/face1_nopoints_final"
     #testname="data/test2/face2_2mixt_final"
     #testname="data/test2/face2_pose_final"
-    testname="data/full/face2_pose_full9"
+    #testname="data/full/face2_pose_full9"
+    #testname="data/aflw/pose/face3_pose57"
+    testname="data/aflw/pose/face2_FULL7"
     #testname="/users/visics/mpederso/code/git/bigger/CRFdet/data/test/face1_lfw_highres_final"
     cfg.trunc=1
     models=util.load("%s.model"%(testname))
@@ -359,5 +385,5 @@ if __name__ == '__main__':
     ##############test
     #import itertools
     #runtest(models,tsImages,cfg,parallel=False,numcore=4,detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=True)#,save="%s%d"%(testname,it))
-    runtest(models,tsImagesFull,cfg,parallel=True,numcore=8,show=True,detfun=testINC,save="./AWFpose")
+    runtest(models,tsImagesFull,cfg,parallel=True,numcore=16,show=True,detfun=testINC,save="./AFLWfull7")
 

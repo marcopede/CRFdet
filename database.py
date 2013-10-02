@@ -157,7 +157,7 @@ def getRecord(data,total=-1,pos=True,pose=False,facial=False):
     if facial:
         arrPos=numpy.zeros(total,dtype=[("id",numpy.int32),("name",object),("bbox",list),("facial",object)])
         if pose:
-            arrPos=numpy.zeros(total,dtype=[("id",numpy.int32),("name",object),("bbox",list),("facial",object),("pose",numpy.int32)])
+            arrPos=numpy.zeros(total,dtype=[("id",numpy.int32),("name",object),("bbox",list),("facial",object),("pose",object)])
     else:
         arrPos=numpy.zeros(total,dtype=[("id",numpy.int32),("name",object),("bbox",list)])
     for i in range(total):
@@ -969,17 +969,22 @@ class AFLW(VOC06Data):
         return auxb
 
     def getPose(self,i):
-        i=i+int(self.total/self.totalfold)*self.fold
-        item=self.selines[i]
-        aux=item.split()        
-        return int(aux[5])
+        self.cur.execute("SELECT face_id FROM Faces WHERE file_id = '%s'"%self.items[i][0])
+        faceid=self.cur.fetchall()
+        poses=[]
+        for l in faceid:
+            self.cur.execute("SELECT roll,pitch,yaw FROM FacePose WHERE face_id = '%s'"%l)
+            poses+=self.cur.fetchall()
+        return poses
 
 
     def getFacial(self,i):
         self.cur.execute("SELECT face_id FROM Faces WHERE file_id = '%s'"%self.items[i][0])
         faceid=self.cur.fetchall()
-        self.cur.execute("SELECT descr,FeatureCoords.x,FeatureCoords.y FROM FeatureCoords,FeatureCoordTypes WHERE face_id = '%s'"%faceid)
-        facial=self.cur.fetchall()
+        facial=[]
+        for l in faceid:
+            self.cur.execute("SELECT descr,FeatureCoords.x,FeatureCoords.y FROM FeatureCoords,FeatureCoordTypes WHERE face_id = '%s'"%l)
+            facial+=self.cur.fetchall()
         return facial
 
 
