@@ -50,7 +50,7 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
     #anchor=[6,4.5, 6,7.5, 12.5,6.5, 12.5,11, 13.75,9, 11.5,9, 6,11, 6.25,13, 10,7.5, 10,10.75]#points lower resolution
     #anchor=[8,5, 8,10.2, 16.5,8, 16.5,15, 17.5,12, 16,12, 8,14, 8,18, 13,10, 13,14 ]#best results for the moment
     #anchor=numpy.array([7.5,5, 7.5,7.5, 13,6, 13,11.5, 14.5,9, 12,9, 7.5,10, 7.5,13, 11.5,7, 11.5,11 ])#model for nobbox2
-    error=numpy.zeros(20)
+    error=numpy.zeros(12)
     totgpi=0
     totgp=0
     for ii,res in enumerate(itr):
@@ -73,76 +73,119 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
                 #    auxbb[2]=det["bbox"][2]-0.1*h
                 #for aflw
                 #frontal
-                if det["id"]==0:#left facing
-                    auxbb[1]=det["bbox"][1]+0.2*w
-                    auxbb[3]=det["bbox"][3]-0.1*w
-                    auxbb[0]=det["bbox"][0]+0.2*h
-                    auxbb[2]=det["bbox"][2]-0.1*h
-                elif det["id"]==2:#right facing
+                if cfg.numcl==2:
+                    if det["id"]==0:#left facing
+                        auxbb[1]=det["bbox"][1]+0.2*w
+                        auxbb[3]=det["bbox"][3]-0.1*w
+                        auxbb[0]=det["bbox"][0]+0.2*h
+                        auxbb[2]=det["bbox"][2]-0.1*h
+                    elif det["id"]==2:#right facing
+                        auxbb[1]=det["bbox"][1]+0.1*w
+                        auxbb[3]=det["bbox"][3]-0.2*w
+                        auxbb[0]=det["bbox"][0]+0.1*h
+                        auxbb[2]=det["bbox"][2]-0.1*h
+                    #lateral
+                    elif det["id"]==1:#left facing
+                        auxbb[1]=det["bbox"][1]+0.2*w
+                        auxbb[3]=det["bbox"][3]#-0.2*w
+                        auxbb[0]=det["bbox"][0]+0.2*h
+                        auxbb[2]=det["bbox"][2]-0.1*h
+                    elif det["id"]==3:#right facing
+                        auxbb[1]=det["bbox"][1]#+0.1*w
+                        auxbb[3]=det["bbox"][3]-0.2*w
+                        auxbb[0]=det["bbox"][0]+0.2*h
+                        auxbb[2]=det["bbox"][2]-0.1*h
+                if cfg.numcl==4:
+                    #todo
                     auxbb[1]=det["bbox"][1]+0.1*w
-                    auxbb[3]=det["bbox"][3]-0.2*w
+                    auxbb[3]=det["bbox"][3]-0.1*w
                     auxbb[0]=det["bbox"][0]+0.1*h
                     auxbb[2]=det["bbox"][2]-0.1*h
-                #lateral
-                elif det["id"]==1:#left facing
-                    auxbb[1]=det["bbox"][1]+0.2*w
-                    auxbb[3]=det["bbox"][3]#-0.2*w
-                    auxbb[0]=det["bbox"][0]+0.2*h
-                    auxbb[2]=det["bbox"][2]-0.1*h
-                elif det["id"]==3:#right facing
-                    auxbb[1]=det["bbox"][1]#+0.1*w
-                    auxbb[3]=det["bbox"][3]-0.2*w
-                    auxbb[0]=det["bbox"][0]+0.2*h
-                    auxbb[2]=det["bbox"][2]-0.1*h
-                res[idd]["bbox"]=auxbb
+                res[idd]["bbox"]=auxbb#*(1/cfg.resize)
         if show:
-            im=myimread(arg[ii]["file"])
+            showmax=3
+            im=myimread(arg[ii]["file"],resize=cfg.resize)
             if tsImages[ii]["bbox"]!=[]:
-                detectCRF.visualize2(res[:3],cfg.N,im,bb=tsImages[ii]["bbox"],line=True)
+                auxbb=[numpy.array(x)*cfg.resize for x in tsImages[ii]["bbox"]]               
+                detectCRF.visualize2(res[:showmax],cfg.N,im,bb=auxbb,line=True)
             else:
-                detectCRF.visualize2(res[:3],cfg.N,im)
-            print [x["scr"] for x in res[:5]]
+                detectCRF.visualize2(res[:showmax],cfg.N,im)
+            print [x["scr"] for x in res[:showmax]]
             #raw_input()
-        facial=False
+        facial=True
+        fulldist=[]
         if facial:    #evaluate facial features position
-            anchor=models[res[0]["id"]]["facial"]
-            if res[0]["id"]==1:
-                inv=[14,15, 12,13, 6,7, 4,5, 8,9, 10,11, 2,3, 0,1, 18,19, 16,17]
-                anchor=anchor[inv]
-            fp=tsImages[ii]["facial"]
-            py,px=tsImages[ii]["bbox"][0][0:2]
-            gtfp=fp.copy()
-            gtfp[0:-1:2]=fp[1::2]+py
-            gtfp[1::2]=fp[0:-1:2]+px
-            pylab.plot(gtfp[1::2],gtfp[0:-1:2],"or", markersize=9)
-            efp=numpy.array(locatePoints(res[:1],cfg.N,anchor)[0])#,6,7,6,10,
-            efpi=numpy.array(locatePointsInter(res[:1],cfg.N,anchor)[0])#,6,7,6,10,
-            #print "Estimated",efp
-            #print "Ground Truth",py+fp[1],px+fp[0]
-            pylab.plot(efp[1::2],efp[0:-1:2],"ob",markersize=7)
-            pylab.plot(efpi[1::2],efpi[0:-1:2],"og",markersize=7)
-            intocu=numpy.sqrt(((gtfp[13]+gtfp[15])/2.0-(gtfp[1]+gtfp[3])/2.0)**2+((gtfp[12]+gtfp[14])/2.0-(gtfp[0]+gtfp[2])/2.0)**2)
-            dist=numpy.sqrt(numpy.sum(numpy.reshape(gtfp-efp,(-1,2))**2,1))
-            disti=numpy.sqrt(numpy.sum(numpy.reshape(gtfp-efpi,(-1,2))**2,1))
-            #print "Pupil Left",(gtfp[1]+gtfp[3])/2,"Pupil Right",(gtfp[13]+gtfp[15])/2
-            print "Inter ocular distance",intocu
-            print "Dist Near",dist
-            print "Dist Inter",disti
-            print "Nearest",numpy.sum(dist)
-            print "Inter",numpy.sum(disti)
-            gp=numpy.sum(dist<0.1*intocu)
-            gpi=numpy.sum(disti<0.1*intocu)
-            print "Good points Near",gp
-            print "Good points Inter",gpi
-            error=error+gtfp-efpi
-            pylab.draw()
-            pylab.show()
-            print "Error",error
-            totgpi+=gpi
-            totgp+=gp
-            print "Global Avrg",float(totgp)/(ii+1)
-            print "Global Avrg Inter",float(totgpi)/(ii+1)
-            print
+            for dd in res[:showmax]:
+                if cfg.numcl==2:
+                    if dd["id"]%2==0:#model 0
+                        anchor=numpy.array([5,5, 5,11, 9,7, 11,6, 11,8, 11,11])/8.0*models[0]["ww"][0].shape[0]/float(cfg.E*2+cfg.N)#models[res[0]["id"]]["facial"]
+                    else:#model 1
+                        #anchor=numpy.array([4,6 ,4,10 ,6,10,10,6,10,8,10,10])#models[res[0]["id"]]["facial"]
+                        anchor=numpy.array([5,6, 5,8 ,8,4, 12,6, 12,7, 12,9])/8.0*models[1]["ww"][0].shape[0]/float(cfg.E*2+cfg.N)#models[res[0]["id"]]["facial"]
+                elif cfg.numcl==4:
+                    if dd["id"]%cfg.numcl==0:#model 0
+                        anchor=numpy.array([6.5,7.5, 7.0,16, 13,11, 15.5,8, 15.5,11, 15.5,14])#/8.0*models[0]["ww"][0].shape[0]/float(cfg.E*2+cfg.N)#models[res[0]["id"]]["facial"]
+                    elif dd["id"]%cfg.numcl==1:#model 1
+                        anchor=numpy.array([6.5,6, 6,13 ,11,10, 13.5,8, 13.5,10, 13.5,12])#/8.0*models[1]["ww"][0].shape[0]/float(cfg.E*2+cfg.N)#models[res[0]["id"]]["facial"]
+                    elif dd["id"]%cfg.numcl==2:#model 2
+                        anchor=numpy.array([6.5,6.5, 6.5,12.5 ,11,7.5, 13.5,8, 14,10, 13.5,12.5])#/8.0*models[1]["ww"][0].shape[0]/float(cfg.E*2+cfg.N)#models[res[0]["id"]]["facial"]
+                    elif dd["id"]%cfg.numcl==3:#model 3
+                        anchor=numpy.array([6.5,8.5, 5.5,10.5 ,10,13, 13,7, 13,10.5, 13,11.5])#/8.0*models[1]["ww"][0].shape[0]/float(cfg.E*2+cfg.N)#models[res[0]["id"]]["facial"]
+                if dd["id"]/cfg.numcl==1:#flipped model
+                    #inv=[14,15, 12,13, 6,7, 4,5, 8,9, 10,11, 2,3, 0,1, 18,19, 16,17]
+                    inv=[2,3, 0,1, 4,5, 10,11, 8,9, 6,7] #2,3, 0,1, 18,19, 16,17]
+                    #inv=[ 0,1, 2,3, 4,5, 6,7, 8,9, 10,11] #2,3, 0,1, 18,19, 16,17]
+                    anchor=anchor[inv]
+                    anchor[1::2]=-anchor[1::2]+int(models[dd["id"]]["ww"][0].shape[1]*float(cfg.N)/(cfg.N+2*cfg.E))
+                fpoints=tsImages[ii]["facial"]
+                tmpdist=[]
+                for idfp,fp in enumerate(fpoints):
+                #print fp;raw_input()
+                    #for bb in tsImages[ii]["bbox"]
+                    py1,px1,py2,px2=numpy.array(tsImages[ii]["bbox"][idfp][0:4])*cfg.resize
+                    h=py2-py1
+                    w=px2-px1
+                    fp=fp.flatten()*cfg.resize
+                    gtfp=fp.copy()
+                    gtfp[0:-1:2]=fp[1::2]
+                    gtfp[1::2]=fp[0:-1:2]
+                    #gtfp=gtfp.flatten()
+                    pylab.plot(gtfp[1::2],gtfp[0:-1:2],"or-", markersize=9)
+                    if 1:
+                        efp=numpy.array(locatePoints([dd],cfg.N,anchor)[0])#,6,7,6,10,
+                        efpi=numpy.array(locatePointsInter([dd],cfg.N,anchor)[0])#,6,7,6,10,
+                        #print "Estimated",efp
+                        #print "Ground Truth",py+fp[1],px+fp[0]
+                        pylab.plot(efp[1::2],efp[0:-1:2],"ob-",markersize=7)
+                        pylab.plot(efpi[1::2],efpi[0:-1:2],"sg-",markersize=7)
+                        #intocu=numpy.sqrt(((gtfp[13]+gtfp[15])/2.0-(gtfp[1]+gtfp[3])/2.0)**2+((gtfp[12]+gtfp[14])/2.0-(gtfp[0]+gtfp[2])/2.0)**2)
+                        intocu=(h+w)/2.0
+                        dist=numpy.sqrt(numpy.sum(numpy.reshape(gtfp-efp,(-1,2))**2,1))
+                        disti=numpy.sqrt(numpy.sum(numpy.reshape(gtfp-efpi,(-1,2))**2,1))
+                        #print "Pupil Left",(gtfp[1]+gtfp[3])/2,"Pupil Right",(gtfp[13]+gtfp[15])/2
+                        tmpdist.append(dist)
+                        print "Threshold Pixels",intocu*0.05
+                        #print "Dist Near",dist
+                        #print "Dist Inter",disti
+                        #print "Nearest",numpy.sum(dist)
+                        #print "Inter",numpy.sum(disti)
+                        if 0:
+                            gp=numpy.sum(dist<0.05*intocu)
+                            gpi=numpy.sum(disti<0.05*intocu)
+                            print "Good points Near",gp
+                            print "Good points Inter",gpi
+                            error=error+gtfp-efpi
+                            pylab.draw()
+                            pylab.show()
+                            print "Error",error
+                            totgpi+=gpi
+                            totgp+=gp
+                            print "Global Avrg",float(totgp)/(ii+1)
+                            print "Global Avrg Inter",float(totgpi)/(ii+1)
+                            print
+                bestdist=numpy.argmin(numpy.array(tmpdist).sum(1))
+                fulldist.append(tmpdist[bestdist])
+                print "Smaller Distance",fulldist[-1]
             raw_input()
         ltdet+=res
 
@@ -176,7 +219,7 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
         testname=save
         util.savedetVOC(detVOC,testname+".txt")
         util.save(testname+".det",{"det":ltdet[:500]})#takes a lot of space use only first 500
-        util.savemat(testname+".mat",{"tp":tp,"fp":fp,"scr":scr,"tot":tot,"rc":rc,"pr":pr,"ap":ap})
+        util.savemat(testname+".mat",{"tp":tp,"fp":fp,"scr":scr,"tot":tot,"rc":rc,"pr":pr,"ap":ap,"dist":fulldist})
         pylab.savefig(testname+".png")
     return ap
 
@@ -297,9 +340,11 @@ if __name__ == '__main__':
         #tsImages=getRecord(InriaTestFullData(basepath=cfg.dbpath),cfg.maxtest)
         tsImagesFull=tsImages
     elif cfg.db=="AFW":
-        tsImages=getRecord(AFW(basepath=cfg.dbpath),cfg.maxpos)
+        tsImages=getRecord(AFW(basepath=cfg.dbpath),cfg.maxpos,facial=True)
         tsImagesFull=tsImages
-
+    elif cfg.db=="images":
+        tsImages=getRecord(DirImages(imagepath="/users/visics/mpederso/code/face-release1.0-basic/images/",ext="jpg"))
+        tsImagesFull=tsImages
     ##############load model
     for l in range(cfg.posit):
         try:
@@ -359,16 +404,20 @@ if __name__ == '__main__':
     #testname="data/test2/face2_pose_final"
     #testname="data/full/face2_pose_full9"
     #testname="data/aflw/pose/face3_pose57"
-    testname="data/aflw/pose/face2_FULL7"
+    #testname="data/aflw/pose/face2_FULL7"#best results
+    #testname="data/aflw/pose/face2_FULLinv4"
+    #testname="data/aflw/pose/face2_FULLHIGH1"
+    testname="data/aflw/pose4/face4_hpose4_bis7"
     #testname="/users/visics/mpederso/code/git/bigger/CRFdet/data/test/face1_lfw_highres_final"
     cfg.trunc=1
     models=util.load("%s.model"%(testname))
     #cfg.numhypTEST=100
     #del models[0]
-    cfg.numcl=2
+    cfg.numcl=4
     cfg.E=1
     #cfg.N=2
     #cfg.sbin=4
+    cfg.resize=0.5
     cfg.N=models[0]["N"]
     cfg.hallucinate=0
     #del models[0]["thr"]
@@ -385,5 +434,5 @@ if __name__ == '__main__':
     ##############test
     #import itertools
     #runtest(models,tsImages,cfg,parallel=False,numcore=4,detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=True)#,save="%s%d"%(testname,it))
-    runtest(models,tsImagesFull,cfg,parallel=True,numcore=16,show=True,detfun=testINC,save="./AFLWfull7")
+    runtest(models,tsImagesFull,cfg,parallel=True,numcore=2,show=True,detfun=testINC)#,save="./AFLWfullpose4")
 

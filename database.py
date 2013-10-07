@@ -7,19 +7,20 @@ except:
 import string
 import pickle
 
-def myimread(imgname):
-    img=None
-    if imgname.split(".")[-1]=="png":
-        img=pylab.imread(imgname)
-    else:
-        img=pil.imread(imgname)        
-    if img.ndim<3:
-        aux=numpy.zeros((img.shape[0],img.shape[1],3))
-        aux[:,:,0]=img
-        aux[:,:,1]=img
-        aux[:,:,2]=img
-        img=aux
-    return img
+from util import myimread
+#def myimread(imgname):
+#    img=None
+#    if imgname.split(".")[-1]=="png":
+#        img=pylab.imread(imgname)
+#    else:
+#        img=pil.imread(imgname)        
+#    if img.ndim<3:
+#        aux=numpy.zeros((img.shape[0],img.shape[1],3))
+#        aux[:,:,0]=img
+#        aux[:,:,1]=img
+#        aux[:,:,2]=img
+#        img=aux
+#    return img
 
 
 def getbboxINRIA(filename):
@@ -798,10 +799,7 @@ class AFW(VOC06Data):
         self.annpath=basepath+annpath
         import util
         self.ann=util.loadmat(self.trainfile)["anno"]
-        #cnt=0
-        #for l in self.ann:
-        #    cnt+=l[1].shape[1]
-        self.total=len(self.ann)#cnt #intial 5 lines of comments
+        self.total=len(self.ann)
         self.mina=mina
         
     def getDBname(self):
@@ -858,17 +856,17 @@ class AFW(VOC06Data):
         return auxb
 
     def getPose(self,i):
-        i=i+int(self.total/self.totalfold)*self.fold
-        item=self.selines[i]
-        aux=item.split()        
-        return int(aux[5])
+        #i=i+int(self.total/self.totalfold)*self.fold
+        #item=self.selines[i]
+        #aux=item.split()        
+        return self.ann[i][2][0][0][0]#int(aux[5])
 
 
     def getFacial(self,i):
-        i=i+int(self.total/self.totalfold)*self.fold
-        item=self.selines[i]
-        aux=item.split()        
-        return (numpy.array(aux[7:7+int(aux[6])*2])).astype(numpy.float32)
+        #i=i+int(self.total/self.totalfold)*self.fold
+        #item=self.selines[i]
+        #aux=item.split()        
+        return self.ann[i][3][0].flatten()#(numpy.array(aux[7:7+int(aux[6])*2])).astype(numpy.float32)
 
 class AFLW(VOC06Data):
     """
@@ -987,6 +985,62 @@ class AFLW(VOC06Data):
             facial+=self.cur.fetchall()
         return facial
 
+class MultiPIE(VOC06Data):
+    """
+    MultiPIE
+    """
+    def __init__(self,select="all",cl="face_train.txt",
+                basepath="media/DADES-2/",
+                imagepath="multiPIE/Multi-Pie/Multi-Pie/data/",
+                session="session01",
+                subject="001",
+                recording="01",
+                camera="05_1",
+                usetr=False,usedf=False,mina=0,fold=0,ext="png"):
+        self.usetr=usetr
+        self.usedf=usedf
+        self.local=basepath+local
+        self.trainfile=basepath+trainfile
+        self.imagepath=basepath+imagepath+session+"/"+subject+"/"+recording+"/"+camera
+        #self.annpath=basepath+annpath
+        self.selines=glob.glob(self.imagepath+"/*"+ext)
+        self.selines.sort()
+        self.total=len(self.selines)
+        
+    def getDBname(self):
+        return "MultiPIE"
+    
+    def getStorageDir(self):
+        return self.local#"/media/DADES-2/VOC2007/VOCdevkit/local/VOC2007/"
+        
+    def getImage(self,i):
+        return myimread(self.selines[i])
+    
+    def getImageRaw(self,i):
+        item=self.ann[i][0][0]
+        return im.open((self.imagepath+item))#pil.imread((self.imagepath+item.split(" ")[0])+".jpg")    
+    
+    def getImageByName(self,name):
+        return myimread(name)
+    
+    def getImageByName2(self,name):
+        return myimread(self.imagepath+name)
+
+    def getImageName(self,i):
+        return (self.selines[i])
+    
+    def getTotal(self):
+        return self.total
+    
+    def getBBox(self,i,cl=None,usetr=None,usedf=None):
+        return [[120,240,320,440,0,0]]
+
+    def getPose(self,i):
+        return poses
+
+
+    def getFacial(self,i):
+        return facial
 
 
 class Buffy(VOC07Data):

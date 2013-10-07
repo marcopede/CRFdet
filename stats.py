@@ -152,6 +152,10 @@ def build_components_pose(trPosImages,cfg):
         if cfg.numcl==3:
             cl[numpy.logical_and(abs(pose)>=numpy.pi/6,abs(pose)<numpy.pi/3)]=1
             cl[abs(pose)>=numpy.pi/3]=2
+        if cfg.numcl==4:
+            cl[numpy.logical_and(numpy.sqrt(abs(pose))>=numpy.pi/2*0.25,numpy.sqrt(abs(pose))<numpy.pi/2*0.5)]=1
+            cl[numpy.logical_and(numpy.sqrt(abs(pose))>=numpy.pi/2*0.5,numpy.sqrt(abs(pose))<numpy.pi/2*0.75)]=2
+            cl[abs(pose)**2>=numpy.pi/2*0.75]=3
     trpos={"name":name,"bb":bb,"ratio":r,"area":a}
     import scipy.cluster.vq as vq
     numcl=cfg.numcl
