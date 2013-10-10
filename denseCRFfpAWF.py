@@ -106,7 +106,7 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
             showmax=3
             im=myimread(arg[ii]["file"],resize=cfg.resize)
             if tsImages[ii]["bbox"]!=[]:
-                auxbb=[numpy.array(x)*cfg.resize for x in tsImages[ii]["bbox"]]               
+                auxbb=[list(numpy.array(x)*cfg.resize) for x in tsImages[ii]["bbox"]]               
                 detectCRF.visualize2(res[:showmax],cfg.N,im,bb=auxbb,line=True)
             else:
                 detectCRF.visualize2(res[:showmax],cfg.N,im)
@@ -115,7 +115,7 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
         facial=True
         fulldist=[]
         if facial:    #evaluate facial features position
-            for dd in res[:showmax]:
+            for iddd,dd in enumerate(res):
                 if cfg.numcl==2:
                     if dd["id"]%2==0:#model 0
                         anchor=numpy.array([5,5, 5,11, 9,7, 11,6, 11,8, 11,11])/8.0*models[0]["ww"][0].shape[0]/float(cfg.E*2+cfg.N)#models[res[0]["id"]]["facial"]
@@ -156,15 +156,17 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
                         efpi=numpy.array(locatePointsInter([dd],cfg.N,anchor)[0])#,6,7,6,10,
                         #print "Estimated",efp
                         #print "Ground Truth",py+fp[1],px+fp[0]
-                        pylab.plot(efp[1::2],efp[0:-1:2],"ob-",markersize=7)
-                        pylab.plot(efpi[1::2],efpi[0:-1:2],"sg-",markersize=7)
+                        if iddd<showmax:
+                            pylab.plot(efp[1::2],efp[0:-1:2],"ob-",markersize=7)
+                            pylab.plot(efpi[1::2],efpi[0:-1:2],"sg-",markersize=7)
                         #intocu=numpy.sqrt(((gtfp[13]+gtfp[15])/2.0-(gtfp[1]+gtfp[3])/2.0)**2+((gtfp[12]+gtfp[14])/2.0-(gtfp[0]+gtfp[2])/2.0)**2)
                         intocu=(h+w)/2.0
                         dist=numpy.sqrt(numpy.sum(numpy.reshape(gtfp-efp,(-1,2))**2,1))
                         disti=numpy.sqrt(numpy.sum(numpy.reshape(gtfp-efpi,(-1,2))**2,1))
                         #print "Pupil Left",(gtfp[1]+gtfp[3])/2,"Pupil Right",(gtfp[13]+gtfp[15])/2
-                        tmpdist.append(dist)
-                        print "Threshold Pixels",intocu*0.05
+                        tmpdist.append(disti)
+                        res[iddd]["facial"]=efpi
+                        #print "Threshold Pixels",intocu*0.05
                         #print "Dist Near",dist
                         #print "Dist Inter",disti
                         #print "Nearest",numpy.sum(dist)
@@ -185,7 +187,7 @@ def runtest(models,tsImages,cfg,parallel=True,numcore=4,detfun=detectCRF.test,sa
                             print
                 bestdist=numpy.argmin(numpy.array(tmpdist).sum(1))
                 fulldist.append(tmpdist[bestdist])
-                print "Smaller Distance",fulldist[-1]
+            print "Smaller Distance",fulldist[-1]
             raw_input()
         ltdet+=res
 
@@ -407,7 +409,9 @@ if __name__ == '__main__':
     #testname="data/aflw/pose/face2_FULL7"#best results
     #testname="data/aflw/pose/face2_FULLinv4"
     #testname="data/aflw/pose/face2_FULLHIGH1"
-    testname="data/aflw/pose4/face4_hpose4_bis7"
+    #testname="data/aflw/pose4/face4_hpose4_bis9"
+    #testname="data/aflw/pose4/face4_FULLinvhigh2"
+    testname="data/aflw/pose4/face4_moreregdef1"
     #testname="/users/visics/mpederso/code/git/bigger/CRFdet/data/test/face1_lfw_highres_final"
     cfg.trunc=1
     models=util.load("%s.model"%(testname))
@@ -417,7 +421,7 @@ if __name__ == '__main__':
     cfg.E=1
     #cfg.N=2
     #cfg.sbin=4
-    cfg.resize=0.5
+    cfg.resize=1.0#0.5
     cfg.N=models[0]["N"]
     cfg.hallucinate=0
     #del models[0]["thr"]
@@ -434,5 +438,5 @@ if __name__ == '__main__':
     ##############test
     #import itertools
     #runtest(models,tsImages,cfg,parallel=False,numcore=4,detfun=lambda x :detectCRF.test(x,numhyp=1,show=False),show=True)#,save="%s%d"%(testname,it))
-    runtest(models,tsImagesFull,cfg,parallel=True,numcore=2,show=True,detfun=testINC)#,save="./AFLWfullpose4")
+    runtest(models,tsImagesFull,cfg,parallel=True,numcore=10,show=True,detfun=testINC,save="./AFLWfullmorerigdef1")
 

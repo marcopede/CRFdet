@@ -991,17 +991,17 @@ class MultiPIE(VOC06Data):
     """
     def __init__(self,select="all",cl="face_train.txt",
                 basepath="media/DADES-2/",
-                imagepath="multiPIE/Multi-Pie/Multi-Pie/data/",
+                imagepath="multiPIE/MultiPIE/Multi-Pie/Multi-Pie/data/",
                 session="session01",
                 subject="001",
                 recording="01",
                 camera="05_1",
                 usetr=False,usedf=False,mina=0,fold=0,ext="png"):
+        self.camera=camera
         self.usetr=usetr
         self.usedf=usedf
-        self.local=basepath+local
-        self.trainfile=basepath+trainfile
-        self.imagepath=basepath+imagepath+session+"/"+subject+"/"+recording+"/"+camera
+        self.local=basepath
+        self.imagepath=basepath+imagepath+session+"/multiview/"+subject+"/"+recording+"/"+camera
         #self.annpath=basepath+annpath
         self.selines=glob.glob(self.imagepath+"/*"+ext)
         self.selines.sort()
@@ -1036,11 +1036,37 @@ class MultiPIE(VOC06Data):
         return [[120,240,320,440,0,0]]
 
     def getPose(self,i):
-        return poses
+        if self.camera=="11_0":
+            pose=-90
+        elif self.camera=="12_0":
+            pose=-75
+        elif self.camera=="09_0":
+            pose=-60
+        elif self.camera=="08_0":
+            pose=-45
+        elif self.camera=="13_0":
+            pose=-30
+        elif self.camera=="14_0":
+            pose=-15
+        elif self.camera=="05_1":
+            pose=0
+        if self.camera=="05_0":
+            pose=15
+        elif self.camera=="04_1":
+            pose=30
+        elif self.camera=="19_0":
+            pose=45
+        elif self.camera=="20_0":
+            pose=-60
+        elif self.camera=="01_0":
+            pose=75
+        elif self.camera=="24_0":
+            pose=90
+        return pose
 
 
     def getFacial(self,i):
-        return facial
+        return []
 
 
 class Buffy(VOC07Data):

@@ -441,6 +441,69 @@ def VOCprRecord(gtImages,detlist,show=False,ovr=0.5,pixels=None):
 
     return tp,fp,thr,tot
 
+#det should have imid and facial
+def VOCprFacial(gtImages,det,show=False,ovr=0.5,pixels=None,mina=150,thr=0.05):
+    """
+        calculate the precision recall curve
+    """
+    ddet={}
+    tot=0
+    for idx,dd in enumerate(det):
+        if dd.has_key("facial"):
+            facial=dd["facial"][:]
+            #if idx>288:
+            #    print idx,rect
+            if facial!=[]:
+                #print gtImages.getImageName(idx).split("/")[-1].split(".")[0]
+                if ddet.has_key(dd["idim"]):
+                    ddet[dd["idim"]].append(facial)
+                else:
+                    ddet[dd["idim"]]=[facial]
+                for i, faciali in enumerate(facial):
+                    #py1,px1,py2,px2,no,no=gtImages[idx]["bbox"][i]
+                    #if (py2-py1)*(px2-px1)>mina
+                    tot=tot+1
+        
+    ldist=[]
+    lmaxdist=[]
+    ldelta=[]
+    for face in gtImages:#for each images
+        fpgt=face["facial"]
+        for idfp,fp in enumerate(fpgt):#for each face in image
+            py1,px1,py2,px2,no,no=face["bbox"][idfp]
+            if float(py2-py1)>=mina+4:
+                if ddet.has_key(face["name"].split("/")[-1]):
+                    ddim=ddet[face["name"].split("/")[-1]]
+                    mindist=10000
+                    for iddd,dd in enumerate(ddim):#for each detection in the same image    
+                        dist=numpy.sqrt((fp[:,1]-dd[::2])**2+(fp[:,0]-dd[1::2])**2)
+                        dist=dist[numpy.isfinite(dist)]
+                        #print sum(dist),fp[:,1],fp[:,0]
+                        #raw_input()
+                        dy=fp[:,1]-dd[::2];dx=fp[:,0]-dd[1::2]
+                        #print dy,dx
+                        #raw_input()
+                        dist=dist/float(((py2-py1)+(px2-px1))/2)
+                        if numpy.sum(dist)<mindist:
+                            mindist=numpy.sum(dist)
+                            fulldist=dist
+                            bestid=iddd
+                            bestdy=dy
+                            bestdx=dx
+                    ldist.append(fulldist)       
+                    lmaxdist.append(numpy.mean(fulldist))
+                    ldelta.append(numpy.concatenate((bestdy,bestdx)))
+                else:
+                    ldist.append([numpy.inf,numpy.inf,numpy.inf,numpy.inf,numpy.inf,numpy.inf])
+                    lmaxdist.append(numpy.inf)
+    #numpy.where(numpy.array(lf).sum(1)!=numpy.inf)[0]
+    lmaxdist.sort()
+    ald=numpy.array(ldelta)
+    ald=ald[numpy.isfinite(numpy.sum(ald,1)),:]#.mean(0)
+
+    return ald,ldist,lmaxdist,numpy.sum(numpy.array(lmaxdist)<thr)/float(len(lmaxdist))
+
+
 def VOCprRecordthr(gtImages,detlist,show=False,ovr=0.5,pixels=None):
     """
         calculate the precision recall curve

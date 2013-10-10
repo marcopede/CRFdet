@@ -144,7 +144,7 @@ def build_components_pose(trPosImages,cfg):
             cl[pose==-1]=1
             cl[pose==2]=2
             cl[pose==-2]=2
-    else:
+    elif cfg.db=="AFLW":
         cl=numpy.zeros(r.shape)
         pose=numpy.array([x[0][2] for x in trPosImages["pose"]])
         if cfg.numcl==2:
@@ -156,6 +156,9 @@ def build_components_pose(trPosImages,cfg):
             cl[numpy.logical_and(numpy.sqrt(abs(pose))>=numpy.pi/2*0.25,numpy.sqrt(abs(pose))<numpy.pi/2*0.5)]=1
             cl[numpy.logical_and(numpy.sqrt(abs(pose))>=numpy.pi/2*0.5,numpy.sqrt(abs(pose))<numpy.pi/2*0.75)]=2
             cl[abs(pose)**2>=numpy.pi/2*0.75]=3
+    elif cfg.db=="MultiPIE":
+        cl=numpy.zeros(r.shape)
+        cl=numpy.round((numpy.abs(trPosImages["pose"])/90.0*cfg.numcl).astype(numpy.float)).astype(numpy.int)
     trpos={"name":name,"bb":bb,"ratio":r,"area":a}
     import scipy.cluster.vq as vq
     numcl=cfg.numcl

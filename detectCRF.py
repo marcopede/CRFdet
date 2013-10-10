@@ -61,7 +61,7 @@ def refinePos(el):
         if el["facial"]!=None and cfg.useFacial:
            #el["facial"][:1:2]=img.shape[1]-el["facial"][:1:2]#for my points
            cfacial[::2]=(bbox[3]-bbox[1])-cfacial[::2]
-    print cfacial
+    #print cfacial
     maxy=numpy.max([x["ww"][0].shape[0] for x in models])    
     maxx=numpy.max([x["ww"][0].shape[1] for x in models])    
     if (bbox!=[]):
