@@ -131,7 +131,9 @@ if __name__ == '__main__':
     #det=util.load("./data/condor_lowres/%s2_morerigid_final.det"%cfg.cls)["det"]
     #det=util.load("data/AFW/AWF4.det")["det"]
     #det=util.load("AWFpose.det")["det"]    
-    det=util.load("AFLWfullpose4.det")["det"]    
+    #det=util.load("/users/visics/mpederso/code/git/facial/CRFdet/data/MultiPIE/face2_PIE600_trpos.det")["det"]
+    det=util.load("PIEfull4.det")["det"]    
+    #imgpath=cfg.dbpath+"multiPIE//"
     imgpath=cfg.dbpath+"afw/testimages/"
     #imgpath=cfg.dbpath+"VOC2007/VOCdevkit/VOC2007/JPEGImages/"
     #imgpath=cfg.dbpath+"/buffy/images/"

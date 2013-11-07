@@ -156,7 +156,18 @@ def build_components_pose(trPosImages,cfg):
             cl[numpy.logical_and(numpy.sqrt(abs(pose))>=numpy.pi/2*0.25,numpy.sqrt(abs(pose))<numpy.pi/2*0.5)]=1
             cl[numpy.logical_and(numpy.sqrt(abs(pose))>=numpy.pi/2*0.5,numpy.sqrt(abs(pose))<numpy.pi/2*0.75)]=2
             cl[abs(pose)**2>=numpy.pi/2*0.75]=3
+        if cfg.numcl>4:
+            cl=numpy.round(numpy.clip((abs(pose/numpy.pi*2))*cfg.numcl,0,cfg.numcl-1)).astype(numpy.int)
+    elif cfg.db=="MultiPIEfron":
+        cl=numpy.zeros(r.shape)
+        #cl=numpy.round((numpy.abs(trPosImages["pose"])/90.0*cfg.numcl).astype(numpy.float)).astype(numpy.int)
+    elif cfg.db=="MultiPIEramanan":
+        cl=numpy.zeros(r.shape)
+        cl=numpy.round((numpy.abs(trPosImages["pose"])/90.0*cfg.numcl).astype(numpy.float)).astype(numpy.int)
     elif cfg.db=="MultiPIE":
+        cl=numpy.zeros(r.shape)
+        cl=numpy.round((numpy.abs(trPosImages["pose"])/90.0*cfg.numcl).astype(numpy.float)).astype(numpy.int)
+    elif cfg.db=="MultiPIE2":
         cl=numpy.zeros(r.shape)
         cl=numpy.round((numpy.abs(trPosImages["pose"])/90.0*cfg.numcl).astype(numpy.float)).astype(numpy.int)
     trpos={"name":name,"bb":bb,"ratio":r,"area":a}

@@ -164,6 +164,11 @@ def getRecord(data,total=-1,pos=True,pose=False,facial=False):
     for i in range(total):
         arrPos[i]["id"]=i
         arrPos[i]["name"]=data.getImageName(i)
+        #print data.selines[i]
+        #if arrPos[i]["name"]=='/users/visics/mpederso/databases/multiPIE/MultiPIE/Multi-Pie/Multi-Pie/data/session01/multiview/010/01/09_0/010_01_01_090_03.png':
+        #    print i,arrPos[i]["name"],data.selines[i]
+        #    raw_input()
+        #print "AAAA",len(data.selines[9]),data.selines[9]
         arrPos[i]["bbox"]=data.getBBox(i)
         if pose:
             arrPos[i]["pose"]=data.getPose(i)
@@ -897,7 +902,16 @@ class AFLW(VOC06Data):
         self.cur = con.cursor() 
         #self.cur.execute("SELECT face_id FROM Faces")
         self.cur.execute("SELECT file_id FROM Faces")
-        self.items=numpy.unique(self.cur.fetchall())
+        aux=self.cur.fetchall()
+        #remove bad image 9437
+        del aux[8160]
+        for idx,x in enumerate(aux):
+            #print idx,x
+            if x[0]=="image09437.jpg":
+                print "Removing file ",idx
+                del aux[idx]
+                #raw_input()
+        self.items=numpy.unique(aux)
         self.total=len(self.items)
         
     def getDBname(self):
@@ -992,20 +1006,26 @@ class MultiPIE(VOC06Data):
     def __init__(self,select="all",cl="face_train.txt",
                 basepath="media/DADES-2/",
                 imagepath="multiPIE/MultiPIE/Multi-Pie/Multi-Pie/data/",
+                labels="multiPIE/MultiPIE/Labels/Labels/labels/",
                 session="session01",
                 subject="001",
                 recording="01",
                 camera="05_1",
                 usetr=False,usedf=False,mina=0,fold=0,ext="png"):
+        self.labels=basepath+labels
+        self.session=session[-2:]
         self.camera=camera
         self.usetr=usetr
         self.usedf=usedf
         self.local=basepath
+        self.subject=subject
+        self.recording=recording
         self.imagepath=basepath+imagepath+session+"/multiview/"+subject+"/"+recording+"/"+camera
         #self.annpath=basepath+annpath
         self.selines=glob.glob(self.imagepath+"/*"+ext)
         self.selines.sort()
         self.total=len(self.selines)
+        self.cam=["110","120","090","080","130","140","051","050","041","190","200","010","240"]
         
     def getDBname(self):
         return "MultiPIE"
@@ -1033,7 +1053,36 @@ class MultiPIE(VOC06Data):
         return self.total
     
     def getBBox(self,i,cl=None,usetr=None,usedf=None):
-        return [[120,240,320,440,0,0]]
+        #im=self.selines[i][-6:-4]
+        #cam=self.camera[:2]+self.camera[-1]
+        #data=util.loadmat(self.labels+"/"+cam+"/"+self.subject+"_"+self.session+"_"+self.recording+"_"+cam+"_"+im+"_lm.mat")
+        if self.camera=="11_0":
+            aux=[[120,120,320,320,0,0]]
+        elif self.camera=="12_0":
+            aux=[[120,140,320,340,0,0]]
+        elif self.camera=="09_0":
+            aux=[[120,80,320,280,0,0]]
+        elif self.camera=="08_0":
+            aux=[[120,160,320,360,0,0]]
+        elif self.camera=="13_0":
+            aux=[[120,210,320,410,0,0]]
+        elif self.camera=="14_0":
+            aux=[[120,220,320,420,0,0]]
+        elif self.camera=="05_1":
+            aux=[[120,220,320,420,0,0]]
+        if self.camera=="05_0":
+            aux=[[120,230,320,430,0,0]]
+        elif self.camera=="04_1":
+            aux=[[140,250,320,450,0,0]]
+        elif self.camera=="19_0":
+            aux=[[110,290,310,490,0,0]]
+        elif self.camera=="20_0":
+            aux=[[120,290,320,490,0,0]]
+        elif self.camera=="01_0":
+            aux=[[120,320,320,520,0,0]]
+        elif self.camera=="24_0":
+            aux=[[140,320,340,520,0,0]]
+        return aux
 
     def getPose(self,i):
         if self.camera=="11_0":
@@ -1061,6 +1110,163 @@ class MultiPIE(VOC06Data):
         elif self.camera=="01_0":
             pose=75
         elif self.camera=="24_0":
+            pose=90
+        return pose
+
+
+    def getFacial(self,i):
+        return []
+
+
+class MultiPIE2(VOC06Data):
+    """
+    MultiPIE
+    """
+    def __init__(self,select="all",cl="face_train.txt",
+                basepath="media/DADES-2/",
+                imagepath="multiPIE/MultiPIE/Multi-Pie/Multi-Pie/data/",
+                labels="multiPIE/MultiPIE/Labels/Labels/labels/",
+                annotation="multiPIE/my_annotation",
+                session="session01",
+                subject="001",
+                recording="01",
+                camera="051",
+                usetr=False,usedf=False,mina=0,fold=0,ext="png"):
+        self.labels=basepath+labels
+        self.session=session[-2:]
+        self.camera=camera
+        self.usetr=usetr
+        self.usedf=usedf
+        self.local=basepath
+        self.subject=subject
+        self.recording=recording
+        self.imagepath=basepath+imagepath#+session+"/multiview/"+subject+"/"+recording+"/"+camera[:2]+"_"+camera[-1]
+        #self.annpath=basepath+annpath
+        #print "++++++++++",camera                    
+        self.selines=glob.glob(basepath+annotation+"/??????????"+camera+"??????.mat")#010_01_01_
+        self.selines.sort()
+        #self.selines=numpy.unique(self.selines)
+        self.total=len(self.selines)
+        #self.cam=["110","120","090","080","130","140","051","050","041","190","200","010","240"]
+        
+    def getDBname(self):
+        return "MultiPIE"
+    
+    def getStorageDir(self):
+        return self.local#"/media/DADES-2/VOC2007/VOCdevkit/local/VOC2007/"
+        
+    def getImage(self,i):
+        imgid=self.selines[i].split("/")[-1]
+        val=imgid.split("_")
+        camera=val[3][:2]+"_"+val[3][-1]
+        recording=val[2]
+        subject=val[0]
+        imnum=val[4]
+        session=val[1]
+        return myimread(self.imagepath+"session"+session+"/multiview/"+subject+"/"+recording+"/"+camera[:2]+"_"+camera[-1]+"/%s_%s_%s_%s_%s.png"%(subject,session,recording,camera,imnum))
+#myimread(self.imagepath+session+"/multiview/"+subject+"/"+recording+"/"+camera+"/"+"%s_%s_%s_%s_%s"%(subject,session,recording,camera,imnum))
+    
+    def getImageRaw(self,i):
+        imgid=self.selines[i].split("/")[-1]
+        val=imgid.split("_")
+        camera=val[3]#[:2]+"_"+val[3][-1]
+        recording=val[2]
+        subject=val[0]
+        imnum=val[4]
+        session="session%02d"%val[1]
+        #item=self.ann[i][0][0]
+        return im.open((self.imagepath+item))#pil.imread((self.imagepath+item.split(" ")[0])+".jpg")    
+    
+    def getImageByName(self,name):
+        return myimread(name)
+    
+    def getImageByName2(self,name):
+        return myimread(self.imagepath+name)
+
+    def getImageName(self,i):
+        imgid=self.selines[i].split("/")[-1]
+        val=imgid.split("_")
+        camera=val[3]#[:2]+"_"+val[3][-1]
+        recording=val[2]
+        subject=val[0]
+        imnum=val[4]
+        session=val[1]  
+        return self.imagepath+"session"+session+"/multiview/"+subject+"/"+recording+"/"+camera[:2]+"_"+camera[-1]+"/%s_%s_%s_%s_%s.png"%(subject,session,recording,camera,imnum)
+        #return (self.imagepath+session+"/multiview/"+subject+"/"+recording+"/"+camera+"/"+"%s_%s_%s_%s_%s"%(subject,session,recording,camera,imnum))
+    
+    def getTotal(self):
+        return self.total
+    
+    def getBBox(self,i,cl=None,usetr=None,usedf=None):
+        #im=self.selines[i][-6:-4]
+        #cam=self.camera[:2]+self.camera[-1]
+        #data=util.loadmat(self.labels+"/"+cam+"/"+self.subject+"_"+self.session+"_"+self.recording+"_"+cam+"_"+im+"_lm.mat")
+        fixed=False
+        if fixed:
+            if self.camera=="110":
+                aux=[[120,120,320,320,0,0]]
+            elif self.camera=="120":
+                aux=[[120,140,320,340,0,0]]
+            elif self.camera=="090":
+                aux=[[120,80,320,280,0,0]]
+            elif self.camera=="080":
+                aux=[[120,160,320,360,0,0]]
+            elif self.camera=="130":
+                aux=[[120,210,320,410,0,0]]
+            elif self.camera=="140":
+                aux=[[120,220,320,420,0,0]]
+            elif self.camera=="051":
+                aux=[[120,220,320,420,0,0]]
+            if self.camera=="050":
+                aux=[[120,230,320,430,0,0]]
+            elif self.camera=="041":
+                aux=[[140,250,320,450,0,0]]
+            elif self.camera=="190":
+                aux=[[110,290,310,490,0,0]]
+            elif self.camera=="200":
+                aux=[[120,290,320,490,0,0]]
+            elif self.camera=="010":
+                aux=[[120,320,320,520,0,0]]
+            elif self.camera=="240":
+                aux=[[140,320,340,520,0,0]]
+        else:
+            fp=util.loadmat(self.selines[i])["pts"]
+            minx=fp[:,0].min()
+            maxx=fp[:,0].max()
+            miny=fp[:,1].min()
+            maxy=fp[:,1].max()
+            dx=maxx-minx
+            dy=maxy-miny
+            pp=0.05
+            aux=[[miny-pp*dy,minx-pp*dx,maxy+pp*dy,maxx+pp*dx,0,0]]
+        return aux
+
+    def getPose(self,i):
+        if self.camera=="110":
+            pose=-90
+        elif self.camera=="120":
+            pose=-75
+        elif self.camera=="090":
+            pose=-60
+        elif self.camera=="080":
+            pose=-45
+        elif self.camera=="130":
+            pose=-30
+        elif self.camera=="140":
+            pose=-15
+        elif self.camera=="051":
+            pose=0
+        if self.camera=="050":
+            pose=15
+        elif self.camera=="041":
+            pose=30
+        elif self.camera=="190":
+            pose=45
+        elif self.camera=="200":
+            pose=-60
+        elif self.camera=="010":
+            pose=75
+        elif self.camera=="240":
             pose=90
         return pose
 

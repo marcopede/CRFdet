@@ -442,7 +442,7 @@ def VOCprRecord(gtImages,detlist,show=False,ovr=0.5,pixels=None):
     return tp,fp,thr,tot
 
 #det should have imid and facial
-def VOCprFacial(gtImages,det,show=False,ovr=0.5,pixels=None,mina=150,thr=0.05):
+def VOCprFacial(gtImages,det,show=False,ovr=0.5,pixels=None,mina=150,thr=0.05,delta=None):
     """
         calculate the precision recall curve
     """
@@ -451,14 +451,15 @@ def VOCprFacial(gtImages,det,show=False,ovr=0.5,pixels=None,mina=150,thr=0.05):
     for idx,dd in enumerate(det):
         if dd.has_key("facial"):
             facial=dd["facial"][:]
+            mixid=dd["id"]
             #if idx>288:
             #    print idx,rect
             if facial!=[]:
                 #print gtImages.getImageName(idx).split("/")[-1].split(".")[0]
                 if ddet.has_key(dd["idim"]):
-                    ddet[dd["idim"]].append(facial)
+                    ddet[dd["idim"]].append((facial,mixid))
                 else:
-                    ddet[dd["idim"]]=[facial]
+                    ddet[dd["idim"]]=[(facial,mixid)]
                 for i, faciali in enumerate(facial):
                     #py1,px1,py2,px2,no,no=gtImages[idx]["bbox"][i]
                     #if (py2-py1)*(px2-px1)>mina
@@ -467,6 +468,8 @@ def VOCprFacial(gtImages,det,show=False,ovr=0.5,pixels=None,mina=150,thr=0.05):
     ldist=[]
     lmaxdist=[]
     ldelta=[]
+    for l in range(8):
+        ldelta.append([])
     for face in gtImages:#for each images
         fpgt=face["facial"]
         for idfp,fp in enumerate(fpgt):#for each face in image
@@ -474,13 +477,21 @@ def VOCprFacial(gtImages,det,show=False,ovr=0.5,pixels=None,mina=150,thr=0.05):
             if float(py2-py1)>=mina+4:
                 if ddet.has_key(face["name"].split("/")[-1]):
                     ddim=ddet[face["name"].split("/")[-1]]
+                    #mixid=ddet[face["name"].split("/")[-1]][1]
                     mindist=10000
-                    for iddd,dd in enumerate(ddim):#for each detection in the same image    
-                        dist=numpy.sqrt((fp[:,1]-dd[::2])**2+(fp[:,0]-dd[1::2])**2)
-                        dist=dist[numpy.isfinite(dist)]
+                    for iddd,ddd in enumerate(ddim):#for each detection in the same image    
+                        dd=ddd[0]
+                        mixid=ddd[1]
+                        if delta==None or len(delta[mixid])==0 or numpy.all(not(numpy.isfinite(delta))):
+                            dist=numpy.sqrt((fp[:,1]-dd[::2])**2+(fp[:,0]-dd[1::2])**2)
+                            dy=fp[:,1]-dd[::2];dx=fp[:,0]-dd[1::2]
+                        else:
+                            dist=numpy.sqrt((fp[:,1]-dd[::2]-delta[mixid[iddd]][:delta.shape[0]/2])**2+(fp[:,0]-dd[1::2]-delta[mixid[iddd]][delta.shape[0]/2:])**2)
+                            dy=fp[:,1]-dd[::2]-delta[mixid[iddd]][:delta[mixid[iddd]].shape[0]/2];dx=fp[:,0]-dd[1::2]-delta[mixid[iddd]][delta[mixid[iddd]].shape[0]/2:]
+                        #dist=dist[numpy.isfinite(dist)]
+                        dist[numpy.isinf(dist)]=0
                         #print sum(dist),fp[:,1],fp[:,0]
                         #raw_input()
-                        dy=fp[:,1]-dd[::2];dx=fp[:,0]-dd[1::2]
                         #print dy,dx
                         #raw_input()
                         dist=dist/float(((py2-py1)+(px2-px1))/2)
@@ -490,18 +501,197 @@ def VOCprFacial(gtImages,det,show=False,ovr=0.5,pixels=None,mina=150,thr=0.05):
                             bestid=iddd
                             bestdy=dy
                             bestdx=dx
+                            bestid=mixid
                     ldist.append(fulldist)       
                     lmaxdist.append(numpy.mean(fulldist))
-                    ldelta.append(numpy.concatenate((bestdy,bestdx)))
+                    ldelta[bestid].append(numpy.concatenate((bestdy,bestdx)))
                 else:
                     ldist.append([numpy.inf,numpy.inf,numpy.inf,numpy.inf,numpy.inf,numpy.inf])
                     lmaxdist.append(numpy.inf)
     #numpy.where(numpy.array(lf).sum(1)!=numpy.inf)[0]
     lmaxdist.sort()
-    ald=numpy.array(ldelta)
-    ald=ald[numpy.isfinite(numpy.sum(ald,1)),:]#.mean(0)
+    ald=[]
+    if 0:
+        for l in range(8):
+            ald.append(numpy.array(ldelta[l]))
+            ald[-1]=ald[-1][numpy.isfinite(numpy.sum(ald[-1],1)),:]#.mean(0)
+            if len(ald[-1])>0:
+                sald=numpy.argsort(ald[-1].sum(1))
+                ald[-1]=ald[-1][sald[:len(ald[-1])/2]].mean(0)
 
     return ald,ldist,lmaxdist,numpy.sum(numpy.array(lmaxdist)<thr)/float(len(lmaxdist))
+
+#det should have imid and facial
+def VOCprFacial2(gtImages,det,show=False,ovr=0.5,pixels=None,mina=150,thr=0.05,delta=None,costoccl=numpy.inf):
+    """
+        calculate the precision recall curve
+    """
+    ddet={}
+    tot=0
+    for idx,dd in enumerate(det):
+        if dd.has_key("facial"):
+            facial=dd["facial"][:]
+            mixid=dd["id"]
+            #if idx>288:
+            #    print idx,rect
+            if facial!=[]:
+                #print gtImages.getImageName(idx).split("/")[-1].split(".")[0]
+                if ddet.has_key(dd["idim"]):
+                    ddet[dd["idim"]].append((facial,mixid))
+                else:
+                    ddet[dd["idim"]]=[(facial,mixid)]
+                for i, faciali in enumerate(facial):
+                    #py1,px1,py2,px2,no,no=gtImages[idx]["bbox"][i]
+                    #if (py2-py1)*(px2-px1)>mina
+                    tot=tot+1
+        
+    ldist=[]
+    lmaxdist=[]
+    ldelta=[]
+    for l in range(8):
+        ldelta.append([])
+    for face in gtImages:#for each images
+        fpgt=face["facial"]
+        for idfp,fp in enumerate(fpgt):#for each face in image
+            py1,px1,py2,px2,no,no=face["bbox"][idfp]
+            mindist=numpy.inf
+            fulldist=numpy.inf
+            if float(py2-py1)>=mina+4:
+                #print face["name"].split("/")[-1]
+                if ddet.has_key(face["name"].split("/")[-1]):
+                    ddim=ddet[face["name"].split("/")[-1]]
+                    #mixid=ddet[face["name"].split("/")[-1]][1]
+                    mindist=numpy.inf
+                    for iddd,ddd in enumerate(ddim):#for each detection in the same image    
+                        dd=ddd[0]
+                        mixid=ddd[1]
+                        if numpy.any(fp-dd.reshape(fp.shape)==numpy.nan) and costocc==numpy.inf:
+                            dist=[numpy.inf]*6
+                        else:
+                            #if delta==None or len(delta[mixid])==0 or numpy.all(not(numpy.isfinite(delta))):
+                            dist=numpy.sqrt((fp[:,1]-dd[::2])**2+(fp[:,0]-dd[1::2])**2)
+                            dy=fp[:,1]-dd[::2];dx=fp[:,0]-dd[1::2]
+                            #dist=dist[numpy.isfinite(dist)]
+                            #print dist
+                            dist[numpy.isnan(dist)]=costoccl#numpy.inf
+                            #raw_input()
+                            #print sum(dist),fp[:,1],fp[:,0]
+                            #raw_input()
+                            #print dy,dx
+                            #raw_input()
+                            dist=dist/float(((py2-py1)+(px2-px1))/2)
+                            #print numpy.mean(dist)
+                        if numpy.sum(dist)<mindist:
+                            mindist=numpy.sum(dist)
+                            fulldist=dist
+                            bestid=iddd
+                            bestdy=dy
+                            bestdx=dx
+                            bestid=mixid
+                    ldist.append(fulldist)       
+                    lmaxdist.append(numpy.mean(fulldist))
+                    ldelta[bestid].append(numpy.concatenate((bestdy,bestdx)))
+                else:
+                    ldist.append([numpy.inf,numpy.inf,numpy.inf,numpy.inf,numpy.inf,numpy.inf])
+                    lmaxdist.append(numpy.inf)
+                #print "best",lmaxdist[-1]
+                #raw_input()
+    #numpy.where(numpy.array(lf).sum(1)!=numpy.inf)[0]
+    lmaxdist.sort()
+    ald=[]
+    if 0:
+        for l in range(8):
+            ald.append(numpy.array(ldelta[l]))
+            ald[-1]=ald[-1][numpy.isfinite(numpy.sum(ald[-1],1)),:]#.mean(0)
+            if len(ald[-1])>0:
+                sald=numpy.argsort(ald[-1].sum(1))
+                ald[-1]=ald[-1][sald[:len(ald[-1])/2]].mean(0)
+
+    return ald,ldist,lmaxdist,numpy.sum(numpy.array(lmaxdist)<thr)/float(len(lmaxdist))
+
+
+
+def VOCprFacialPlot(tsImages,det,part=None,mina=150,costoccl=numpy.inf):
+    res=50
+    x=numpy.linspace(0.0,0.15,res)
+    dd=numpy.zeros(res)
+    for idt,t in enumerate(x):
+        aa,bb,cc,dd[idt]=VOCprFacial2(tsImages,det,thr=t,mina=mina,costoccl=costoccl)
+        if part!=None:
+            dd[idt]=numpy.sum(numpy.array(bb)[:,part]<t)/float(len(bb))
+    #pylab.figure()
+    pylab.xlabel("Average Localization Error as fraction of face size")
+    pylab.ylabel("Fraction of testing faces")
+    pylab.plot(x,dd,"-",lw=3)
+    return x,dd
+
+def VOCprProject(tsImages,det,models,N,E,part=None,show=False,fig=100):
+    numcl=len(models)/2
+    color=["r","g","b","w","y","m"]
+    color2=["g","r","b","m","y","w"]
+    ppts=[]
+    for idl,l in enumerate(models[:numcl]):
+        pylab.figure(fig+idl)
+        import drawHOG
+        import model
+        im = drawHOG.drawHOG(model.convert2(l["ww"][0],N,E))
+        pylab.clf()
+        pylab.imshow(im)
+        ppts.append([])#for each mmodel
+    #dictionary of detections
+    ddet={}
+    for idx,dd in enumerate(det):
+        if ddet.has_key(dd["idim"]):
+            ddet[dd["idim"]].append(dd)
+        else:
+            ddet[dd["idim"]]=[dd]
+
+    import extra
+    reload(extra)
+    for im in tsImages:
+        gtann={"bbox":im["bbox"],"facial":im["facial"]}
+        imn=im["name"].split("/")[-1]
+        if ddet.has_key(imn):
+            fpts,ids=extra.project(ddet[imn],gtann,N)
+            for idl,l in enumerate(ids):
+                pylab.figure(fig+l%numcl)
+                if l>=numcl:
+                    #continue
+                    inv=[1,0,2,5,4,3]
+                    #inv=[2,3, 0,1, 4,5, 10,11, 8,9, 6,7]
+                    fpts[idl][:,1]=models[l%numcl]["ww"][0].shape[1]*(N/float(N+2*E))-fpts[idl][:,1]
+                    fpts[idl]=fpts[idl][inv]
+                #pylab.plot(fpts[idl][:,1]*15,fpts[idl][:,0]*15,"+",markersize=5)  
+                ppts[l%numcl].append(fpts[idl])
+                if show:
+                    for p in range(len(fpts[idl])):
+                        if l%numcl==2:
+                            col=color2
+                        else:
+                            col=color
+                        pylab.plot(fpts[idl][p,1]*15,fpts[idl][p,0]*15,"o"+col[p],markersize=5)  
+    if show:
+        pylab.draw()
+        pylab.show()
+    stdfp=[]
+    means=[]
+    ff=float(N)/(N+2*E)
+    for idm,m in enumerate(ppts):
+        stdfp.append([])
+        means.append([])
+        m1=numpy.array(m)
+        print "Model",idm
+        fpname=["Eyel","Eyer","Nose","Lipl","Lipc","Lipr"]
+        for fp in range(m1.shape[1]):
+            sel=numpy.isfinite(m1[:,fp,0])
+            stdfp[-1].append(numpy.std(numpy.sqrt((m1[sel,fp,0]/models[idm]["ww"][0].shape[0]*ff*100)**2+(m1[sel,fp,1]/models[idm]["ww"][0].shape[1]*ff*100)**2)))
+            means[-1].append(numpy.mean((m1[sel,fp,:]),0))
+            print fpname[fp],"Std",stdfp[-1][-1],"Mean",means[-1][-1]
+        print "Average std",numpy.mean(stdfp[-1])
+    #print "Global Std,",numpy.mean(numpy.mean(numpy.array(stdfp)[numpy.isfinite(stdfp)],1),0)
+    print "Global Std",numpy.mean(numpy.array(stdfp)[numpy.isfinite(stdfp)])
+    return ppts,stdfp,means
+    #raw_input()
 
 
 def VOCprRecordthr(gtImages,detlist,show=False,ovr=0.5,pixels=None):

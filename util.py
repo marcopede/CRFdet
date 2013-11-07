@@ -29,6 +29,7 @@ def myimread_old(imgname,flip=False):
     return img
 
 def myimread(imgname,flip=False,resize=None):
+    #print "UTIL image",imgname
     img=None
     if imgname.split(".")[-1]=="png":
         img=pylab.imread(imgname)

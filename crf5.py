@@ -67,6 +67,7 @@ def crfgr3(numy,numx,cost,movy,movx,rdata,numhyp,lscr,res,aiter,restart,check=Tr
     #if restart>0 or numhyp>1:
     #    raise Exception("Option not allowed with fastDP")
     numpairs,pairs,unary,wcost=convert_alpha_fastDP(rdata,cost,numy,numx,movy,movx)
+    #numpairs,pairs,unary,wcost=convert_alpha_fastDP_sparse(rdata,cost,numy,numx,movy,movx)
     res2=numpy.zeros((2,numy,numx),dtype=c_int)
     dist=numpy.zeros((1,1,1),dtype=numpy.float32)#fake argument
     for h in range(numhyp):
@@ -153,6 +154,45 @@ def convert_alpha_fastDP(unary,cost,nodes_y,nodes_x,lab_y,lab_x):
     #        dist[l1,l2]=[abs(l1/lab_x-l2/lab_x),abs(l1%lab_x-l2%lab_x),
     #                     (l1/lab_x-l2/lab_x)**2,(l1%lab_x-l2%lab_x)**2 ]
     return pair.shape[0],pair,new_unary,wcost
+
+def convert_alpha_fastDP_sparse(unary,cost,nodes_y,nodes_x,lab_y,lab_x):
+    """convert input for fastDP"""
+    #transpose unary terms
+    new_unary=unary.T.copy()
+    #numhyp=10
+    num_lab=lab_x*lab_y
+    num_nodes=nodes_y*nodes_x
+    num_pairs=(nodes_y-1)*(nodes_x)+(nodes_y)*(nodes_x-1)
+    nodes=numpy.arange((nodes_y*nodes_x)).reshape((nodes_y,nodes_x))
+    #nodes=numpy.arange((nodes_y*nodes_x)).T.copy().reshape((nodes_y,nodes_x))
+    pair=numpy.zeros((num_pairs,2),dtype=numpy.int32)
+    wcost=numpy.zeros((num_pairs,4),dtype=numpy.float32)
+    cc=0
+    #vertical edges
+    for py in range(nodes_y-1):
+        for px in range(nodes_x):
+            if numpy.sum(wcost[cc])>0:
+                pair[cc]=[nodes[py,px],nodes[py+1,px]]
+                wcost[cc,:2]=cost[:2,py,px]
+                wcost[cc,2:4]=cost[4:6,py,px]
+                cc+=1
+    #print "Pair 0:",pair[0],"Cost",wcost[0]
+    #horizontal edges
+    for py in range(nodes_y):
+        for px in range(nodes_x-1):
+            if numpy.sum(wcost[cc])>0:
+                pair[cc]=[nodes[py,px],nodes[py,px+1]]
+                #wcost[cc]=cost[4:,py,px]
+                wcost[cc,:2]=cost[2:4,py,px]
+                wcost[cc,2:4]=cost[6:8,py,px]
+                cc+=1
+    #dist=numpy.zeros((num_lab,num_lab,4),dtype=numpy.float32)
+    #for l1 in range(num_lab):
+    #    for l2 in range(num_lab):
+    #        dist[l1,l2]=[abs(l1/lab_x-l2/lab_x),abs(l1%lab_x-l2%lab_x),
+    #                     (l1/lab_x-l2/lab_x)**2,(l1%lab_x-l2%lab_x)**2 ]
+    return pair.shape[0],pair,new_unary,wcost
+
 
 if __name__ == "__main__":
     numhyp=10

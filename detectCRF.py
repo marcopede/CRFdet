@@ -242,7 +242,7 @@ def hardNegPos(el):
     return ldet,lfeat,ledge
 
 
-def test(el,docluster=True,show=False,inclusion=False,onlybest=False):
+def test(el,docluster=True,show=False,inclusion=False,onlybest=False,ovr=0.5):
     t=time.time()
     minthr=-2
     models=el["models"]
@@ -275,7 +275,7 @@ def test(el,docluster=True,show=False,inclusion=False,onlybest=False):
         clip(det,img.shape)
     if docluster:
         #det=cluster(det,maxcl=100,inclusion=False)
-        det=cluster(det,maxcl=100,inclusion=inclusion,onlybest=onlybest)
+        det=cluster(det,maxcl=100,inclusion=inclusion,onlybest=onlybest,ovr=ovr)
     for idl,l in enumerate(det):
         det[idl]["idim"]=el["file"].split("/")[-1]
     if show:
@@ -438,16 +438,20 @@ def visualize(det,N,f,img,fig=300,text=""):
     pl.show()
     #raw_input()
 
-def visualize2(det,N,img,bb=[],text="",color=None,line=False):
+def visualize2(det,N,img,bb=[],text="",color=None,line=False,norec=True,nograph=False,lw=2,thr=-numpy.inf,alpha=0.5):
     """visualize a detection and the corresponding featues"""
     pl=pylab
     if color!=None:
         col=color
     else:
         col=['w','r','g','b','y','c','k','y','c','k']
+    #if norec:
+    subp=1
+    #else:
+    #subp=2
     pl.figure(300,figsize=(8,4))
     pl.clf()
-    pl.subplot(1,2,1)
+    pl.subplot(1,subp,1)
     pl.title(text)
     pl.imshow(img)
     im=img
@@ -467,6 +471,8 @@ def visualize2(det,N,img,bb=[],text="",color=None,line=False):
         scr=det[l]["scr"]
         numy=det[l]["def"].shape[1]#cfg.fy[idm]
         numx=det[l]["def"].shape[2]#cfg.fx[idm]
+        if scr<thr:
+            break
         sf=float(8*N/scl)
         #m2=f.hog[r]
         if l==0:
@@ -476,39 +482,42 @@ def visualize2(det,N,img,bb=[],text="",color=None,line=False):
            im2[sf*2*numy:sf*2*numy+im.shape[0],sf*2*numx:sf*2*numx+im.shape[1]]=im
            rcim=numpy.zeros((sf*numy+1,sf*numx+1,3),dtype=im.dtype)
         #dfeat,edge=crf3.getfeat_full(m2,pad,res)
-        pl.subplot(1,2,1)
-        for px in range(res.shape[2]):
-            for py in range(res.shape[1]):
-                impy=int((py)*sf+(res[0,py,px]+1)*sf/N)
-                impx=int((px)*sf+(res[1,py,px]+1)*sf/N)
-                if line:
-                    if py<res.shape[1]-1: #vertical
-                        impy2=int((py+1)*sf+(res[0,py+1,px]+1)*sf/N)
-                        impx2=int((px)*sf+(res[1,py+1,px]+1)*sf/N)
-                        dst=((impx-impx2)/sf)**2+((impy-impy2)/sf)**2
-                        #print dst
-                        pylab.plot([impx+sf/2.0,impx2+sf/2.0],[impy+sf/2.0,impy2+sf/2.0],col[cc%10]+'.-',markersize=10.0,lw=5/(float(dst)+1))
-                    if px<res.shape[2]-1: #horizontal
-                        impy2=int((py)*sf+(res[0,py,px+1]+1)*sf/N)
-                        impx2=int((px+1)*sf+(res[1,py,px+1]+1)*sf/N)
-                        dst=((impx-impx2)/sf)**2+((impy-impy2)/sf)**2
-                        pylab.plot([impx+sf/2.0,impx2+sf/2.0],[impy+sf/2.0,impy2+sf/2.0],col[cc%10]+'.-',markersize=10.0,lw=5/(float(dst)+1))
-                else:
-                    util.box(impy,impx,impy+int(sf),impx+int(sf), col=col[cc%10], lw=1.5)  
-                if det[l].has_key("bbox"):
-                    util.box(det[l]["bbox"][0],det[l]["bbox"][1],det[l]["bbox"][2],det[l]["bbox"][3],col=col[cc%10],lw=2)
-                if l==0:
-                    #if int(sf*numy)+impy>im2.shape[0] or int(sf*numx)+impx>im2.shape[1]:
-                    #    rcim[int(sf*py):int(sf*(py+1)),int(sf*px):int(sf*(px+1))]=0
-                    #else:
-                        rcim[int(sf*py):int(sf*py)+int(sf)+1,
-int(sf*px):int(sf*px)+int(sf)+1]=im2[int(2*sf*numy)+impy:int(2*sf*numy)+impy+int(sf)+1,int(2*sf*numx)+impx:int(2*sf*numx)+impx+int(sf)+1] 
+        pl.subplot(1,subp,1)
+        if det[l].has_key("bbox"):
+            util.box(det[l]["bbox"][0],det[l]["bbox"][1],det[l]["bbox"][2],det[l]["bbox"][3],lw=lw,col="b")#col[cc%10])
+        if not(nograph):
+            for px in range(res.shape[2]):
+                for py in range(res.shape[1]):
+                    impy=int((py)*sf+(res[0,py,px]+1)*sf/N)
+                    impx=int((px)*sf+(res[1,py,px]+1)*sf/N)
+                    if line:
+                        if py<res.shape[1]-1: #vertical
+                            impy2=int((py+1)*sf+(res[0,py+1,px]+1)*sf/N)
+                            impx2=int((px)*sf+(res[1,py+1,px]+1)*sf/N)
+                            dst=((impx-impx2)/sf)**2+((impy-impy2)/sf)**2
+                            #print dst
+                            pylab.plot([impx+sf/2.0,impx2+sf/2.0],[impy+sf/2.0,impy2+sf/2.0],col[cc%10]+'-',lw=5/(float(dst)+1),alpha=0.5)
+                        if px<res.shape[2]-1: #horizontal
+                            impy2=int((py)*sf+(res[0,py,px+1]+1)*sf/N)
+                            impx2=int((px+1)*sf+(res[1,py,px+1]+1)*sf/N)
+                            dst=((impx-impx2)/sf)**2+((impy-impy2)/sf)**2
+                            pylab.plot([impx+sf/2.0,impx2+sf/2.0],[impy+sf/2.0,impy2+sf/2.0],col[cc%10]+'-',lw=5/(float(dst)+1),alpha=0.5)
+                    else:
+                        util.box(impy,impx,impy+int(sf),impx+int(sf), col=col[cc%10], lw=1.5)  
+                    #if det[l].has_key("bbox"):
+                    #    util.box(det[l]["bbox"][0],det[l]["bbox"][1],det[l]["bbox"][2],det[l]["bbox"][3],lw=2,col="b")#col[cc%10])
+                    if l==0:
+                        #if int(sf*numy)+impy>im2.shape[0] or int(sf*numx)+impx>im2.shape[1]:
+                        #    rcim[int(sf*py):int(sf*(py+1)),int(sf*px):int(sf*(px+1))]=0
+                        #else:
+                            rcim[int(sf*py):int(sf*py)+int(sf)+1,
+    int(sf*px):int(sf*px)+int(sf)+1]=im2[int(2*sf*numy)+impy:int(2*sf*numy)+impy+int(sf)+1,int(2*sf*numx)+impx:int(2*sf*numx)+impx+int(sf)+1] 
         cc+=1
-        if l==0:
-            pl.subplot(1,2,2)
+        if l==0 and not(norec):
+            pl.subplot(1,subp,subp)
             pl.title("scr:%.3f id:%d"%(scr,idm))
             pl.imshow(rcim)    
-    pl.subplot(1,2,1)    
+    pl.subplot(1,subp,1)    
     #pl.axis("image")
     pl.axis([0,img.shape[1],img.shape[0],0])
     pl.draw()

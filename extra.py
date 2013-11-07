@@ -93,8 +93,12 @@ def locatePoints(det,N,points,sbin=8):
             ppx=float(points[pp*2+1])/N
             scl=det[l]["scl"]
             sf=float(sbin*N/scl)
-            impy=int((ppy)*sf+(res[0,py,px]+1)*sf/N)
-            impx=int((ppx)*sf+(res[1,py,px]+1)*sf/N)
+            if numpy.isnan(py) or numpy.isnan(px):
+                impy=numpy.nan
+                impx=numpy.nan
+            else:
+                impy=int((ppy)*sf+(res[0,py,px]+1)*sf/N)
+                impx=int((ppx)*sf+(res[1,py,px]+1)*sf/N)
             fp[-1]+=[impy,impx]
     return fp
 
@@ -109,6 +113,9 @@ def locatePointsInter(det,N,points):
             px=float(points[pp*2+1])/N
             #ppy=float(py)
             #ppx=float(px)
+            if numpy.isnan(points[pp*2]) or numpy.isnan(points[pp*2+1]):
+                fp[-1]+=[numpy.nan,numpy.nan]
+                continue
             ipy=int(float(points[pp*2])/N-N/2)#this is wrong, should be 0.5 and not N/2
             ipx=int(float(points[pp*2+1])/N-N/2)
             dy=float((points[pp*2]-N/2)%N)/N
@@ -133,7 +140,76 @@ def locatePointsInter(det,N,points):
     return fp
 
 
+import util
+def project(det,gtann,N,throvr=0.5):
+    """visualize a detection and the corresponding featues"""
+    pl=pylab
+    #N is the size of a part in HOG
+    #M is the number of Mixtures
+    #compute facial points localization
+    pts=[];pid=[]
+    idxgt=numpy.ones((len(gtann["bbox"])))
+    for iddd,dd in enumerate(det):
+        ovr=[]
+        #find the most overlapping gtfp
+        for idgt,gt in enumerate(gtann["bbox"]):
+            if idxgt[idgt]:
+                ovr.append(util.overlap(dd["bbox"],gt))
+            else:
+                ovr.append(0)
+        bestgt=numpy.argmax(ovr)
+        #print "DET",iddd,"OVR",ovr, "Best",bestgt,"len pts",len(pts)
+        #raw_input()
+        #print "len",len(pts[0])
+        if ovr[bestgt]>throvr:#valid detection
+            idxgt[bestgt]=0
+            selgt=gtann["facial"][bestgt].reshape((-1,2))[:,::-1]
+            res=dd["def"]
+            scr=dd["scr"]
+            scl=dd["scl"]
+            idm=dd["id"]
+            sf=float(8*N/scl)
+            numy=res.shape[1]
+            numx=res.shape[2]
+            dist=numpy.zeros((numy,numx,len(selgt)))
+            parts=numpy.zeros((numy,numx,2))
+            for px in range(numx):
+                for py in range(numy):
+                    parts[py,px,0]=int((py)*sf+(res[0,py,px]+1)*sf/N)#+sf/2
+                    parts[py,px,1]=int((px)*sf+(res[1,py,px]+1)*sf/N)#+sf/2    
+            bestp=numpy.zeros((len(selgt),2))
+            for idfp,fp in enumerate(selgt): #prject the points into the model
+                #find the four closes parts
+                for px in range(numx):
+                    for py in range(numy):
+                        dist[py,px,idfp]=numpy.sqrt(numpy.sum((parts[py,px,:]-fp)**2))
+                bestp[idfp]=numpy.unravel_index(dist[:,:,idfp].argmin(),dist.shape[:-1])
+            #take the 4 closes parts
+            pts.append(numpy.zeros((len(selgt),2)))
+            pid.append(idm)
+            for idp,p in enumerate(bestp):
+                py=bestp[idp,0]
+                px=bestp[idp,1]
+                delta=-(parts[py,px]-selgt[idp])/float(sf)
+                if delta[0]<0:         
+                    py=max(py-1,0)
+                    #delta[0]=delta[0]+1
+                if delta[1]<0:
+                    px=max(px-1,0)
+                    #delta[1]=delta[1]+1
+                delta0=-(parts[py,px]-selgt[idp])/float(sf)
+                delta1=-(parts[py,min(px+1,numx-1)]-selgt[idp])/float(sf)
+                delta2=-(parts[min(py+1,numy-1),px]-selgt[idp])/float(sf)
+                delta3=-(parts[min(py+1,numy-1),min(px+1,numx-1)]-selgt[idp])/float(sf)
+                p0=numpy.array((py,px))+delta0
+                p1=numpy.array((py,min(px+1,numx-1)))+delta1
+                p2=numpy.array((min(py+1,numy-1),px))+delta2
+                p3=numpy.array((min(py+1,numy-1),min(px+1,numx-1)))+delta3
+                pts[-1][idp]=(p0+p1+p2+p3)/4.0*N
+                #raw_input()
+    return pts,pid
 
+               
 import pylab
 
 def showDef(cost):
