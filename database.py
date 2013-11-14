@@ -561,7 +561,7 @@ class VOC06Data(imageData):
     def getTotal(self):
         return len(self.selines)
     
-import Image as im
+#import Image as im
 
 #VOCbase="/share/pascal2007/"
 
